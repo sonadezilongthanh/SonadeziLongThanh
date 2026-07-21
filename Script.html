@@ -1,0 +1,1070 @@
+<script>
+/***********************************************************************
+ * TRẠNG THÁI TOÀN CỤC — DÙNG CHUNG CHO CẢ 2 TAB
+ ***********************************************************************/
+let DU_LIEU     = { nhaXuong: [], cum: [], trangThai: [] };
+let NGUOI_DUNG  = { duocSua: false, laQuanTri: false };
+let MAU_TRANG_THAI = {};   // { "Trống": "#22c55e", ... }
+let KET_QUA_LOC = [];
+let MA_DANG_MO  = null;
+
+const MAU_MAC_DINH = '#94a3b8';
+
+/* ★ V3.2 — Phiên truy cập (không chứa mật khẩu, chỉ chứa token băm)
+ *   vaiTro: 'QuanTri' (sửa + xem tất cả) | 'ChiXem' (xem tất cả) | 'Khach' */
+let PHIEN_SUA = { token: '', hoTen: '', vaiTro: '' };
+
+/* ★ V3.2 — chống gắn sự kiện / nạp bộ lọc trùng khi tải lại dữ liệu */
+let DA_GAN_GIAO_DIEN = false;
+
+/** Quyền sửa hiệu lực = server xác nhận HOẶC đang giữ token quản trị */
+function duocPhepSua() {
+  return !!(NGUOI_DUNG.duocSua
+        || (PHIEN_SUA.vaiTro === 'QuanTri' && PHIEN_SUA.token));
+}
+
+
+/***********************************************************************
+ * ★ V3.2 — KHỞI ĐỘNG: MÀN HÌNH ĐĂNG NHẬP TRƯỚC, TẢI DỮ LIỆU SAU
+ ***********************************************************************/
+window.addEventListener('load', function () {
+  khoiPhucPhienSua();
+  taoHopThoaiMaKhoa();
+  taoManHinhDangNhap();
+
+  if (PHIEN_SUA.vaiTro) {
+    // Đã có phiên trong tab này (kể cả chế độ khách) → vào thẳng
+    taiDuLieu();
+  } else {
+    hienManHinhDangNhap();
+  }
+});
+
+/** Gọi server tải dữ liệu — server tự lọc thông tin nội bộ nếu là khách */
+function taiDuLieu() {
+  anManHinhDangNhap();
+
+  const mt = document.getElementById('manHinhTai');
+  if (mt) mt.classList.remove('an');
+  const ud = document.getElementById('ungDung');
+  if (ud) ud.classList.add('an');
+
+  google.script.run
+    .withSuccessHandler(khoiTaoApp)
+    .withFailureHandler(function (loi) {
+      document.getElementById('manHinhTai').innerHTML =
+        '<p style="color:#b91c1c">Lỗi tải dữ liệu: ' + loi.message + '</p>';
+    })
+    .layDuLieuTongHop({ token: PHIEN_SUA.token, hoTen: PHIEN_SUA.hoTen });
+}
+
+function khoiTaoApp(dl) {
+  DU_LIEU    = dl;
+  NGUOI_DUNG = dl.nguoiDung || { duocSua: false, laQuanTri: false };
+
+  // ★ V3.2 — đồng bộ vai trò do SERVER xác nhận.
+  // Nếu token hết hiệu lực (đổi mật khẩu), server hạ về 'Khach'.
+  if (NGUOI_DUNG.vaiTro && NGUOI_DUNG.vaiTro !== PHIEN_SUA.vaiTro) {
+    PHIEN_SUA.vaiTro = NGUOI_DUNG.vaiTro;
+    if (NGUOI_DUNG.vaiTro === 'Khach') PHIEN_SUA.token = '';
+    luuPhienSua();
+  }
+
+  // Bảng màu trạng thái (xây lại từ đầu để tải lại không bị trùng)
+  MAU_TRANG_THAI = {};
+  (DU_LIEU.trangThai || []).forEach(function (t) {
+    MAU_TRANG_THAI[String(t.TenTrangThai).trim()] = t.MauSac || MAU_MAC_DINH;
+  });
+
+  capNhatChipVaiTro();
+
+  // ★ V3.2 — chỉ nạp bộ lọc + gắn sự kiện 1 lần duy nhất
+  if (!DA_GAN_GIAO_DIEN) {
+    napBoLoc();
+    ganSuKien();
+    DA_GAN_GIAO_DIEN = true;
+  }
+  apDungBoLoc();
+
+  document.getElementById('manHinhTai').classList.add('an');
+  document.getElementById('ungDung').classList.remove('an');
+}
+
+/** ★ V3.2 — Cập nhật tên + chip vai trò trên header (nhấn chip để đăng xuất) */
+function capNhatChipVaiTro() {
+  const elTen = document.getElementById('tenNguoiDung');
+  if (elTen) {
+    elTen.textContent = PHIEN_SUA.hoTen || NGUOI_DUNG.hoTen || 'Khách';
+  }
+
+  let nhan;
+  switch (PHIEN_SUA.vaiTro || NGUOI_DUNG.vaiTro) {
+    case 'QuanTri': nhan = '🔓 Quản trị';      break;
+    case 'ChiXem':  nhan = '👁 Xem nội bộ';    break;
+    default:        nhan = 'Chế độ khách';
+  }
+
+  const el = document.getElementById('nhanVaiTro');
+  if (el) {
+    el.textContent = nhan;
+    el.title = 'Nhấn để đăng xuất / đổi chế độ truy cập';
+    el.style.cursor = 'pointer';
+    el.onclick = dangXuat;
+  }
+}
+
+
+/***********************************************************************
+ * ★ V3.2 — MÀN HÌNH ĐĂNG NHẬP (tạo bằng JS, không cần sửa Index.html)
+ *  ★ HƯỚNG C: ô "Họ tên" là danh sách chọn (dropdown) lấy từ server,
+ *    chạy đồng nhất trên mọi trình duyệt kể cả Safari/iPad (không phụ
+ *    thuộc localStorage trong iframe GAS).
+ ***********************************************************************/
+function taoManHinhDangNhap() {
+  if (document.getElementById('manHinhDangNhap')) return;
+
+  document.body.insertAdjacentHTML('beforeend',
+      '<style>'
+    + '#manHinhDangNhap{position:fixed;inset:0;z-index:10000;'
+    +   'background:linear-gradient(135deg,#0B4696 0%,#062c5e 100%);'
+    +   'display:flex;align-items:center;justify-content:center;padding:16px}'
+    + '#manHinhDangNhap.an{display:none}'
+    + '.dn-hop{background:#fff;border-radius:16px;padding:30px 26px;width:100%;'
+    +   'max-width:380px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.35)}'
+    + '.dn-logo{width:72px;height:72px;object-fit:contain;margin-bottom:10px}'
+    + '.dn-hop h2{color:#0B4696;margin:0 0 4px;font-size:20px;letter-spacing:.5px}'
+    + '.dn-mota{color:#66738a;font-size:13px;margin:0 0 18px}'
+    + '.dn-nhan{display:block;text-align:left;font-size:12.5px;font-weight:600;'
+    +   'color:#334;margin:10px 0 4px}'
+    + '.dn-o{width:100%;box-sizing:border-box;padding:11px 13px;'
+    +   'border:1.5px solid #d5dbe5;border-radius:10px;font-size:15px}'
+    + '.dn-o:focus{outline:none;border-color:#0B4696}'
+    + 'select.dn-o{background:#fff;height:44px;color:#222}'
+    + '#dnThongBao{color:#c0392b;font-size:13px;min-height:18px;margin:8px 0 2px}'
+    + '.dn-nut-chinh{width:100%;padding:12px;border:none;border-radius:10px;'
+    +   'background:#0B4696;color:#fff;font-size:15px;font-weight:600;'
+    +   'cursor:pointer;margin-top:6px}'
+    + '.dn-nut-chinh:disabled{opacity:.6;cursor:wait}'
+    + '.dn-hoac{display:flex;align-items:center;gap:10px;margin:14px 0;'
+    +   'color:#99a;font-size:12px}'
+    + '.dn-hoac::before,.dn-hoac::after{content:"";flex:1;height:1px;background:#e2e6ee}'
+    + '.dn-nut-khach{width:100%;padding:11px;border:1.5px solid #0B4696;'
+    +   'border-radius:10px;background:#fff;color:#0B4696;font-size:14px;'
+    +   'font-weight:600;cursor:pointer}'
+    + '.dn-ghichu{font-size:11.5px;color:#8b96a8;margin:12px 0 0}'
+    + '</style>'
+    + '<div id="manHinhDangNhap" class="an">'
+    +   '<div class="dn-hop">'
+    +     '<img class="dn-logo" alt="Sonadezi Long Thành" '
+    +       'src="https://drive.google.com/thumbnail?id=1LY4a06X3731WVwceDNHNlPmDZXIRTi9d&sz=w120">'
+    +     '<h2>KCN LONG THÀNH</h2>'
+    +     '<p class="dn-mota">Hệ thống tra cứu nhà xưởng &amp; đất cho thuê</p>'
+    +     '<label class="dn-nhan" for="dnHoTen">Họ tên người sử dụng</label>'
+    +     '<select id="dnHoTen" class="dn-o" onchange="doiOTen()">'
+    +       '<option value="">— Đang tải danh sách… —</option>'
+    +     '</select>'
+    +     '<input type="text" id="dnHoTenKhac" class="dn-o" '
+    +       'style="display:none;margin-top:8px" '
+    +       'placeholder="Nhập họ tên của bạn" autocomplete="name">'
+    +     '<label class="dn-nhan" for="dnMatKhau">Mật khẩu</label>'
+    +     '<input type="password" id="dnMatKhau" class="dn-o" placeholder="Nhập mật khẩu được cấp" '
+    +       'autocomplete="current-password" '
+    +       'onkeydown="if(event.key===\'Enter\') guiDangNhap()">'
+    +     '<div id="dnThongBao"></div>'
+    +     '<button class="dn-nut-chinh" id="dnNutDangNhap" onclick="guiDangNhap()">Đăng nhập</button>'
+    +     '<div class="dn-hoac"><span>hoặc</span></div>'
+    +     '<button class="dn-nut-khach" onclick="vaoCheDoKhach()">👁 Xem ở chế độ khách</button>'
+    +     '<p class="dn-ghichu">Chế độ khách: tra cứu và xem bản đồ, '
+    +       'không hiển thị thông tin nội bộ.</p>'
+    +   '</div>'
+    + '</div>');
+
+  napDanhSachTen();
+}
+
+/** ★ HƯỚNG C — Đổ danh sách họ tên từ server vào ô chọn.
+ *  Ổn định trên Safari/iPad vì không phụ thuộc localStorage. */
+function napDanhSachTen() {
+  const sel = document.getElementById('dnHoTen');
+  if (!sel) return;
+
+  google.script.run
+    .withSuccessHandler(function (ds) {
+      let html = '<option value="">— Chọn họ tên —</option>';
+      (ds || []).forEach(function (t) {
+        html += '<option value="' + String(t).replace(/"/g, '&quot;') + '">' + t + '</option>';
+      });
+      html += '<option value="__khac__">➕ Tên khác (tự nhập)…</option>';
+      sel.innerHTML = html;
+
+      // Gợi ý lại tên đã dùng lần trước (nếu trình duyệt còn giữ — desktop)
+      let tenCu = '';
+      try { tenCu = localStorage.getItem('SZL_TEN_DANG_NHAP') || ''; } catch (e) {}
+      if (tenCu) {
+        const co = Array.prototype.some.call(sel.options, function (o) {
+          return o.value === tenCu;
+        });
+        if (co) sel.value = tenCu;
+      }
+      doiOTen();
+    })
+    .withFailureHandler(function () {
+      // Không lấy được danh sách → cho tự nhập để không chặn đăng nhập
+      sel.innerHTML = '<option value="__khac__" selected>➕ Tự nhập họ tên…</option>';
+      doiOTen();
+    })
+    .layDanhSachTenNguoiDung();
+}
+
+/** Hiện ô tự nhập khi chọn "Tên khác" */
+function doiOTen() {
+  const sel = document.getElementById('dnHoTen');
+  const oKhac = document.getElementById('dnHoTenKhac');
+  if (!sel || !oKhac) return;
+  const laKhac = (sel.value === '__khac__');
+  oKhac.style.display = laKhac ? 'block' : 'none';
+  if (laKhac) setTimeout(function () { oKhac.focus(); }, 30);
+}
+
+/** Lấy họ tên hiệu lực từ ô chọn hoặc ô tự nhập */
+function layHoTenDangNhap() {
+  const sel = document.getElementById('dnHoTen');
+  if (!sel) return '';
+  if (sel.value === '__khac__') {
+    const oKhac = document.getElementById('dnHoTenKhac');
+    return oKhac ? oKhac.value.trim() : '';
+  }
+  return sel.value.trim();
+}
+
+function hienManHinhDangNhap() {
+  const mt = document.getElementById('manHinhTai');
+  if (mt) mt.classList.add('an');
+
+  const tb = document.getElementById('dnThongBao');
+  if (tb) tb.textContent = '';
+  const mk = document.getElementById('dnMatKhau');
+  if (mk) mk.value = '';
+
+  document.getElementById('manHinhDangNhap').classList.remove('an');
+  setTimeout(function () {
+    const sel = document.getElementById('dnHoTen');
+    const mkO = document.getElementById('dnMatKhau');
+    if (sel && sel.value && sel.value !== '__khac__') {
+      if (mkO) mkO.focus();      // đã có tên chọn sẵn → sang ô mật khẩu
+    } else if (sel) {
+      sel.focus();
+    }
+  }, 120);
+}
+
+function anManHinhDangNhap() {
+  const el = document.getElementById('manHinhDangNhap');
+  if (el) el.classList.add('an');
+}
+
+function guiDangNhap() {
+  const hoTen = layHoTenDangNhap();
+  const mk    = document.getElementById('dnMatKhau').value;
+  const tb    = document.getElementById('dnThongBao');
+  const nut   = document.getElementById('dnNutDangNhap');
+
+  if (hoTen.length < 3) { tb.textContent = '✕ Vui lòng chọn hoặc nhập họ tên (tối thiểu 3 ký tự).'; return; }
+  if (!mk)              { tb.textContent = '✕ Vui lòng nhập mật khẩu.'; return; }
+
+  nut.disabled = true;
+  nut.textContent = 'Đang kiểm tra…';
+  tb.textContent = '';
+
+  google.script.run
+    .withSuccessHandler(function (kq) {
+      nut.disabled = false;
+      nut.textContent = 'Đăng nhập';
+
+      // Ghi nhớ họ tên đã dùng: desktop giữ được; Safari/iPad bỏ qua cũng
+      // không sao, vì danh sách tên đã tự tải lại từ server ở lần sau.
+      try { localStorage.setItem('SZL_TEN_DANG_NHAP', hoTen); } catch (e) {}
+
+      PHIEN_SUA = { token: kq.token, hoTen: kq.hoTen, vaiTro: kq.vaiTro };
+      luuPhienSua();
+      taiDuLieu();
+    })
+    .withFailureHandler(function (loi) {
+      nut.disabled = false;
+      nut.textContent = 'Đăng nhập';
+      tb.textContent = '✕ ' + loi.message;
+    })
+    .dangNhapWeb(mk, hoTen);
+}
+
+/** Vào ứng dụng ở chế độ khách — server sẽ lọc bỏ thông tin nội bộ */
+function vaoCheDoKhach() {
+  PHIEN_SUA = { token: '', hoTen: 'Khách', vaiTro: 'Khach' };
+  luuPhienSua();
+  taiDuLieu();
+}
+
+/** Đăng xuất / đổi chế độ truy cập — quay về màn hình đăng nhập */
+function dangXuat() {
+  if (!confirm('Đăng xuất và quay về màn hình đăng nhập?')) return;
+
+  PHIEN_SUA = { token: '', hoTen: '', vaiTro: '' };
+  try { sessionStorage.removeItem('SZL_PHIEN_SUA'); } catch (e) {}
+
+  dongPanel();
+  const ud = document.getElementById('ungDung');
+  if (ud) ud.classList.add('an');
+  hienManHinhDangNhap();
+}
+
+
+/***********************************************************************
+ * ★ QUẢN LÝ PHIÊN TRONG TAB TRÌNH DUYỆT (sessionStorage)
+ ***********************************************************************/
+
+/** Khôi phục phiên trong cùng tab trình duyệt (nếu có) */
+function khoiPhucPhienSua() {
+  try {
+    const s = sessionStorage.getItem('SZL_PHIEN_SUA');
+    if (s) {
+      PHIEN_SUA = JSON.parse(s);
+      // Tương thích phiên cũ V3.0/3.1 (chỉ có token + hoTen)
+      if (PHIEN_SUA.token && !PHIEN_SUA.vaiTro) PHIEN_SUA.vaiTro = 'QuanTri';
+      PHIEN_SUA.token  = PHIEN_SUA.token  || '';
+      PHIEN_SUA.hoTen  = PHIEN_SUA.hoTen  || '';
+      PHIEN_SUA.vaiTro = PHIEN_SUA.vaiTro || '';
+    }
+  } catch (e) { /* trình duyệt chặn sessionStorage — bỏ qua */ }
+}
+
+function luuPhienSua() {
+  try {
+    sessionStorage.setItem('SZL_PHIEN_SUA', JSON.stringify(PHIEN_SUA));
+  } catch (e) { /* bỏ qua */ }
+}
+
+
+/***********************************************************************
+ * ★ V3.0 — MỞ QUYỀN CHỈNH SỬA BẰNG MÃ KHOÁ NỘI BỘ (giữa phiên)
+ *  V3.2: sau khi mở khoá thành công sẽ TẢI LẠI DỮ LIỆU để nhận
+ *  bản đầy đủ từ server (quan trọng khi đang ở chế độ khách).
+ ***********************************************************************/
+
+/** Tạo hộp thoại nhập mã khoá bằng JS (không phải sửa Index.html) */
+function taoHopThoaiMaKhoa() {
+  if (document.getElementById('hopThoaiMaKhoa')) return;
+
+  document.body.insertAdjacentHTML('beforeend',
+      '<div class="modal-ma-khoa an" id="hopThoaiMaKhoa" '
+    +      'onclick="if(event.target===this) dongHopThoaiMaKhoa()">'
+    +   '<div class="hop-ma-khoa">'
+    +     '<div class="dau-ma-khoa">'
+    +       '<h3>🔐 Mở quyền chỉnh sửa</h3>'
+    +       '<button type="button" class="nut-dong" onclick="dongHopThoaiMaKhoa()">✕</button>'
+    +     '</div>'
+    +     '<div class="than-ma-khoa">'
+    +       '<p class="gt-ma-khoa">Nhập mật khẩu quản trị do Phòng Kinh doanh Tổng hợp cấp. '
+    +         'Quyền chỉnh sửa có hiệu lực đến khi đóng trình duyệt.</p>'
+    +       '<label class="nhan-o">Họ tên người thao tác <b>*</b></label>'
+    +       '<input type="text" id="mkHoTen" class="o-nhap" placeholder="VD: Nguyễn Văn A" autocomplete="name">'
+    +       '<label class="nhan-o">Mật khẩu quản trị <b>*</b></label>'
+    +       '<input type="password" id="mkMaKhoa" class="o-nhap" placeholder="Nhập mật khẩu" autocomplete="off" '
+    +         'onkeydown="if(event.key===\'Enter\') guiMaKhoa()">'
+    +       '<div class="thong-bao" id="mkThongBao"></div>'
+    +       '<button class="nut nut-chinh" id="mkNutGui" style="width:100%;justify-content:center;margin-top:12px" '
+    +         'onclick="guiMaKhoa()">🔓 Mở khoá</button>'
+    +     '</div>'
+    +   '</div>'
+    + '</div>');
+}
+
+function moHopThoaiMaKhoa() {
+  taoHopThoaiMaKhoa();
+  document.getElementById('mkThongBao').textContent = '';
+  document.getElementById('mkThongBao').className   = 'thong-bao';
+  document.getElementById('mkMaKhoa').value = '';
+  document.getElementById('mkHoTen').value  = PHIEN_SUA.hoTen || '';
+  document.getElementById('hopThoaiMaKhoa').classList.remove('an');
+  setTimeout(function () {
+    const o = document.getElementById(PHIEN_SUA.hoTen ? 'mkMaKhoa' : 'mkHoTen');
+    if (o) o.focus();
+  }, 60);
+}
+
+function dongHopThoaiMaKhoa() {
+  const el = document.getElementById('hopThoaiMaKhoa');
+  if (el) el.classList.add('an');
+}
+
+function guiMaKhoa() {
+  const hoTen = document.getElementById('mkHoTen').value.trim();
+  const ma    = document.getElementById('mkMaKhoa').value;
+  const nut   = document.getElementById('mkNutGui');
+  const tb    = document.getElementById('mkThongBao');
+
+  if (hoTen.length < 3) {
+    tb.className = 'thong-bao loi';
+    tb.textContent = '✕ Vui lòng nhập họ tên người thao tác.';
+    return;
+  }
+  if (!ma) {
+    tb.className = 'thong-bao loi';
+    tb.textContent = '✕ Vui lòng nhập mật khẩu.';
+    return;
+  }
+
+  nut.disabled = true;
+  nut.textContent = 'Đang kiểm tra…';
+  tb.className = 'thong-bao';
+  tb.textContent = '';
+
+  google.script.run
+    .withSuccessHandler(function (kq) {
+      // ★ V3.2 — nâng phiên lên Quản trị + tải lại dữ liệu đầy đủ
+      PHIEN_SUA = { token: kq.token, hoTen: kq.hoTen, vaiTro: 'QuanTri' };
+      luuPhienSua();
+
+      nut.disabled = false;
+      nut.textContent = '🔓 Mở khoá';
+      tb.className = 'thong-bao ok';
+      tb.textContent = '✓ Đã mở quyền chỉnh sửa. Đang tải lại dữ liệu…';
+
+      setTimeout(function () {
+        dongHopThoaiMaKhoa();
+        taiDuLieu();
+      }, 600);
+    })
+    .withFailureHandler(function (loi) {
+      nut.disabled = false;
+      nut.textContent = '🔓 Mở khoá';
+      tb.className = 'thong-bao loi';
+      tb.textContent = '✕ ' + loi.message;
+    })
+    .xacThucMaKhoa(ma, hoTen);
+}
+
+
+/***********************************************************************
+ * BỘ LỌC
+ ***********************************************************************/
+function napBoLoc() {
+  const selCum = document.getElementById('locCum');
+  (DU_LIEU.cum || []).forEach(function (c) {
+    selCum.insertAdjacentHTML('beforeend',
+      '<option value="' + c.MaCum + '">' + (c.TenCum || c.MaCum) + '</option>');
+  });
+
+  const selTT = document.getElementById('locTrangThai');
+  (DU_LIEU.trangThai || []).forEach(function (t) {
+    selTT.insertAdjacentHTML('beforeend',
+      '<option value="' + t.TenTrangThai + '">' + t.TenTrangThai + '</option>');
+  });
+}
+
+function ganSuKien() {
+  ['oTimKiem', 'locCum', 'locTrangThai', 'locLoaiHinh'].forEach(function (id) {
+    document.getElementById(id).addEventListener('input', apDungBoLoc);
+  });
+
+  document.getElementById('nutXoaLoc').onclick = function () {
+    document.getElementById('oTimKiem').value      = '';
+    document.getElementById('locCum').value        = '';
+    document.getElementById('locTrangThai').value  = '';
+    document.getElementById('locLoaiHinh').value   = '';
+    apDungBoLoc();
+  };
+
+  document.querySelectorAll('.tab').forEach(function (b) {
+    b.onclick = function () { chuyenTab(b.dataset.tab); };
+  });
+}
+
+/** ★ Bộ lọc tác động đồng thời lên CẢ 2 TAB */
+function apDungBoLoc() {
+  const tuKhoa    = document.getElementById('oTimKiem').value.trim().toLowerCase();
+  const cum       = document.getElementById('locCum').value;
+  const trangThai = document.getElementById('locTrangThai').value;
+  const loaiHinh  = document.getElementById('locLoaiHinh').value;
+
+  KET_QUA_LOC = (DU_LIEU.nhaXuong || []).filter(function (nx) {
+    const chuoi = [nx.MaDonVi, nx.TenNhaXuong, nx.KhachThue, nx.GhiChu]
+                    .join(' ').toLowerCase();
+    return (!tuKhoa    || chuoi.indexOf(tuKhoa) > -1)
+        && (!cum       || String(nx.MaCum).trim() === cum)
+        && (!trangThai || String(nx.TrangThai).trim() === trangThai)
+        && (!loaiHinh  || String(nx.LoaiHinh).trim() === loaiHinh);
+  });
+
+  document.getElementById('soKetQua').textContent = KET_QUA_LOC.length + ' kết quả';
+
+  renderTieuDeBang(loaiHinh);      // Tiêu đề cột động theo Loại hình
+  renderBangTraCuu(KET_QUA_LOC);   // Tab 1
+  toMauBanDo(KET_QUA_LOC);         // Tab 2
+}
+
+
+/***********************************************************************
+ * CHUYỂN TAB
+ ***********************************************************************/
+function chuyenTab(tenTab) {
+  document.querySelectorAll('.noi-dung-tab').forEach(function (el) {
+    el.classList.add('an'); el.classList.remove('hien');
+  });
+  const el = document.getElementById('tab-' + tenTab);
+  el.classList.remove('an'); el.classList.add('hien');
+
+  document.querySelectorAll('.tab').forEach(function (b) {
+    b.classList.remove('dang-chon');
+  });
+  document.querySelector('[data-tab="' + tenTab + '"]').classList.add('dang-chon');
+}
+
+
+/***********************************************************************
+ * ★ LIÊN THÔNG 2 CHIỀU GIỮA 2 TAB
+ ***********************************************************************/
+
+/** Từ BẢNG TRA CỨU → nhảy sang BẢN ĐỒ, highlight lô */
+function xemTrenBanDo(ma) {
+  chuyenTab('banDo');
+  setTimeout(function () {
+    highlightLoDat(ma);
+    moPanelChiTiet(ma);
+  }, 100);
+}
+
+/** Từ BẢN ĐỒ → nhảy sang BẢNG, lọc đúng dòng */
+function xemTrongBang(ma) {
+  dongPanel();
+  chuyenTab('traCuu');
+  document.getElementById('oTimKiem').value = ma;
+  apDungBoLoc();
+  setTimeout(function () {
+    const dong = document.querySelector('tr[data-ma="' + ma + '"]');
+    if (dong) {
+      dong.classList.add('sang');
+      dong.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, 100);
+}
+
+
+/***********************************************************************
+ * PANEL CHI TIẾT (DÙNG CHUNG CHO CẢ 2 TAB)
+ ***********************************************************************/
+function timNhaXuong(ma) {
+  return (DU_LIEU.nhaXuong || []).filter(function (n) {
+    return String(n.MaDonVi).trim() === String(ma).trim();
+  })[0];
+}
+
+function moPanelChiTiet(ma) {
+  const nx = timNhaXuong(ma);
+  if (!nx) { alert('Chưa có dữ liệu cho đơn vị: ' + ma); return; }
+
+  MA_DANG_MO = ma;
+  document.getElementById('panelTieuDe').textContent =
+    nx.TenNhaXuong || nx.MaDonVi;
+
+  const mau = MAU_TRANG_THAI[String(nx.TrangThai).trim()] || MAU_MAC_DINH;
+
+  /* ★ V3.2 — chế độ khách: KHÔNG hiện các nút liên quan mã khoá/chỉnh sửa */
+  const laKhach = (PHIEN_SUA.vaiTro === 'Khach');
+
+  let html = '';
+
+  // --- Trạng thái ---
+  html += '<div style="margin-bottom:14px">'
+        + '<span class="chip" style="background:' + mau + '">'
+        + (nx.TrangThai || 'Chưa xác định') + '</span></div>';
+
+  // --- ★ V3.0: THANH THAO TÁC NHANH — luôn nằm đầu panel, không cần cuộn ---
+  html += '<div class="thanh-thao-tac">';
+  html +=   '<button class="nut nut-brochure" onclick="moBrochure(\'' + ma + '\')">📤 Brochure &amp; Chia sẻ</button>';
+  html +=   '<button class="nut nut-nhat" onclick="xemTrongBang(\'' + ma + '\')">📋 Xem trong bảng</button>';
+  if (duocPhepSua()) {
+    html += '<button class="nut nut-chinh" onclick="moHopThoaiSua(\'' + ma + '\')">✏️ Chỉnh sửa</button>';
+    html += '<button class="nut nut-nhat" onclick="dangXuat()" title="Thoát phiên đăng nhập">🚪 Đăng xuất</button>';
+  } else if (!laKhach) {
+    html += '<button class="nut nut-mo-khoa" onclick="moHopThoaiMaKhoa()">🔐 Nhập mật khẩu quản trị để chỉnh sửa</button>';
+  }
+  html += '</div>';
+
+  // --- Nút bản đồ ---
+  if (nx.Lat && nx.Lng) {
+    const urlDuong  = 'https://www.google.com/maps/dir/?api=1&destination='
+                    + nx.Lat + ',' + nx.Lng;
+    const urlDinhVi = 'https://www.google.com/maps/search/?api=1&query='
+                    + nx.Lat + ',' + nx.Lng;
+    html += '<div class="nhom-nut-ban-do">'
+          + '<a href="' + urlDuong + '" target="_blank" rel="noopener" class="nut nut-maps">🚗 Dẫn đường</a>'
+          + '<a href="' + urlDinhVi + '" target="_blank" rel="noopener" class="nut nut-nhat">📍 Xem vị trí</a>'
+          + '</div>';
+  } else {
+    html += '<div class="canh-bao">⚠ Đơn vị này chưa có toạ độ Lat/Lng — '
+          + 'chưa dùng được chức năng dẫn đường.</div>';
+  }
+
+  // --- Thông tin chung ---
+  html += '<div class="tieu-de-nhom">Thông tin chung</div>';
+  html += dongTT('Mã đơn vị',        nx.MaDonVi);
+  html += dongTT('Khu vực / Cụm',    nx.MaCum);
+  html += dongTT('Loại hình',        nx.LoaiHinh);
+  html += dongTT('Diện tích đất',    dinhDangSo(nx.DienTichDat, 'm²'));
+  html += dongTT('DT xây dựng',      dinhDangSo(nx.DienTichXayDung, 'm²'));
+  html += dongTT('DT văn phòng',     dinhDangSo(nx.DienTichVanPhong, 'm²'));
+  html += dongTT('Đơn giá',          nx.GiaThue);
+  html += dongTT('Tiến độ',          nx.TienDo);
+
+  // --- Thông tin nội bộ ---
+  // ★ V3.2: với chế độ khách, server đã XOÁ TRẮNG các trường nội bộ
+  //   nên khối này không được hiển thị (xemDayDu = false).
+  if (NGUOI_DUNG.xemDayDu || duocPhepSua()) {
+    html += '<div class="tieu-de-nhom">Thông tin nội bộ</div>';
+    html += dongTT('Khách thuê',        nx.KhachThue);
+    html += dongTT('Số hợp đồng',       nx.SoHopDong);
+    html += dongTT('Ngày hợp đồng',     nx.NgayHopDong);
+    html += dongTT('Hết hạn HĐ',        nx.NgayHetHanHD);
+    html += dongTT('Giấy CNĐT',         nx.GiayCNDT);
+    html += dongTT('Người đại diện',    nx.NguoiDaiDien);
+
+    // ★ Cột G→S — riêng Nhà xưởng
+    if (nx.LoaiHinh === 'Nhà xưởng') {
+      html += '<div class="tieu-de-nhom">Chi tiết thuê xưởng</div>';
+      html += dongTT('Quốc tịch',              nx.QuocTich);
+      html += dongTT('Ngành nghề / sản phẩm',  nx.NganhNghe_SanPham);
+      html += dongTT('Tổng vốn đầu tư',        nx.TongVonDauTu_USD ? dinhDangSo(nx.TongVonDauTu_USD, 'USD') : '');
+      html += dongTT('DT xưởng thuê',          dinhDangSo(nx.DienTichXuong_m2, 'm²'));
+      html += dongTT('DT khu đất',             dinhDangSo(nx.DienTichKhuDat_m2, 'm²'));
+      html += dongTT('Tiền thuê xưởng',        ghepGiaPT(nx['TienThueXuong - DonGia (USD)'], nx['TienThueXuong - PTThanhToan'], 'USD'));
+      html += dongTT('Phí quản lý',            nx['PhiQuanLy (USD)'] ? (nx['PhiQuanLy (USD)'] + ' USD') : '');
+      html += dongTT('Thời hạn thuê',          nx.ThoiHanThue);
+    }
+
+    // ★ Cột T→AJ — riêng Đất cho thuê
+    if (nx.LoaiHinh === 'Đất cho thuê') {
+      html += '<div class="tieu-de-nhom">Chi tiết giá thuê đất</div>';
+      html += dongTT('Mã lô đất',         nx.LoDatThue);
+      html += dongTT('Quốc tịch',         nx.QuocTich);
+      html += dongTT('Ngành nghề',        nx.NganhNghe);
+      html += dongTT('Tổng vốn đầu tư',   nx.TongVonDauTu_USD ? dinhDangSo(nx.TongVonDauTu_USD, 'USD') : '');
+      html += dongTT('Tổng DT đất thuê',  dinhDangSo(nx['Tong DienTichDatThue (m2)'], 'm²'));
+      html += dongTT('DT đất thuê thêm',  dinhDangSo(nx['DienTichDatThueThem (m2)'], 'm²'));
+      html += dongTT('Tiền thuê mặt bằng', ghepGiaPT(nx['TienThueMatBang - DonGia (USD)'], nx['TienThueMatBang - PTThanhToan'], 'USD'));
+      html += dongTT('Tiền đất thô',       ghepGiaPT(nx['TienDatTho - DonGia (USD)'], nx['TienDatTho - PTThanhToan'], 'USD'));
+      html += dongTT('Phí quản lý',        nx['PhiQuanLy (USD)'] ? (nx['PhiQuanLy (USD)'] + ' USD') : '');
+      html += dongTT('Thời hạn thuê',      nx.ThoiHanThue_ChiTiet);
+    }
+
+    html += dongTT('Ghi chú',           nx.GhiChu || nx['Ghi chú']);
+    html += dongTT('Cập nhật bởi',      nx.NguoiCapNhat);
+  }
+
+  // --- Tài liệu ---
+  const dsTL = nx.DanhSachTaiLieu || [];
+  if (dsTL.length > 0) {
+    html += '<div class="tieu-de-nhom">Tài liệu đính kèm</div>';
+    dsTL.forEach(function (tl) {
+      html += '<a href="' + tl.link + '" target="_blank" rel="noopener" class="muc-tai-lieu">'
+            + '📄 ' + tl.ten + (tl.loai ? ' <small>(' + tl.loai + ')</small>' : '')
+            + '</a>';
+    });
+  }
+  if (nx.LinkBrochure) {
+    html += '<a href="' + nx.LinkBrochure + '" target="_blank" rel="noopener" class="muc-tai-lieu">📘 Brochure</a>';
+  }
+  if (nx.LinkAnh) {
+    html += '<a href="' + nx.LinkAnh + '" target="_blank" rel="noopener" class="muc-tai-lieu">🖼️ Hình ảnh</a>';
+  }
+
+  // --- ★ V3.0: lặp lại nút ở cuối panel cho thao tác liền mạch ---
+  if (duocPhepSua()) {
+    html += '<button class="nut nut-chinh" style="width:100%;justify-content:center;margin-top:20px" '
+          + 'onclick="moHopThoaiSua(\'' + ma + '\')">✏️ Chỉnh sửa thông tin đơn vị này</button>';
+  } else if (!laKhach) {
+    html += '<button class="nut nut-mo-khoa" style="width:100%;justify-content:center;margin-top:20px" '
+          + 'onclick="moHopThoaiMaKhoa()">🔐 Nhập mật khẩu quản trị để chỉnh sửa</button>';
+  }
+
+  document.getElementById('panelNoiDung').innerHTML = html;
+  document.getElementById('panelChiTiet').classList.remove('an');
+  document.getElementById('lopPhu').classList.remove('an');
+}
+
+function dongPanel() {
+  document.getElementById('panelChiTiet').classList.add('an');
+  document.getElementById('lopPhu').classList.add('an');
+  boHighlight();
+}
+
+function dongTT(nhan, giaTri) {
+  if (giaTri === '' || giaTri === null || giaTri === undefined) return '';
+  return '<div class="dong-tt"><span class="nhan-tt">' + nhan + '</span>'
+       + '<span class="gia-tri">' + giaTri + '</span></div>';
+}
+
+function dinhDangSo(v, donVi) {
+  if (!v && v !== 0) return '';
+  const n = parseFloat(v);
+  if (isNaN(n)) return v;
+  return n.toLocaleString('vi-VN') + ' ' + (donVi || '');
+}
+
+/** Gộp Đơn giá + PT thanh toán thành 1 dòng hiển thị */
+function ghepGiaPT(donGia, pt, donVi) {
+  donGia = (donGia === null || donGia === undefined) ? '' : String(donGia).trim();
+  pt     = (pt     === null || pt     === undefined) ? '' : String(pt).trim();
+  if (donGia && donVi) donGia = donGia + ' ' + donVi;
+  if (donGia && pt)  return donGia + ' — ' + pt;
+  if (donGia)        return donGia;
+  if (pt)            return pt;
+  return '';
+}
+
+
+/***********************************************************************
+ * HỘP THOẠI CHỈNH SỬA
+ ***********************************************************************/
+function moHopThoaiSua(ma) {
+  // ★ V3.2: chặn sớm nếu chưa có quyền; chế độ khách không mở hộp mã khoá
+  if (!duocPhepSua()) {
+    if (PHIEN_SUA.vaiTro !== 'Khach') moHopThoaiMaKhoa();
+    return;
+  }
+
+  const nx = timNhaXuong(ma);
+  if (!nx) return;
+
+  document.getElementById('suaMaDonVi').textContent = ma;
+
+  const sel = document.getElementById('suaTrangThai');
+  sel.innerHTML = '';
+  (DU_LIEU.trangThai || []).forEach(function (t) {
+    const chon = (String(nx.TrangThai).trim() === String(t.TenTrangThai).trim())
+               ? ' selected' : '';
+    sel.insertAdjacentHTML('beforeend',
+      '<option value="' + t.TenTrangThai + '"' + chon + '>' + t.TenTrangThai + '</option>');
+  });
+
+  document.getElementById('suaKhachThue').value  = nx.KhachThue    || '';
+  document.getElementById('suaGiaThue').value    = nx.GiaThue      || '';
+  document.getElementById('suaNgayHetHan').value = nx.NgayHetHanHD || '';
+  document.getElementById('suaTienDo').value     = nx.TienDo       || '';
+  document.getElementById('suaGhiChu').value     = nx.GhiChu       || '';
+
+  // ★ Các cột dùng chung cho cả NX và Đất
+  document.getElementById('suaQuocTich').value       = nx.QuocTich           || '';
+  document.getElementById('suaNganhNghe').value      = nx.NganhNghe          || '';
+  document.getElementById('suaTongVonDauTu').value   = nx.TongVonDauTu_USD   || '';
+  document.getElementById('suaSoHopDong').value      = nx.SoHopDong          || '';
+  document.getElementById('suaNgayHopDong').value    = nx.NgayHopDong        || '';
+  document.getElementById('suaThoiHanThue').value    = nx.ThoiHanThue_ChiTiet|| '';
+
+  // ★ Riêng lô đất
+  document.getElementById('suaLoDatThue').value      = nx.LoDatThue         || '';
+  document.getElementById('suaGiayCNDT').value       = nx.GiayCNDT          || '';
+  document.getElementById('suaNguoiDaiDien').value   = nx.NguoiDaiDien      || '';
+
+  // ★ Chi tiết giá thuê đất
+  document.getElementById('suaTongDienTichDat').value   = nx['Tong DienTichDatThue (m2)']      || '';
+  document.getElementById('suaDienTichThueThem').value  = nx['DienTichDatThueThem (m2)']       || '';
+  document.getElementById('suaDonGiaThueMB').value      = nx['TienThueMatBang - DonGia']       || '';
+  document.getElementById('suaPTThanhToanMB').value     = nx['TienThueMatBang - PTThanhToan']  || '';
+  document.getElementById('suaDonGiaDatTho').value      = nx['TienDatTho - DonGia']            || '';
+  document.getElementById('suaPTThanhToanDatTho').value = nx['TienDatTho - PTThanhToan']       || '';
+  document.getElementById('suaPhiQuanLy').value         = nx.PhiQuanLy                          || '';
+
+  // ★ Ẩn/hiện khối field riêng theo LoaiHinh
+  const laNhaXuong = nx.LoaiHinh === 'Nhà xưởng';
+  const khoiDat = document.getElementById('nhomSuaDatChoThue');
+  if (khoiDat) khoiDat.style.display = laNhaXuong ? 'none' : 'block';
+
+  document.getElementById('thongBaoSua').textContent = '';
+  document.getElementById('hopThoaiSua').classList.remove('an');
+}
+
+function dongHopThoaiSua() {
+  document.getElementById('hopThoaiSua').classList.add('an');
+}
+
+function luuThayDoi() {
+  const ma  = document.getElementById('suaMaDonVi').textContent;
+  const nut = document.getElementById('nutLuu');
+  const tb  = document.getElementById('thongBaoSua');
+
+  const duLieuMoi = {
+    TrangThai    : document.getElementById('suaTrangThai').value,
+    KhachThue    : document.getElementById('suaKhachThue').value,
+    GiaThue      : document.getElementById('suaGiaThue').value,
+    NgayHetHanHD : document.getElementById('suaNgayHetHan').value,
+    TienDo       : document.getElementById('suaTienDo').value,
+    GhiChu       : document.getElementById('suaGhiChu').value,
+
+    QuocTich            : document.getElementById('suaQuocTich').value,
+    NganhNghe           : document.getElementById('suaNganhNghe').value,
+    TongVonDauTu_USD    : document.getElementById('suaTongVonDauTu').value,
+    SoHopDong           : document.getElementById('suaSoHopDong').value,
+    NgayHopDong         : document.getElementById('suaNgayHopDong').value,
+    ThoiHanThue_ChiTiet : document.getElementById('suaThoiHanThue').value,
+    LoDatThue           : document.getElementById('suaLoDatThue').value,
+    GiayCNDT            : document.getElementById('suaGiayCNDT').value,
+    NguoiDaiDien        : document.getElementById('suaNguoiDaiDien').value,
+
+    'Tong DienTichDatThue (m2)'     : document.getElementById('suaTongDienTichDat').value,
+    'DienTichDatThueThem (m2)'      : document.getElementById('suaDienTichThueThem').value,
+    'TienThueMatBang - DonGia'      : document.getElementById('suaDonGiaThueMB').value,
+    'TienThueMatBang - PTThanhToan' : document.getElementById('suaPTThanhToanMB').value,
+    'TienDatTho - DonGia'           : document.getElementById('suaDonGiaDatTho').value,
+    'TienDatTho - PTThanhToan'      : document.getElementById('suaPTThanhToanDatTho').value,
+    PhiQuanLy                       : document.getElementById('suaPhiQuanLy').value
+  };
+
+  nut.disabled = true;
+  nut.textContent = 'Đang lưu…';
+  tb.className = 'thong-bao';
+  tb.textContent = '';
+
+  google.script.run
+    .withSuccessHandler(function () {
+      // Cập nhật dữ liệu trong bộ nhớ để không phải tải lại
+      const nx = timNhaXuong(ma);
+      Object.keys(duLieuMoi).forEach(function (k) { nx[k] = duLieuMoi[k]; });
+
+      nut.disabled = false;
+      nut.textContent = '💾 Lưu';
+      tb.className = 'thong-bao ok';
+      tb.textContent = '✓ Đã lưu thành công.';
+
+      apDungBoLoc();
+      moPanelChiTiet(ma);
+      setTimeout(dongHopThoaiSua, 800);
+    })
+    .withFailureHandler(function (loi) {
+      nut.disabled = false;
+      nut.textContent = '💾 Lưu';
+      tb.className = 'thong-bao loi';
+      tb.textContent = '✕ ' + loi.message;
+    })
+    .capNhatNhaXuong(ma, duLieuMoi, { token: PHIEN_SUA.token, hoTen: PHIEN_SUA.hoTen });
+}
+
+
+/***********************************************************************
+ * ★ BROCHURE & CHIA SẺ ZALO
+ ***********************************************************************/
+let BC_DON_VI = null;
+
+const MAU_TIN_MAC_DINH =
+  'Kính gửi Quý khách,\n\n'
++ 'Công ty CP Sonadezi Long Thành trân trọng giới thiệu:\n\n'
++ '🏭 {TenNhaXuong}\n'
++ '📍 Khu vực: {TenCum}\n'
++ '📐 Diện tích đất: {DienTichDat}\n'
++ '🏗️ Diện tích xây dựng: {DienTichXayDung}\n'
++ '💰 Đơn giá: {GiaThue}\n'
++ '✅ Tình trạng: {TrangThai}\n\n'
++ '📎 Tài liệu đính kèm:\n{DanhSachLink}\n\n'
++ '{LinkDinhVi}'
++ 'Rất mong được đón tiếp Quý khách tham quan thực tế.\n\n'
++ 'Trân trọng,\n{NguoiLienHe}\n{SoDienThoai}\n{Email}';
+
+function moBrochure(ma) {
+  const nx = timNhaXuong(ma);
+  if (!nx) return;
+  BC_DON_VI = nx;
+
+  document.getElementById('bcTenDonVi').textContent = nx.TenNhaXuong || ma;
+  document.getElementById('bcThongBao').textContent = '';
+  document.getElementById('bcKhungQR').classList.add('an');
+
+  const ds = layDanhSachTaiLieu(nx);
+
+  if (ds.length === 0) {
+    document.getElementById('bcDanhSach').innerHTML =
+      '<div class="canh-bao">⚠ Đơn vị này chưa có tài liệu nào. '
+      + 'Bổ sung tại sheet <b>DS_TaiLieu</b> hoặc cột <b>LinkBrochure</b>.</div>';
+  } else {
+    document.getElementById('bcDanhSach').innerHTML = ds.map(function (t, i) {
+      return '<label class="bc-muc">'
+           + '<input type="checkbox" class="bc-chon" data-i="' + i + '" checked '
+           +   'onchange="soanTinNhan()">'
+           + '<span class="bc-ten">📄 ' + t.ten + '</span>'
+           + (t.loai ? '<span class="bc-loai">' + t.loai + '</span>' : '')
+           + '<a href="' + t.link + '" target="_blank" rel="noopener" class="bc-xem">Xem ↗</a>'
+           + '</label>';
+    }).join('');
+  }
+
+  soanTinNhan();
+  document.getElementById('hopThoaiBrochure').classList.remove('an');
+}
+
+function dongBrochure() {
+  document.getElementById('hopThoaiBrochure').classList.add('an');
+}
+
+/** Gom tài liệu từ DS_TaiLieu + LinkBrochure + brochure chung của KCN */
+function layDanhSachTaiLieu(nx) {
+  const ds = [];
+
+  (nx.DanhSachTaiLieu || []).forEach(function (t) {
+    if (t.link) ds.push({ ten: t.ten || 'Tài liệu', link: t.link, loai: t.loai || '' });
+  });
+
+  if (nx.LinkBrochure) {
+    ds.push({ ten: 'Brochure ' + (nx.TenNhaXuong || nx.MaDonVi),
+              link: nx.LinkBrochure, loai: 'Brochure' });
+  }
+  if (nx.LinkAnh) {
+    ds.push({ ten: 'Hình ảnh thực tế', link: nx.LinkAnh, loai: 'Hình ảnh' });
+  }
+
+  const ch = DU_LIEU.cauHinh || {};
+  if (ch.BrochureChungKCN) {
+    ds.push({ ten: 'Brochure tổng quan KCN Long Thành',
+              link: ch.BrochureChungKCN, loai: 'Tổng quan' });
+  }
+  return ds;
+}
+
+/** Sinh nội dung tin nhắn từ mẫu trong DM_CauHinh */
+function soanTinNhan() {
+  if (!BC_DON_VI) return;
+  const nx = BC_DON_VI;
+  const ch = DU_LIEU.cauHinh || {};
+
+  const ds = layDanhSachTaiLieu(nx);
+  const chon = [];
+  document.querySelectorAll('.bc-chon').forEach(function (cb) {
+    if (cb.checked) chon.push(ds[parseInt(cb.dataset.i, 10)]);
+  });
+
+  const dsLink = chon.length
+    ? chon.map(function (t) { return '• ' + t.ten + ':\n' + t.link; }).join('\n')
+    : '(chưa chọn tài liệu)';
+
+  let linkDinhVi = '';
+  if (nx.Lat && nx.Lng) {
+    linkDinhVi = '📍 Xem vị trí trên bản đồ:\n'
+               + 'https://www.google.com/maps/search/?api=1&query='
+               + nx.Lat + ',' + nx.Lng + '\n\n';
+  }
+
+  const cum = (DU_LIEU.cum || []).filter(function (c) {
+    return c.MaCum === nx.MaCum;
+  })[0];
+
+  // ★ Tính giá chào thuê + phí quản lý theo đúng LoaiHinh
+  // (Chế độ khách: các trường này đã bị server xoá trắng → tự về "Liên hệ")
+  let giaChaoThue = 'Liên hệ';
+  if (nx.LoaiHinh === 'Nhà xưởng') {
+    giaChaoThue = nx['TienThueXuong - DonGia (USD)']
+      ? nx['TienThueXuong - DonGia (USD)'] + ' USD/m²/tháng'
+      : 'Liên hệ';
+  } else if (nx.LoaiHinh === 'Đất cho thuê') {
+    const giaMB  = nx['TienThueMatBang - DonGia (USD)'];
+    const giaTho = nx['TienDatTho - DonGia (USD)'];
+    const phanGia = [];
+    if (giaMB)  phanGia.push('Mặt bằng: ' + giaMB + ' USD/m²/năm');
+    if (giaTho) phanGia.push('Đất thô: '   + giaTho + ' USD/m²/năm');
+    giaChaoThue = phanGia.length ? phanGia.join(' — ') : 'Liên hệ';
+  }
+
+  const phiQuanLy = nx['PhiQuanLy (USD)']
+    ? nx['PhiQuanLy (USD)'] + ' USD/m²/năm'
+    : 'Liên hệ';
+
+  const mau = ch.MauTinNhanZalo || MAU_TIN_MAC_DINH;
+
+  const tin = String(mau)
+    .replace(/{MaDonVi}/g,          nx.MaDonVi || '')
+    .replace(/{TenNhaXuong}/g,      nx.TenNhaXuong || nx.MaDonVi || '')
+    .replace(/{TenCum}/g,           (cum && cum.TenCum) || nx.MaCum || '')
+    .replace(/{LoaiHinh}/g,         nx.LoaiHinh || '')
+    .replace(/{DienTichDat}/g,      dinhDangSo(nx.DienTichDat, 'm²') || 'Liên hệ')
+    .replace(/{DienTichXayDung}/g,  dinhDangSo(nx.DienTichXayDung, 'm²') || 'Liên hệ')
+    .replace(/{DienTichVanPhong}/g, dinhDangSo(nx.DienTichVanPhong, 'm²') || '—')
+    .replace(/{GiaThue}/g,          nx.GiaThue || 'Liên hệ')
+    .replace(/{TrangThai}/g,        nx.TrangThai || '')
+    .replace(/{TienDo}/g,           nx.TienDo || '')
+    .replace(/{DienTichXuong_m2}/g,        dinhDangSo(nx.DienTichXuong_m2, 'm²') || 'Liên hệ')
+    .replace(/{DienTichKhuDat_m2}/g,       dinhDangSo(nx.DienTichKhuDat_m2, 'm²') || 'Liên hệ')
+    .replace(/{TongDienTichDatThue_m2}/g,  dinhDangSo(nx['Tong DienTichDatThue (m2)'], 'm²') || 'Liên hệ')
+    .replace(/{DienTichDatThueThem_m2}/g,  dinhDangSo(nx['DienTichDatThueThem (m2)'], 'm²') || 'Liên hệ')
+    .replaceAll('{TienThueXuong - DonGia (USD)}', giaChaoThue)
+    .replaceAll('{PhiQuanLy (USD)}',              phiQuanLy)
+    .replace(/{DanhSachLink}/g,     dsLink)
+    .replace(/{LinkDinhVi}/g,       linkDinhVi)
+    .replace(/{NguoiLienHe}/g,      ch.NguoiLienHe || NGUOI_DUNG.hoTen || '')
+    .replace(/{SoDienThoai}/g,      ch.SoDienThoai || '')
+    .replace(/{Email}/g,            ch.Email || NGUOI_DUNG.email || '')
+    .replace(/{Website}/g,          ch.Website || '')
+    // ★ Dọn mọi placeholder còn sót để không hiển thị thẻ {...} thô cho khách
+    .replace(/{[^{}]+}/g, '');
+
+  document.getElementById('bcTinNhan').value = tin;
+}
+
+/* ---------- Sao chép ---------- */
+function saoChepTinNhan() {
+  const o = document.getElementById('bcTinNhan');
+  o.select();
+  o.setSelectionRange(0, 999999);
+
+  const xong = function () {
+    baoBrochure('✓ Đã sao chép. Mở Zalo và dán (Ctrl+V) vào cửa sổ chat.', 'ok');
+  };
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(o.value).then(xong).catch(function () {
+      document.execCommand('copy'); xong();
+    });
+  } else {
+    document.execCommand('copy'); xong();
+  }
+}
+
+/* ---------- Chia sẻ qua hệ thống (điện thoại -> chọn Zalo) ---------- */
+function chiaSeHeThong() {
+  const noiDung = document.getElementById('bcTinNhan').value;
+  const tieuDe  = BC_DON_VI ? (BC_DON_VI.TenNhaXuong || BC_DON_VI.MaDonVi) : 'KCN Long Thành';
+
+  if (navigator.share) {
+    navigator.share({ title: tieuDe, text: noiDung })
+      .then(function () { baoBrochure('✓ Đã mở bảng chia sẻ.', 'ok'); })
+      .catch(function () { /* người dùng huỷ */ });
+  } else {
+    saoChepTinNhan();
+    baoBrochure('⚠ Trình duyệt máy tính không hỗ trợ chia sẻ trực tiếp. '
+      + 'Nội dung đã được sao chép — hãy mở Zalo và dán vào.', 'ok');
+  }
+}
+
+/* ---------- Mở Zalo Web ---------- */
+function moZaloWeb() {
+  saoChepTinNhan();
+  window.open('https://chat.zalo.me', '_blank', 'noopener');
+  baoBrochure('✓ Đã sao chép nội dung và mở Zalo Web. Chọn khách hàng rồi dán (Ctrl+V).', 'ok');
+}
+
+/* ---------- Mã QR ---------- */
+function hienMaQR() {
+  if (!BC_DON_VI) return;
+  const ds = layDanhSachTaiLieu(BC_DON_VI);
+  if (ds.length === 0) {
+    baoBrochure('⚠ Chưa có tài liệu để tạo mã QR.', 'loi');
+    return;
+  }
+  const link = ds[0].link;
+  document.getElementById('bcAnhQR').src =
+    'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(link);
+  document.getElementById('bcKhungQR').classList.remove('an');
+  baoBrochure('', '');
+}
+
+function baoBrochure(msg, loai) {
+  const el = document.getElementById('bcThongBao');
+  el.className = 'thong-bao ' + (loai || '');
+  el.textContent = msg;
+}
+</script>

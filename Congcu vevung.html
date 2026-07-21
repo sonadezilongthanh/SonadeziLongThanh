@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Công cụ vẽ vùng bấm — KCN Long Thành</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Roboto, Arial, sans-serif; background: #f4f6f8; font-size: 14px; color: #1c2b36; }
+  header { background: #0f3d5c; color: #fff; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; }
+  header h1 { font-size: 16px; }
+  .bo-cuc { display: flex; height: calc(100vh - 52px); }
+  .khung-trai { flex: 1; overflow: auto; background: #e6ebf0; position: relative; }
+  .khung-phai { width: 380px; background: #fff; border-left: 1px solid #d9dee3; padding: 16px; overflow-y: auto; }
+
+  #vungVe { position: relative; display: inline-block; }
+  #anhNen { display: block; max-width: none; }
+  #lopSVG { position: absolute; top: 0; left: 0; cursor: crosshair; }
+
+  polygon.da-luu { fill: rgba(34,197,94,.32); stroke: #16a34a; stroke-width: 2; cursor: pointer; }
+  polygon.da-luu:hover { fill: rgba(34,197,94,.55); }
+  polygon.dang-ve { fill: rgba(239,68,68,.25); stroke: #ef4444; stroke-width: 2; stroke-dasharray: 5,4; }
+  circle.diem { fill: #ef4444; stroke: #fff; stroke-width: 1.5; }
+  text.nhan { font: 700 13px sans-serif; fill: #14532d; text-anchor: middle; pointer-events: none; }
+
+  .nhom { margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #eef1f4; }
+  .nhom h3 { font-size: 12px; text-transform: uppercase; color: #5b6b7a; margin-bottom: 8px; letter-spacing: .5px; }
+  label { display: block; font-size: 12px; color: #5b6b7a; margin-bottom: 4px; font-weight: 600; }
+  input, select, textarea { width: 100%; padding: 8px 10px; border: 1px solid #d9dee3; border-radius: 6px; font-size: 13px; font-family: inherit; margin-bottom: 8px; }
+  textarea { font-family: 'Consolas', monospace; font-size: 11px; }
+  button { padding: 8px 14px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: 500; }
+  .b-chinh { background: #1e6fa8; color: #fff; }
+  .b-chinh:hover { background: #0f3d5c; }
+  .b-nhat { background: #e6ebf0; color: #5b6b7a; }
+  .b-do { background: #ef4444; color: #fff; }
+  .hang-nut { display: flex; gap: 6px; margin-bottom: 8px; }
+  .hang-nut button { flex: 1; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+  th { background: #eef2f5; padding: 6px; text-align: left; font-size: 11px; }
+  td { padding: 5px 6px; border-bottom: 1px solid #eef1f4; }
+  .huong-dan { background: #eef7ff; border-left: 3px solid #1e6fa8; padding: 10px 12px; font-size: 12px; line-height: 1.6; border-radius: 4px; }
+  .huong-dan b { color: #0f3d5c; }
+  .canh-bao { background: #fff4e5; color: #92400e; padding: 8px 10px; border-radius: 5px; font-size: 12px; margin-top: 8px; }
+  .thanh-zoom { position: fixed; bottom: 16px; left: 16px; background: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.15); padding: 6px; display: flex; gap: 4px; }
+  .thanh-zoom button { padding: 6px 12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🖊️ Công cụ vẽ vùng bấm — KCN Long Thành</h1>
+  <span id="trangThai">Chưa tải ảnh nền</span>
+</header>
+
+<div class="bo-cuc">
+
+  <!-- ============ KHUNG VẼ ============ -->
+  <div class="khung-trai" id="khungTrai">
+    <div id="vungVe">
+      <img id="anhNen" alt="">
+      <svg id="lopSVG"></svg>
+    </div>
+  </div>
+
+  <!-- ============ BẢNG ĐIỀU KHIỂN ============ -->
+  <div class="khung-phai">
+
+    <div class="nhom">
+      <h3>Bước 1 — Tải ảnh mặt bằng</h3>
+      <input type="file" id="chonAnh" accept="image/*">
+      <div class="canh-bao" id="thongTinAnh" style="display:none"></div>
+    </div>
+
+    <div class="nhom">
+      <h3>Bước 2 — Chọn chế độ</h3>
+      <label>Đang vẽ vùng cho</label>
+      <select id="cheDo">
+        <option value="cum">Cụm xưởng (trên bản đồ tổng)</option>
+        <option value="nx" selected>Nhà xưởng / Lô đất (trong 1 cụm)</option>
+      </select>
+      <label>Tiền tố mã (tự điền khi vẽ)</label>
+      <input type="text" id="tienTo" value="GD3-" placeholder="VD: GD3-  hoặc để trống">
+    </div>
+
+    <div class="nhom">
+      <h3>Bước 3 — Vẽ</h3>
+      <div class="huong-dan">
+        • <b>Click</b> lần lượt vào các góc của lô<br>
+        • <b>Enter</b> hoặc nút "Chốt vùng" để hoàn thành<br>
+        • <b>Backspace</b> = xoá điểm vừa đặt<br>
+        • <b>Esc</b> = huỷ vùng đang vẽ<br>
+        • Click vào vùng xanh đã lưu để <b>xoá</b>
+      </div>
+      <div class="hang-nut" style="margin-top:10px">
+        <button class="b-chinh" onclick="chotVung()">✓ Chốt vùng (Enter)</button>
+        <button class="b-nhat" onclick="huyVung()">✕ Huỷ (Esc)</button>
+      </div>
+      <div id="soDiem" style="font-size:12px;color:#5b6b7a">Số điểm hiện tại: 0</div>
+    </div>
+
+    <div class="nhom">
+      <h3>Danh sách vùng đã vẽ (<span id="demVung">0</span>)</h3>
+      <table>
+        <thead><tr><th>Mã</th><th>Số điểm</th><th></th></tr></thead>
+        <tbody id="bangVung"></tbody>
+      </table>
+    </div>
+
+    <div class="nhom">
+      <h3>Bước 4 — Xuất kết quả</h3>
+      <div class="hang-nut">
+        <button class="b-chinh" onclick="xuatKetQua()">📋 Xuất để dán vào Sheets</button>
+      </div>
+      <div class="hang-nut">
+        <button class="b-nhat" onclick="taiJSON()">💾 Lưu JSON</button>
+        <button class="b-nhat" onclick="napJSON()">📂 Nạp JSON</button>
+      </div>
+      <input type="file" id="fileJSON" accept=".json" style="display:none">
+      <label style="margin-top:8px">Kết quả — copy 2 cột này dán vào Google Sheets</label>
+      <textarea id="ketQua" rows="10" placeholder="Bấm 'Xuất để dán vào Sheets'..."></textarea>
+      <div id="vbInfo" class="canh-bao" style="display:none"></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="thanh-zoom">
+  <button class="b-nhat" onclick="zoom(-0.15)">−</button>
+  <button class="b-nhat" onclick="zoomVe(1)">100%</button>
+  <button class="b-nhat" onclick="zoom(0.15)">+</button>
+  <span id="mucZoom" style="padding:6px 8px;font-size:12px;color:#5b6b7a">100%</span>
+</div>
+
+<script>
+let ANH_W = 0, ANH_H = 0, TY_LE = 1;
+let diemHienTai = [];
+let dsVung = [];   // [{ma, diem:[[x,y],...]}]
+
+const img   = document.getElementById('anhNen');
+const svg   = document.getElementById('lopSVG');
+const khung = document.getElementById('khungTrai');
+
+/* ---------- TẢI ẢNH ---------- */
+document.getElementById('chonAnh').addEventListener('change', function (e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = function (ev) {
+    img.onload = function () {
+      ANH_W = img.naturalWidth;
+      ANH_H = img.naturalHeight;
+      TY_LE = 1;
+      apDungZoom();
+      document.getElementById('trangThai').textContent =
+        'Ảnh: ' + ANH_W + ' × ' + ANH_H + ' px';
+      const tt = document.getElementById('thongTinAnh');
+      tt.style.display = 'block';
+      tt.innerHTML = '<b>viewBox cần dùng:</b> <code>0 0 ' + ANH_W + ' ' + ANH_H + '</code>';
+    };
+    img.src = ev.target.result;
+  };
+  r.readAsDataURL(f);
+});
+
+/* ---------- ZOOM ---------- */
+function apDungZoom() {
+  const w = Math.round(ANH_W * TY_LE);
+  const h = Math.round(ANH_H * TY_LE);
+  img.style.width = w + 'px';
+  img.style.height = h + 'px';
+  svg.setAttribute('width', w);
+  svg.setAttribute('height', h);
+  svg.setAttribute('viewBox', '0 0 ' + ANH_W + ' ' + ANH_H);
+  document.getElementById('mucZoom').textContent = Math.round(TY_LE * 100) + '%';
+  ve();
+}
+function zoom(d)   { TY_LE = Math.max(0.15, Math.min(4, TY_LE + d)); apDungZoom(); }
+function zoomVe(v) { TY_LE = v; apDungZoom(); }
+
+/* ---------- CLICK ĐẶT ĐIỂM ---------- */
+svg.addEventListener('click', function (e) {
+  if (!ANH_W) { alert('Vui lòng tải ảnh mặt bằng trước.'); return; }
+  const r = svg.getBoundingClientRect();
+  const x = Math.round((e.clientX - r.left) / TY_LE);
+  const y = Math.round((e.clientY - r.top)  / TY_LE);
+  diemHienTai.push([x, y]);
+  ve();
+});
+
+/* ---------- PHÍM TẮT ---------- */
+document.addEventListener('keydown', function (e) {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'Enter')     { e.preventDefault(); chotVung(); }
+  if (e.key === 'Escape')    { huyVung(); }
+  if (e.key === 'Backspace') { e.preventDefault(); diemHienTai.pop(); ve(); }
+});
+
+/* ---------- CHỐT VÙNG ---------- */
+function chotVung() {
+  if (diemHienTai.length < 3) { alert('Cần tối thiểu 3 điểm.'); return; }
+
+  const tienTo = document.getElementById('tienTo').value.trim();
+  const goiY = tienTo + (dsVung.length + 1);
+  const ma = prompt('Nhập MÃ ĐƠN VỊ cho vùng này\n(phải trùng cột MaDonVi trong Google Sheets):', goiY);
+  if (!ma) return;
+
+  if (dsVung.some(function (v) { return v.ma === ma.trim(); })) {
+    alert('Mã "' + ma + '" đã tồn tại. Vui lòng dùng mã khác.');
+    return;
+  }
+
+  dsVung.push({ ma: ma.trim(), diem: diemHienTai.slice() });
+  diemHienTai = [];
+  ve();
+}
+
+function huyVung() { diemHienTai = []; ve(); }
+
+function xoaVung(ma) {
+  if (!confirm('Xoá vùng "' + ma + '"?')) return;
+  dsVung = dsVung.filter(function (v) { return v.ma !== ma; });
+  ve();
+}
+
+/* ---------- VẼ LẠI ---------- */
+function ve() {
+  let h = '';
+
+  dsVung.forEach(function (v) {
+    const pts = v.diem.map(function (p) { return p[0] + ',' + p[1]; }).join(' ');
+    const cx = v.diem.reduce(function (s, p) { return s + p[0]; }, 0) / v.diem.length;
+    const cy = v.diem.reduce(function (s, p) { return s + p[1]; }, 0) / v.diem.length;
+    h += '<polygon class="da-luu" points="' + pts + '" onclick="xoaVung(\'' + v.ma + '\')"><title>' + v.ma + ' — click để xoá</title></polygon>';
+    h += '<text class="nhan" x="' + cx + '" y="' + cy + '">' + v.ma + '</text>';
+  });
+
+  if (diemHienTai.length > 0) {
+    const pts = diemHienTai.map(function (p) { return p[0] + ',' + p[1]; }).join(' ');
+    if (diemHienTai.length >= 2) h += '<polygon class="dang-ve" points="' + pts + '"/>';
+    diemHienTai.forEach(function (p) {
+      h += '<circle class="diem" cx="' + p[0] + '" cy="' + p[1] + '" r="4"/>';
+    });
+  }
+
+  svg.innerHTML = h;
+  document.getElementById('soDiem').textContent  = 'Số điểm hiện tại: ' + diemHienTai.length;
+  document.getElementById('demVung').textContent = dsVung.length;
+
+  document.getElementById('bangVung').innerHTML = dsVung.map(function (v) {
+    return '<tr><td><b>' + v.ma + '</b></td><td>' + v.diem.length + '</td>'
+         + '<td><button class="b-do" style="padding:2px 8px;font-size:11px" '
+         + 'onclick="xoaVung(\'' + v.ma + '\')">Xoá</button></td></tr>';
+  }).join('');
+}
+
+/* ---------- XUẤT KẾT QUẢ ---------- */
+function xuatKetQua() {
+  if (dsVung.length === 0) { alert('Chưa có vùng nào được vẽ.'); return; }
+
+  const dong = dsVung.map(function (v) {
+    const pts = v.diem.map(function (p) { return p[0] + ',' + p[1]; }).join(' ');
+    return v.ma + '\t' + pts;
+  });
+
+  document.getElementById('ketQua').value = dong.join('\n');
+
+  const vb = document.getElementById('vbInfo');
+  vb.style.display = 'block';
+  vb.innerHTML = '<b>Đã xuất ' + dsVung.length + ' vùng.</b><br><br>'
+    + '① Copy toàn bộ nội dung ô trên<br>'
+    + '② Dán vào Google Sheets: cột <b>MaDonVi</b> và <b>ToaDoSVG</b><br>'
+    + '③ Ghi lại <b>ViewBox</b> này vào sheet DS_Cum:<br>'
+    + '<code style="background:#fff;padding:2px 6px">0 0 ' + ANH_W + ' ' + ANH_H + '</code>';
+
+  document.getElementById('ketQua').select();
+}
+
+/* ---------- LƯU / NẠP JSON ---------- */
+function taiJSON() {
+  const data = { anhW: ANH_W, anhH: ANH_H, vung: dsVung };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'vung_' + Date.now() + '.json';
+  a.click();
+}
+
+function napJSON() { document.getElementById('fileJSON').click(); }
+
+document.getElementById('fileJSON').addEventListener('change', function (e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = function (ev) {
+    try {
+      const d = JSON.parse(ev.target.result);
+      dsVung = d.vung || [];
+      ve();
+      alert('Đã nạp ' + dsVung.length + ' vùng.');
+    } catch (err) { alert('File JSON không hợp lệ.'); }
+  };
+  r.readAsText(f);
+});
+</script>
+</body>
+</html>

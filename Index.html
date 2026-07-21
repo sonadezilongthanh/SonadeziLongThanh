@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <base target="_top">
+  <?!= include('Style'); ?>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════
+     MÀN HÌNH TẢI
+     ══════════════════════════════════════════════════════════ -->
+<div id="manHinhTai">
+  <div class="khung-tai-logo">
+    <div class="vong-xoay-logo"></div>
+    <img class="logo-tai"
+         src="https://drive.google.com/thumbnail?id=1LY4a06X3731WVwceDNHNlPmDZXIRTi9d&sz=w300"
+         alt="Sonadezi Long Thành">
+  </div>
+  <p style="color:#5b6b7a;font-size:13px">Đang tải dữ liệu…</p>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     ỨNG DỤNG CHÍNH
+     ══════════════════════════════════════════════════════════ -->
+<div id="ungDung" class="an">
+
+  <!-- ---------- THANH TIÊU ĐỀ ---------- -->
+  <header class="thanh-tren">
+    <div class="thuong-hieu">
+      <img class="logo-cty"
+           src="https://drive.google.com/thumbnail?id=1LY4a06X3731WVwceDNHNlPmDZXIRTi9d&sz=w120"
+           alt="Logo">
+      <div>
+        <h1>KCN Long Thành</h1>
+        <div class="phu-de">Hệ thống tra cứu Nhà xưởng &amp; Đất công nghiệp</div>
+      </div>
+    </div>
+
+    <div class="thong-tin-nguoi-dung">
+      <div id="tenNguoiDung">Khách</div>
+      <span class="nhan" id="nhanVaiTro">Đang xác định…</span>
+    </div>
+  </header>
+
+  <!-- ---------- BỘ LỌC (tác động đồng thời lên cả 2 tab) ---------- -->
+  <div class="bo-loc">
+    <input type="text" id="oTimKiem"
+           placeholder="🔍 Tìm theo mã, tên nhà xưởng, khách thuê, ghi chú…">
+
+    <select id="locCum">
+      <option value="">— Tất cả khu vực / cụm —</option>
+      <!-- Các option còn lại nạp động từ DS_Cum -->
+    </select>
+
+    <select id="locTrangThai">
+      <option value="">— Tất cả trạng thái —</option>
+      <!-- Các option còn lại nạp động từ DM_TrangThai -->
+    </select>
+
+    <select id="locLoaiHinh">
+      <option value="">— Tất cả loại hình —</option>
+      <option value="Nhà xưởng">Nhà xưởng</option>
+      <option value="Đất cho thuê">Đất cho thuê</option>
+    </select>
+
+    <button class="nut nut-nhat nut-nho" id="nutXoaLoc">✕ Xoá lọc</button>
+    <span class="dem" id="soKetQua">0 kết quả</span>
+  </div>
+
+  <!-- ---------- THANH TAB ---------- -->
+  <nav class="thanh-tab">
+    <button class="tab dang-chon" data-tab="traCuu">📋 Tra cứu</button>
+    <button class="tab"           data-tab="banDo">🗺️ Bản đồ</button>
+  </nav>
+
+  <!-- ---------- NỘI DUNG TAB 1: TRA CỨU ---------- -->
+  <section class="noi-dung-tab hien" id="tab-traCuu">
+    <?!= include('Tab_TraCuu'); ?>
+  </section>
+
+  <!-- ---------- NỘI DUNG TAB 2: BẢN ĐỒ ---------- -->
+  <section class="noi-dung-tab an" id="tab-banDo">
+    <?!= include('Tab_BanDo'); ?>
+  </section>
+
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     PANEL CHI TIẾT (dùng chung cho cả 2 tab)
+     ══════════════════════════════════════════════════════════ -->
+<div id="lopPhu" class="an" onclick="dongPanel()"></div>
+
+<aside id="panelChiTiet" class="an">
+  <div class="panel-dau">
+    <h2 id="panelTieuDe">Chi tiết</h2>
+    <button class="nut-dong" onclick="dongPanel()">✕</button>
+  </div>
+  <div class="panel-than" id="panelNoiDung"></div>
+</aside>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     HỘP THOẠI CHỈNH SỬA
+     ★ V3.1: thân form bọc trong .than-sua để cuộn được;
+             tiêu đề dính trên, nhóm nút dính đáy.
+     ══════════════════════════════════════════════════════════ -->
+<div id="hopThoaiSua" class="an">
+  <div class="hop-thoai">
+
+    <h3>✏️ Chỉnh sửa: <span id="suaMaDonVi"></span></h3>
+
+    <div class="than-sua">
+
+      <!-- ===== NHÓM CHUNG ===== -->
+      <div class="tieu-de-nhom" style="margin-top:0">Thông tin cơ bản</div>
+
+      <div class="dong-form">
+        <label>Trạng thái</label>
+        <select id="suaTrangThai"></select>
+      </div>
+
+      <div class="dong-form">
+        <label>Khách thuê</label>
+        <input type="text" id="suaKhachThue" placeholder="Tên công ty thuê">
+      </div>
+
+      <div class="dong-form">
+        <label>Đơn giá (hiển thị chung)</label>
+        <input type="text" id="suaGiaThue" placeholder="VD: 4.5 USD/m²/tháng">
+      </div>
+
+      <div class="dong-form">
+        <label>Ngày hết hạn hợp đồng</label>
+        <input type="text" id="suaNgayHetHan" placeholder="dd/MM/yyyy">
+      </div>
+
+      <div class="dong-form">
+        <label>Tiến độ</label>
+        <input type="text" id="suaTienDo" placeholder="VD: Đang hoàn thiện">
+      </div>
+
+      <!-- ===== NHÓM PHÁP LÝ / NHÀ ĐẦU TƯ ===== -->
+      <div class="tieu-de-nhom">Thông tin nhà đầu tư</div>
+
+      <div class="dong-form">
+        <label>Quốc tịch</label>
+        <input type="text" id="suaQuocTich" placeholder="VD: Hàn Quốc">
+      </div>
+
+      <div class="dong-form">
+        <label>Ngành nghề / sản phẩm</label>
+        <input type="text" id="suaNganhNghe">
+      </div>
+
+      <div class="dong-form">
+        <label>Tổng vốn đầu tư (USD)</label>
+        <input type="text" id="suaTongVonDauTu">
+      </div>
+
+      <div class="dong-form">
+        <label>Người đại diện</label>
+        <input type="text" id="suaNguoiDaiDien">
+      </div>
+
+      <div class="dong-form">
+        <label>Giấy CNĐT</label>
+        <input type="text" id="suaGiayCNDT" placeholder="Số / ngày cấp">
+      </div>
+
+      <!-- ===== NHÓM HỢP ĐỒNG ===== -->
+      <div class="tieu-de-nhom">Hợp đồng thuê</div>
+
+      <div class="dong-form">
+        <label>Số hợp đồng</label>
+        <input type="text" id="suaSoHopDong">
+      </div>
+
+      <div class="dong-form">
+        <label>Ngày hợp đồng</label>
+        <input type="text" id="suaNgayHopDong" placeholder="dd/MM/yyyy">
+      </div>
+
+      <div class="dong-form">
+        <label>Thời hạn thuê (chi tiết)</label>
+        <input type="text" id="suaThoiHanThue"
+               placeholder="VD: 50 năm kể từ 2013, hết hạn 2063">
+      </div>
+
+      <div class="dong-form">
+        <label>Phí quản lý (USD/m²/năm)</label>
+        <input type="text" id="suaPhiQuanLy">
+      </div>
+
+      <!-- ===== NHÓM RIÊNG: ĐẤT CHO THUÊ =====
+           Khối này được moHopThoaiSua() tự ẩn khi LoaiHinh = "Nhà xưởng" -->
+      <div id="nhomSuaDatChoThue">
+
+        <div class="tieu-de-nhom">Chi tiết giá thuê đất</div>
+
+        <div class="dong-form">
+          <label>Mã lô đất thuê</label>
+          <input type="text" id="suaLoDatThue">
+        </div>
+
+        <div class="dong-form">
+          <label>Tổng diện tích đất thuê (m²)</label>
+          <input type="text" id="suaTongDienTichDat">
+        </div>
+
+        <div class="dong-form">
+          <label>Diện tích đất thuê thêm (m²)</label>
+          <input type="text" id="suaDienTichThueThem">
+        </div>
+
+        <div class="dong-form">
+          <label>Tiền thuê mặt bằng — Đơn giá (USD)</label>
+          <input type="text" id="suaDonGiaThueMB">
+        </div>
+
+        <div class="dong-form">
+          <label>Tiền thuê mặt bằng — PT thanh toán</label>
+          <input type="text" id="suaPTThanhToanMB"
+                 placeholder="VD: 1 lần cho thời hạn thuê">
+        </div>
+
+        <div class="dong-form">
+          <label>Tiền đất thô — Đơn giá (USD)</label>
+          <input type="text" id="suaDonGiaDatTho">
+        </div>
+
+        <div class="dong-form">
+          <label>Tiền đất thô — PT thanh toán</label>
+          <input type="text" id="suaPTThanhToanDatTho">
+        </div>
+
+      </div>
+
+      <!-- ===== GHI CHÚ ===== -->
+      <div class="tieu-de-nhom">Ghi chú</div>
+
+      <div class="dong-form">
+        <label>Ghi chú nội bộ</label>
+        <textarea id="suaGhiChu" rows="3"></textarea>
+      </div>
+
+    </div><!-- /.than-sua -->
+
+    <div class="thong-bao" id="thongBaoSua"></div>
+
+    <div class="nhom-nut">
+      <button class="nut nut-nhat"  onclick="dongHopThoaiSua()">Huỷ</button>
+      <button class="nut nut-chinh" id="nutLuu" onclick="luuThayDoi()">💾 Lưu</button>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     HỘP THOẠI BROCHURE & CHIA SẺ ZALO
+     ══════════════════════════════════════════════════════════ -->
+<div id="hopThoaiBrochure" class="an">
+  <div class="hop-thoai hop-thoai-lon">
+
+    <div class="ht-dau">
+      <h3>📤 Brochure &amp; Chia sẻ — <span id="bcTenDonVi"></span></h3>
+      <button class="nut-dong-ht" onclick="dongBrochure()">✕</button>
+    </div>
+
+    <div class="ht-than">
+
+      <div class="tieu-de-nhom" style="margin-top:0">Chọn tài liệu gửi khách</div>
+      <div class="bc-ds" id="bcDanhSach"></div>
+
+      <div class="tieu-de-nhom">Nội dung tin nhắn</div>
+      <textarea id="bcTinNhan" rows="14"></textarea>
+      <p class="bc-goi-y">
+        💡 Có thể chỉnh sửa trực tiếp nội dung trên trước khi gửi.
+        Mẫu tin lấy từ ô <b>MauTinNhanZalo</b> trong sheet <b>DM_CauHinh</b>.
+      </p>
+
+      <div class="tieu-de-nhom">Gửi cho khách hàng</div>
+      <div class="bc-nut">
+        <button class="nut nut-chinh"    onclick="saoChepTinNhan()">📋 Sao chép</button>
+        <button class="nut nut-zalo"     onclick="chiaSeHeThong()">📱 Chia sẻ</button>
+        <button class="nut nut-zalo"     onclick="moZaloWeb()">💬 Mở Zalo Web</button>
+        <button class="nut nut-brochure" onclick="hienMaQR()">🔳 Tạo mã QR</button>
+      </div>
+
+      <div class="bc-qr an" id="bcKhungQR">
+        <img id="bcAnhQR" alt="Mã QR tài liệu">
+        <p>Đưa khách quét mã để mở tài liệu đầu tiên trong danh sách.</p>
+      </div>
+
+      <div class="thong-bao" id="bcThongBao"></div>
+
+    </div>
+  </div>
+</div>
+
+
+<?!= include('Script'); ?>
+</body>
+</html>

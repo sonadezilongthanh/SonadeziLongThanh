@@ -1,0 +1,474 @@
+<div class="khung-ban-do">
+
+  <!-- ★ V2.7: CẢNH BÁO HỢP ĐỒNG SẮP HẾT HẠN (≤ 6 THÁNG)
+       Đưa vào luồng bố cục (không còn position:absolute) để không đè lên header -->
+  <div class="hang-canh-bao">
+    <button type="button" class="nut-canh-bao-hopdong an" id="nutCanhBao" onclick="moModalCanhBao()">
+      🔔 <span id="soLuongCanhBao">0</span> <span class="nhan-chu">hợp đồng sắp hết hạn</span>
+    </button>
+  </div>
+
+  <div class="modal-canh-bao an" id="modalCanhBao" onclick="if(event.target===this) dongModalCanhBao()">
+    <div class="hop-modal">
+      <div class="dau-modal">
+        <h3>⏰ Hợp đồng sắp hết hạn (trong 6 tháng tới)</h3>
+        <button type="button" class="nut-dong" onclick="dongModalCanhBao()">✕</button>
+      </div>
+      <div class="than-modal" id="noiDungModalCanhBao"></div>
+    </div>
+  </div>
+
+  <!-- ĐƯỜNG DẪN -->
+  <nav class="duong-dan">
+    <a href="#" onclick="veBanDoTong();return false;">🏭 Toàn cảnh KCN Long Thành</a>
+    <span id="ddPhanCach" class="an"> › </span>
+    <span id="ddTenCum" class="an"></span>
+  </nav>
+
+  <!-- CHÚ GIẢI -->
+  <div class="chu-giai" id="chuGiai"></div>
+
+  <!-- KHUNG BẢN ĐỒ -->
+  <div class="vung-ban-do" id="vungBanDo">
+    <img id="anhNenBanDo" alt="Mặt bằng">
+    <svg id="svgBanDo" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+
+  <p id="ghiChuBanDo" class="ghi-chu-bd"></p>
+</div>
+
+<style>
+  /* ★ V2.7: khoá gốc toạ độ cho mọi phần tử absolute bên trong khung bản đồ */
+  .khung-ban-do{position:relative}
+
+  .hang-canh-bao{display:flex;justify-content:flex-end;margin:0 0 8px}
+  .nut-canh-bao-hopdong{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid #f59e0b;color:#b45309;padding:8px 14px;border-radius:999px;font-weight:600;font-size:13px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+  .nut-canh-bao-hopdong:hover{background:#fffbeb}
+  .nut-canh-bao-hopdong.an{display:none !important}
+  .nut-canh-bao-hopdong>span:first-of-type{background:#dc2626;color:#fff;border-radius:999px;min-width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;padding:0 5px}
+  @media (max-width:640px){
+    .nut-canh-bao-hopdong{font-size:12px;padding:6px 10px}
+    .nut-canh-bao-hopdong .nhan-chu{display:none}   /* màn hình hẹp: chỉ giữ icon + số */
+  }
+
+  .modal-canh-bao{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:100;display:flex;align-items:center;justify-content:center}
+  .modal-canh-bao.an{display:none}
+  .modal-canh-bao .hop-modal{background:#fff;border-radius:14px;width:min(640px,92vw);max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+  .modal-canh-bao .dau-modal{background:#0B4696;color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center}
+  .modal-canh-bao .dau-modal h3{margin:0;font-size:16px}
+  .modal-canh-bao .nut-dong{background:none;border:none;color:#fff;font-size:20px;cursor:pointer;line-height:1}
+  .modal-canh-bao .than-modal{padding:14px 20px;overflow-y:auto}
+  .bang-canh-bao{width:100%;border-collapse:collapse;font-size:13px}
+  .bang-canh-bao th{text-align:left;padding:8px 10px;border-bottom:2px solid #e2e8f0;color:#475569}
+  .bang-canh-bao td{padding:8px 10px;border-bottom:1px solid #f1f5f9;cursor:pointer}
+  .bang-canh-bao tr:hover td{background:#f8fafc}
+  .bang-canh-bao tr.khan-cap td:last-child{color:#dc2626;font-weight:700}
+  .rong-canh-bao{text-align:center;color:#64748b;padding:20px 0}
+</style>
+
+<script>
+/***********************************************************************
+ * BẢN ĐỒ 2 CẤP — v2.7
+ *
+ *  CẤP 1 (Toàn cảnh KCN) hiển thị ĐỒNG THỜI:
+ *     • Vùng CỤM xưởng   → DS_Cum.ToaDoSVG               → bấm = drill-down
+ *     • Vùng LÔ ĐẤT CN   → DS_NhaXuong có MaCum = 'KCN'  → bấm = mở chi tiết ngay
+ *
+ *  CẤP 2 (Mặt bằng cụm): các nhà xưởng trong cụm
+ *
+ *  ★ V2.5: Đồng bộ tô màu vùng CỤM theo bộ lọc hiện hành (KET_QUA_LOC).
+ *  ★ V2.6: Nút cảnh báo hợp đồng sắp hết hạn (≤ 6 tháng).
+ *  ★ V2.7: Sửa lỗi nút cảnh báo đè lên header (bỏ position:absolute);
+ *          cập nhật badge ở cả 2 cấp bản đồ.
+ ***********************************************************************/
+const MA_CUM_KCN = 'KCN';   // mã đặc biệt: vẽ thẳng trên bản đồ tổng
+
+/* ★ V2.4: Bảng màu CỤM — đồng bộ bộ màu mềm với sheet DM_TrangThai. */
+const MAU_CUM = {
+  trongHoanToan : '#16a34a',   // Còn trống hoàn toàn  — xanh lá (cơ hội)
+  trongMotPhan  : '#d97706',   // Còn trống một phần   — hổ phách
+  daLapDay      : '#4a6fa5',   // Đã lấp đầy           — xanh dương trung tính
+  chuaCoDuLieu  : '#94a3b8'    // Chưa có dữ liệu      — xám nhạt
+};
+
+/***********************************************************************
+ * CẢNH BÁO HỢP ĐỒNG SẮP HẾT HẠN
+ *   Nhà xưởng      -> đọc cột ThoiHanThue
+ *   Đất cho thuê   -> đọc cột ThoiHanThue_ChiTiet
+ ***********************************************************************/
+const SO_NGAY_CANH_BAO = 180; // ~ 6 tháng
+
+/** Phân tích chuỗi ngày hết hạn: hỗ trợ dd/MM/yyyy hoặc chuỗi mô tả có chứa năm */
+function phanTichHanThue_(giaTri) {
+  if (!giaTri) return null;
+  const s = String(giaTri).trim();
+
+  // Dạng ngày đầy đủ dd/MM/yyyy
+  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
+
+  // Chuỗi mô tả có chứa năm -> lấy năm 4 chữ số CUỐI CÙNG, quy ước hết hạn 31/12
+  const dsNam = s.match(/\b(19|20|21)\d{2}\b/g);
+  if (dsNam && dsNam.length > 0) {
+    return new Date(+dsNam[dsNam.length - 1], 11, 31);
+  }
+  return null;
+}
+
+function dinhDangNgay_(d) {
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return dd + '/' + mm + '/' + d.getFullYear();
+}
+
+/** Quét DU_LIEU.nhaXuong, trả danh sách hợp đồng còn ≤ 6 tháng, gần hạn nhất trước */
+function tinhDanhSachCanhBao_() {
+  const homNay = new Date();
+  homNay.setHours(0, 0, 0, 0);
+
+  const ds = [];
+  (DU_LIEU.nhaXuong || []).forEach(function (nx) {
+    const laDat = String(nx.LoaiHinh).trim() === 'Đất cho thuê';
+    const giaTriHan = laDat ? nx.ThoiHanThue_ChiTiet : nx.ThoiHanThue;
+    const ngayHetHan = phanTichHanThue_(giaTriHan);
+    if (!ngayHetHan) return;
+
+    const soNgay = Math.round((ngayHetHan - homNay) / 86400000);
+    if (soNgay >= 0 && soNgay <= SO_NGAY_CANH_BAO) {
+      ds.push({
+        ma: nx.MaDonVi,
+        ten: nx.TenNhaXuong || nx.MaDonVi,
+        khachThue: nx.KhachThue || '(chưa có tên khách thuê)',
+        ngayHetHan: ngayHetHan,
+        soNgay: soNgay
+      });
+    }
+  });
+
+  ds.sort(function (a, b) { return a.soNgay - b.soNgay; });
+  return ds;
+}
+
+/** Cập nhật số hiển thị trên nút cảnh báo, ẩn nút nếu không có mục nào */
+function capNhatBadgeCanhBao() {
+  const ds = tinhDanhSachCanhBao_();
+  window.__DS_CANH_BAO__ = ds;
+
+  const nut = document.getElementById('nutCanhBao');
+  if (!nut) return;
+  nut.classList.toggle('an', ds.length === 0);
+  const elSo = document.getElementById('soLuongCanhBao');
+  if (elSo) elSo.textContent = ds.length;
+}
+
+/** Mở modal liệt kê hợp đồng sắp hết hạn; bấm 1 dòng sẽ nhảy tới lô đó trên bản đồ */
+function moModalCanhBao() {
+  const ds = window.__DS_CANH_BAO__ || [];
+  const noiDung = document.getElementById('noiDungModalCanhBao');
+
+  noiDung.innerHTML = ds.length === 0
+    ? '<p class="rong-canh-bao">Không có hợp đồng nào sắp hết hạn trong 6 tháng tới.</p>'
+    : '<table class="bang-canh-bao"><thead><tr>'
+      + '<th>Mã lô</th><th>Tên</th><th>Khách thuê</th><th>Hết hạn</th><th>Còn lại</th>'
+      + '</tr></thead><tbody>'
+      + ds.map(function (d) {
+          return '<tr class="' + (d.soNgay <= 30 ? 'khan-cap' : '') + '" '
+               + 'onclick="dongModalCanhBao();highlightLoDat(\'' + d.ma + '\');">'
+               + '<td>' + d.ma + '</td><td>' + d.ten + '</td><td>' + d.khachThue + '</td>'
+               + '<td>' + dinhDangNgay_(d.ngayHetHan) + '</td><td>' + d.soNgay + ' ngày</td></tr>';
+        }).join('')
+      + '</tbody></table>';
+
+  document.getElementById('modalCanhBao').classList.remove('an');
+}
+
+function dongModalCanhBao() {
+  document.getElementById('modalCanhBao').classList.add('an');
+}
+
+let CAP_HIEN_TAI = 'tong';
+let CUM_DANG_XEM = null;
+
+const elAnh = document.getElementById('anhNenBanDo');
+const elSvg = document.getElementById('svgBanDo');
+
+
+/* ---------- Dựng SVG ---------- */
+function dungSVG(viewBox, anhNen, vungList) {
+  elSvg.setAttribute('viewBox', viewBox || '0 0 1000 700');
+
+  if (anhNen) {
+    elAnh.src = anhNen;
+    elAnh.style.display = 'block';
+    elSvg.classList.add('co-anh-nen');
+  } else {
+    elAnh.style.display = 'none';
+    elSvg.classList.remove('co-anh-nen');
+  }
+
+  elSvg.innerHTML = vungList.map(function (v) {
+    const t = tamPolygon(v.diem);
+    const cls = 'vung-bam'
+              + (v.loai === 'cum' ? ' la-cum' : '')
+              + (v.mo ? ' mo' : '');
+    return '<polygon class="' + cls + '" data-ma="' + v.ma + '" data-loai="' + v.loai + '" '
+         +   'points="' + v.diem + '" fill="' + v.mau + '"><title>' + v.tip + '</title></polygon>'
+         + '<text class="nhan-vung" x="' + t.x + '" y="' + t.y + '">' + v.nhan + '</text>'
+         + (v.nhanPhu
+             ? '<text class="nhan-phu" x="' + t.x + '" y="' + (t.y + 17) + '">' + v.nhanPhu + '</text>'
+             : '');
+  }).join('');
+
+  // Dispatcher: cụm -> drill-down | nhà xưởng & lô đất -> panel chi tiết
+  elSvg.querySelectorAll('.vung-bam').forEach(function (p) {
+    p.onclick = function () {
+      if (p.dataset.loai === 'cum') moCum(p.dataset.ma);
+      else                          moPanelChiTiet(p.dataset.ma);
+    };
+  });
+}
+
+function tamPolygon(chuoi) {
+  const ds = String(chuoi).trim().split(/\s+/).map(function (c) {
+    const p = c.split(',');
+    return [parseFloat(p[0]), parseFloat(p[1])];
+  });
+  const n = ds.length || 1;
+  return {
+    x: ds.reduce(function (s, p) { return s + p[0]; }, 0) / n,
+    y: ds.reduce(function (s, p) { return s + p[1]; }, 0) / n
+  };
+}
+
+
+/***********************************************************************
+ * CẤP 1 — TOÀN CẢNH KCN  (cụm xưởng + lô đất công nghiệp)
+ ***********************************************************************/
+function veBanDoTong() {
+  CAP_HIEN_TAI = 'tong';
+  CUM_DANG_XEM = null;
+
+  document.getElementById('ddPhanCach').classList.add('an');
+  document.getElementById('ddTenCum').classList.add('an');
+
+  const ch = DU_LIEU.cauHinh || {};
+  const maKhopLoc = KET_QUA_LOC.map(function (n) { return n.MaDonVi; });
+
+  const vung = [];
+
+  // --- (a) Vùng CỤM xưởng ---
+  (DU_LIEU.cum || []).forEach(function (c) {
+    if (!c.ToaDoSVG) return;
+    const tk = thongKeCum(c.MaCum);
+    const conKhopLoc = tk.tong === 0 || tk.khopLoc > 0;
+
+    vung.push({
+      loai    : 'cum',
+      ma      : c.MaCum,
+      diem    : c.ToaDoSVG,
+      mau     : conKhopLoc ? mauTheoTyLeTrong(tk) : '#cbd5e1',
+      mo      : !conKhopLoc,
+      nhan    : c.TenCum || c.MaCum,
+      nhanPhu : tk.tong > 0 ? (tk.trong + '/' + tk.tong + ' trống') : 'Chưa có dữ liệu',
+      tip     : (c.TenCum || c.MaCum) + ' — ' + tk.tong + ' đơn vị, '
+                + tk.trong + ' còn trống, ' + tk.khopLoc + ' khớp bộ lọc hiện tại'
+                + '  (bấm để xem mặt bằng)'
+    });
+  });
+
+  // --- (b) Vùng LÔ ĐẤT CÔNG NGHIỆP (MaCum = 'KCN') ---
+  (DU_LIEU.nhaXuong || []).forEach(function (nx) {
+    if (nx.MaCum !== MA_CUM_KCN || !nx.ToaDoSVG) return;
+    const trongLoc = maKhopLoc.indexOf(nx.MaDonVi) > -1;
+    vung.push({
+      loai    : 'nx',
+      ma      : nx.MaDonVi,
+      diem    : nx.ToaDoSVG,
+      mau     : trongLoc
+                  ? (MAU_TRANG_THAI[String(nx.TrangThai).trim()] || MAU_MAC_DINH)
+                  : '#cbd5e1',
+      mo      : !trongLoc,
+      nhan    : nx.TenNhaXuong || nx.MaDonVi,
+      tip     : (nx.TenNhaXuong || nx.MaDonVi) + ' — ' + (nx.TrangThai || '?')
+                + (nx.DienTichDat ? ' — ' + dinhDangSo(nx.DienTichDat, 'm²') : '')
+    });
+  });
+
+  capNhatBadgeCanhBao();   // ★ V2.7: cập nhật badge kể cả khi không có vùng nào
+
+  if (vung.length === 0) {
+    elAnh.style.display = 'none';
+    elSvg.innerHTML = '';
+    document.getElementById('ghiChuBanDo').innerHTML =
+      '<span class="canh-bao">⚠ Chưa có vùng bấm nào. Dùng <b>Công cụ vẽ vùng</b> '
+      + 'để khoanh vùng, rồi dán toạ độ vào cột <b>ToaDoSVG</b>.</span>';
+    return;
+  }
+
+  dungSVG(ch.ViewBoxMaster, ch.AnhMasterKCN, vung);
+
+  const soCum = vung.filter(function (v) { return v.loai === 'cum'; }).length;
+  const soLo  = vung.length - soCum;
+  document.getElementById('ghiChuBanDo').innerHTML =
+    '💡 Bấm vào <b>cụm xưởng</b> (viền trắng đậm) để xem mặt bằng chi tiết. '
+    + 'Bấm vào <b>lô đất công nghiệp</b> để xem thông tin ngay. — Hiện có <b>'
+    + soCum + '</b> cụm và <b>' + soLo + '</b> lô đất.';
+}
+
+/**
+ * Thống kê cụm — bỏ qua nhóm lô đất KCN.
+ * `khopLoc` = số đơn vị trong cụm khớp bộ lọc hiện hành (KET_QUA_LOC).
+ */
+function thongKeCum(maCum) {
+  if (maCum === MA_CUM_KCN) return { tong: 0, trong: 0, khopLoc: 0 };
+  const ds = (DU_LIEU.nhaXuong || []).filter(function (n) { return n.MaCum === maCum; });
+  const maKhopLoc = KET_QUA_LOC.map(function (n) { return n.MaDonVi; });
+  return {
+    tong   : ds.length,
+    trong  : ds.filter(function (n) { return String(n.TrangThai).trim() === 'Trống'; }).length,
+    khopLoc: ds.filter(function (n) { return maKhopLoc.indexOf(n.MaDonVi) > -1; }).length
+  };
+}
+
+function mauTheoTyLeTrong(tk) {
+  if (tk.tong === 0)        return MAU_CUM.chuaCoDuLieu;
+  if (tk.trong === 0)       return MAU_CUM.daLapDay;
+  if (tk.trong === tk.tong) return MAU_CUM.trongHoanToan;
+  return MAU_CUM.trongMotPhan;
+}
+
+
+/***********************************************************************
+ * CẤP 2 — MẶT BẰNG CỤM
+ ***********************************************************************/
+function moCum(maCum) {
+  const c = (DU_LIEU.cum || []).filter(function (x) { return x.MaCum === maCum; })[0];
+  if (!c) return;
+
+  CAP_HIEN_TAI = 'cum';
+  CUM_DANG_XEM = maCum;
+
+  document.getElementById('ddPhanCach').classList.remove('an');
+  const el = document.getElementById('ddTenCum');
+  el.classList.remove('an');
+  el.textContent = c.TenCum || maCum;
+
+  veChuGiai();
+  veChiTietCum();
+}
+
+function veChiTietCum() {
+  const maCum = CUM_DANG_XEM;
+  const c = (DU_LIEU.cum || []).filter(function (x) { return x.MaCum === maCum; })[0];
+  if (!c) return;
+
+  const maKhopLoc = KET_QUA_LOC.map(function (n) { return n.MaDonVi; });
+
+  const ds = (DU_LIEU.nhaXuong || []).filter(function (n) {
+    return n.MaCum === maCum && n.ToaDoSVG;
+  });
+
+  capNhatBadgeCanhBao();   // ★ V2.7
+
+  if (ds.length === 0) {
+    elAnh.src = c.AnhMatBang || '';
+    elAnh.style.display = c.AnhMatBang ? 'block' : 'none';
+    elSvg.innerHTML = '';
+    if (c.ViewBox) elSvg.setAttribute('viewBox', c.ViewBox);
+    document.getElementById('ghiChuBanDo').innerHTML =
+      '<span class="canh-bao">⚠ Cụm <b>' + maCum + '</b> chưa có vùng bấm. '
+      + 'Dùng <b>Công cụ vẽ vùng</b> khoanh từng nhà xưởng, '
+      + 'rồi dán vào cột <b>ToaDoSVG</b> của sheet <b>DS_NhaXuong</b>.</span>';
+    return;
+  }
+
+  const vung = ds.map(function (nx) {
+    const trongLoc = maKhopLoc.indexOf(nx.MaDonVi) > -1;
+    return {
+      loai    : 'nx',
+      ma      : nx.MaDonVi,
+      diem    : nx.ToaDoSVG,
+      mau     : trongLoc
+                  ? (MAU_TRANG_THAI[String(nx.TrangThai).trim()] || MAU_MAC_DINH)
+                  : '#cbd5e1',
+      mo      : !trongLoc,
+      nhan    : nx.TenNhaXuong || nx.MaDonVi,
+      nhanPhu : nx.KhachThue
+                  || (String(nx.TrangThai).trim() === 'Trống' ? 'CÒN TRỐNG' : ''),
+      tip     : (nx.TenNhaXuong || nx.MaDonVi) + ' — ' + (nx.TrangThai || '?')
+                + (nx.KhachThue ? ' — ' + nx.KhachThue : '')
+    };
+  });
+
+  dungSVG(c.ViewBox, c.AnhMatBang, vung);
+
+  const tk = thongKeCum(maCum);
+  document.getElementById('ghiChuBanDo').innerHTML =
+    '💡 Bấm vào <b>nhà xưởng</b> để xem chi tiết. — Cụm này có <b>' + tk.tong
+    + '</b> đơn vị, <b style="color:#16a34a">' + tk.trong + '</b> còn trống.';
+}
+
+
+/***********************************************************************
+ * HÀM DÙNG CHUNG (gọi từ Script.html)
+ ***********************************************************************/
+function toMauBanDo() {
+  veChuGiai();
+  if (CAP_HIEN_TAI === 'cum') veChiTietCum();
+  else                        veBanDoTong();
+}
+
+function highlightLoDat(ma) {
+  const nx = timNhaXuong(ma);
+  if (!nx) return;
+
+  if (nx.MaCum === MA_CUM_KCN) {
+    if (CAP_HIEN_TAI !== 'tong') veBanDoTong();
+  } else if (CUM_DANG_XEM !== nx.MaCum) {
+    moCum(nx.MaCum);
+  }
+
+  setTimeout(function () {
+    boHighlight();
+    const p = elSvg.querySelector('[data-ma="' + ma + '"]');
+    if (p) {
+      p.classList.add('sang');
+      p.classList.remove('mo');
+      p.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, 90);
+}
+
+function boHighlight() {
+  elSvg.querySelectorAll('.vung-bam.sang').forEach(function (p) {
+    p.classList.remove('sang');
+  });
+  document.querySelectorAll('tr.sang').forEach(function (r) {
+    r.classList.remove('sang');
+  });
+}
+
+function veChuGiai() {
+  const cg = document.getElementById('chuGiai');
+  if (CAP_HIEN_TAI === 'tong') {
+    cg.innerHTML =
+        '<b class="cg-tieu-de">CỤM XƯỞNG:</b>'
+      + '<span><i class="o-mau" style="background:' + MAU_CUM.trongHoanToan + '"></i>Còn trống hoàn toàn</span>'
+      + '<span><i class="o-mau" style="background:' + MAU_CUM.trongMotPhan  + '"></i>Còn trống một phần</span>'
+      + '<span><i class="o-mau" style="background:' + MAU_CUM.daLapDay      + '"></i>Đã lấp đầy</span>'
+      + '<span><i class="o-mau" style="background:' + MAU_CUM.chuaCoDuLieu  + '"></i>Chưa có dữ liệu</span>'
+      + '<b class="cg-tieu-de">LÔ ĐẤT:</b>'
+      + (DU_LIEU.trangThai || []).map(function (t) {
+          return '<span><i class="o-mau" style="background:' + (t.MauSac || MAU_MAC_DINH)
+               + '"></i>' + t.TenTrangThai + '</span>';
+        }).join('')
+      + '<span><i class="o-mau" style="background:#cbd5e1"></i>Ngoài bộ lọc</span>';
+  } else {
+    cg.innerHTML = (DU_LIEU.trangThai || []).map(function (t) {
+      return '<span><i class="o-mau" style="background:' + (t.MauSac || MAU_MAC_DINH)
+           + '"></i>' + t.TenTrangThai + '</span>';
+    }).join('')
+    + '<span><i class="o-mau" style="background:#cbd5e1"></i>Ngoài bộ lọc</span>';
+  }
+}
+</script>

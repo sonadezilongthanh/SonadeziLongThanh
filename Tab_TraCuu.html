@@ -1,0 +1,157 @@
+<style>
+  .khung-bang table { table-layout: fixed; }
+  .khung-bang th {
+    white-space: normal !important;
+    word-break: break-word;
+    line-height: 1.3;
+    vertical-align: bottom;
+    width: 92px;
+  }
+  .khung-bang td {
+    white-space: normal !important;
+    word-break: break-word;
+  }
+  .khung-bang th[data-rong], .khung-bang td[data-nhan="Ngành nghề"],
+  .khung-bang td[data-nhan="Ngành nghề / SP"] {
+    width: 260px !important;
+  }
+  .khung-bang th:first-child, .khung-bang td[data-nhan="Mã"] { width: 110px; }
+</style>
+
+<div class="khung-bang">
+  <table>
+    <thead id="dauBang">
+      <tr>
+        <th>Mã</th>
+        <th>Tên nhà xưởng</th>
+        <th>Khu vực</th>
+        <th>Loại hình</th>
+        <th>Trạng thái</th>
+        <th>Thao tác</th>
+      </tr>
+    </thead>
+    <tbody id="thanBang"></tbody>
+  </table>
+</div>
+
+<script>
+/** Cột chung — luôn hiển thị bất kể Loại hình nào (chỉ còn cột định danh/điều hướng) */
+const COT_CHUNG_DAU = ['<th>Mã</th>','<th>Tên nhà xưởng</th>','<th>Khu vực</th>','<th>Loại hình</th>','<th>Trạng thái</th>'];
+const COT_CHUNG_CUOI = '<th>Thao tác</th>';
+
+/** Cột riêng — Nhà xưởng (F, G→S) */
+const COT_NHA_XUONG = [
+  ['Khách thuê',             function (nx) { return nx.KhachThue || ''; }],
+  ['Quốc tịch',              function (nx) { return nx.QuocTich || ''; }],
+  ['Ngành nghề / SP',        function (nx) { return nx.NganhNghe_SanPham || ''; }],
+  ['Tổng vốn đầu tư (USD)',  function (nx) { return dinhDangSo(nx.TongVonDauTu_USD, ''); }],
+  ['DT xưởng thuê (m²)',     function (nx) { return dinhDangSo(nx.DienTichXuong_m2, ''); }],
+  ['DT khu đất (m²)',        function (nx) { return dinhDangSo(nx.DienTichKhuDat_m2, ''); }],
+  ['Số hợp đồng',            function (nx) { return nx.SoHopDong || ''; }],
+  ['Ngày hợp đồng',          function (nx) { return nx.NgayHopDong || ''; }],
+  ['Tiền thuê xưởng (USD)',  function (nx) { return ghepGiaPT(nx['TienThueXuong - DonGia (USD)'], nx['TienThueXuong - PTThanhToan']); }],
+  ['Phí QL (USD)',           function (nx) { return nx['PhiQuanLy (USD)'] || ''; }],
+  ['Thời hạn thuê',          function (nx) { return nx.ThoiHanThue || ''; }],
+  ['Ghi chú',                function (nx) { return nx.GhiChu || ''; }]
+];
+
+/** Cột riêng — Đất cho thuê (F, T→AJ) */
+const COT_DAT_CHO_THUE = [
+  ['Khách thuê',             function (nx) { return nx.KhachThue || ''; }],
+  ['Quốc tịch',              function (nx) { return nx.QuocTich || ''; }],
+  ['Ngành nghề',             function (nx) { return nx.NganhNghe || ''; }],
+  ['Tổng DT đất thuê (m²)',  function (nx) { return dinhDangSo(nx['Tong DienTichDatThue (m2)'], ''); }],
+  ['DT thuê thêm (m²)',      function (nx) { return dinhDangSo(nx['DienTichDatThueThem (m2)'], ''); }],
+  ['Tiền thuê mặt bằng (USD)', function (nx) { return ghepGiaPT(nx['TienThueMatBang - DonGia (USD)'], nx['TienThueMatBang - PTThanhToan']); }],
+  ['Tiền đất thô (USD)',     function (nx) { return ghepGiaPT(nx['TienDatTho - DonGia (USD)'], nx['TienDatTho - PTThanhToan']); }],
+  ['Phí QL (USD)',           function (nx) { return nx['PhiQuanLy (USD)'] || ''; }],
+  ['Tổng vốn đầu tư (USD)',  function (nx) { return dinhDangSo(nx.TongVonDauTu_USD, ''); }],
+  ['Số hợp đồng',            function (nx) { return nx.SoHopDong || ''; }],
+  ['Ngày hợp đồng',          function (nx) { return nx.NgayHopDong || ''; }],
+  ['Giấy CNĐT',              function (nx) { return nx.GiayCNDT || ''; }],
+  ['Người đại diện',         function (nx) { return nx.NguoiDaiDien || ''; }],
+  ['Mã lô đất',              function (nx) { return nx.LoDatThue || ''; }],
+  ['Thời hạn thuê',          function (nx) { return nx.ThoiHanThue_ChiTiet || ''; }],
+  ['Ghi chú',                function (nx) { return nx.GhiChu || nx['Ghi chú'] || ''; }]
+];
+
+let COT_RIENG_DANG_HIEN = [];  // cột riêng đang áp dụng cho lần render hiện tại
+let AN_3_COT_CHUNG = false;    // true khi đang lọc riêng "Đất cho thuê" -> ẩn Tên/Khu vực/Loại hình
+
+/** Dựng lại tiêu đề bảng theo Loại hình đang lọc — gọi mỗi khi bộ lọc đổi */
+function renderTieuDeBang(loaiHinh) {
+  let cotRieng = [];
+  if (loaiHinh === 'Nhà xưởng')      cotRieng = COT_NHA_XUONG;
+  else if (loaiHinh === 'Đất cho thuê') cotRieng = COT_DAT_CHO_THUE;
+  // Loại hình khác hoặc "Tất cả" -> chỉ hiện cột chung cho gọn
+
+  COT_RIENG_DANG_HIEN = cotRieng;
+  AN_3_COT_CHUNG = (loaiHinh === 'Đất cho thuê');
+
+  const dauChung = AN_3_COT_CHUNG
+    ? ['<th>Mã</th>', '<th>Trạng thái</th>']
+    : COT_CHUNG_DAU;
+
+  const giuaBang = cotRieng.map(function (c) {
+    const rong = (c[0] === 'Ngành nghề' || c[0] === 'Ngành nghề / SP');
+    return '<th' + (rong ? ' data-rong' : '') + '>' + c[0] + '</th>';
+  }).join('');
+  document.getElementById('dauBang').innerHTML =
+    '<tr>' + dauChung.join('') + giuaBang + COT_CHUNG_CUOI + '</tr>';
+}
+
+function renderBangTraCuu(ds) {
+  const than = document.getElementById('thanBang');
+  const soCotChung = AN_3_COT_CHUNG ? 2 : COT_CHUNG_DAU.length;
+  const soCotTong = soCotChung + COT_RIENG_DANG_HIEN.length + 1;
+
+  if (!ds || ds.length === 0) {
+    than.innerHTML =
+      '<tr><td colspan="' + soCotTong + '" style="text-align:center;padding:32px;color:#5b6b7a">'
+      + 'Không tìm thấy kết quả phù hợp.</td></tr>';
+    return;
+  }
+
+  than.innerHTML = ds.map(function (nx) {
+    const mau = MAU_TRANG_THAI[String(nx.TrangThai).trim()] || MAU_MAC_DINH;
+    const ma  = nx.MaDonVi;
+
+    let nutMaps = '';
+    if (nx.Lat && nx.Lng) {
+      nutMaps = '<a class="nut nut-maps nut-nho" target="_blank" rel="noopener" '
+              + 'title="Dẫn đường Google Maps" '
+              + 'href="https://www.google.com/maps/dir/?api=1&destination='
+              + nx.Lat + ',' + nx.Lng + '">🚗</a>';
+    }
+
+    const cotRiengHtml = COT_RIENG_DANG_HIEN.map(function (c) {
+      return '<td data-nhan="' + c[0] + '">' + c[1](nx) + '</td>';
+    }).join('');
+
+    const cotChungHtml = AN_3_COT_CHUNG
+      ? ''
+      : ''
+        + '<td data-nhan="Tên">' + (nx.TenNhaXuong || '') + '</td>'
+        + '<td data-nhan="Khu vực">' + (nx.MaCum || '') + '</td>'
+        + '<td data-nhan="Loại hình">' + (nx.LoaiHinh || '') + '</td>';
+
+    return ''
+      + '<tr data-ma="' + ma + '">'
+      +   '<td data-nhan="Mã"><b>' + ma + '</b></td>'
+      +   cotChungHtml
+      +   '<td data-nhan="Trạng thái">'
+      +     '<span class="chip chip-mem" style="--mau-tt:' + mau + '">'
+      +     (nx.TrangThai || '—') + '</span>'
+      +   '</td>'
+      +   cotRiengHtml
+      +   '<td data-nhan="Thao tác" style="white-space:nowrap">'
+      +     '<button class="nut nut-nhat nut-nho" title="Xem chi tiết" '
+      +       'onclick="moPanelChiTiet(\'' + ma + '\')">👁️</button> '
+      +     '<button class="nut nut-nhat nut-nho" title="Xem trên bản đồ" '
+      +       'onclick="xemTrenBanDo(\'' + ma + '\')">🗺️</button> '
+      +     nutMaps
+      +   '</td>'
+      + '</tr>';
+  }).join('');
+}
+</script>
