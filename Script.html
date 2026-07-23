@@ -126,7 +126,8 @@ function taoManHinhDangNhap() {
   document.body.insertAdjacentHTML('beforeend',
       '<style>'
     + '#manHinhDangNhap{position:fixed;inset:0;z-index:10000;'
-    +   'background:linear-gradient(135deg,#0B4696 0%,#062c5e 100%);'
+    +   'background:linear-gradient(135deg,rgba(11,70,150,.55) 0%,rgba(6,44,94,.75) 100%),'
+    +     'url("https://drive.google.com/thumbnail?id=1tDMR-bJqwXBVaBE1uy-yg3Ozd4RoOh9v&sz=w1600") center/cover no-repeat #062c5e;'
     +   'display:flex;align-items:center;justify-content:center;padding:16px}'
     + '#manHinhDangNhap.an{display:none}'
     + '.dn-hop{background:#fff;border-radius:16px;padding:30px 26px;width:100%;'
@@ -459,20 +460,80 @@ function napBoLoc() {
     selTT.insertAdjacentHTML('beforeend',
       '<option value="' + t.TenTrangThai + '">' + t.TenTrangThai + '</option>');
   });
+
+  // ★ Quốc tịch KHÔNG nạp tĩnh nữa — được dựng động (faceted) trong
+  //   apDungBoLoc()/capNhatLocQuocTich() theo các bộ lọc khác đang áp.
+  napDanhSachLoc('locThoiHanThue', function (nx) { return nx.ThoiHanThue; });
+}
+
+function napDanhSachLoc(selectId, layGiaTri) {
+  const sel = document.getElementById(selectId);
+  const tap = {};
+  (DU_LIEU.nhaXuong || []).forEach(function (nx) {
+    const v = String(layGiaTri(nx) || '').trim();
+    if (v) tap[v] = true;
+  });
+  Object.keys(tap).sort(function (a, b) { return a.localeCompare(b, 'vi'); })
+    .forEach(function (v) {
+      const opt = document.createElement('option');
+      opt.value = v; opt.textContent = v;
+      sel.appendChild(opt);
+    });
+}
+
+/** ★ FACETED — Dựng lại dropdown Quốc tịch chỉ với các quốc tịch còn
+ *  xuất hiện trong tập đã áp MỌI bộ lọc khác (trừ chính Quốc tịch).
+ *  Giữ nguyên lựa chọn hiện tại; nếu lựa chọn đó không còn kết quả vẫn
+ *  giữ lại (kèm nhãn "0 kết quả") để dropdown không tự nhảy về "Tất cả". */
+function capNhatLocQuocTich(dsDaLoc, giaTriDangChon) {
+  const sel = document.getElementById('locQuocTich');
+  if (!sel) return;
+
+  const tap = {};
+  (dsDaLoc || []).forEach(function (nx) {
+    const v = String(nx.QuocTich || '').trim();
+    if (v) tap[v] = true;
+  });
+
+  const dsQT = Object.keys(tap).sort(function (a, b) {
+    return a.localeCompare(b, 'vi');
+  });
+  const conGiaTriChon = !giaTriDangChon || dsQT.indexOf(giaTriDangChon) > -1;
+
+  let html = '<option value="">— Tất cả quốc tịch —</option>';
+  dsQT.forEach(function (v) {
+    html += '<option value="' + v.replace(/"/g, '&quot;') + '">' + v + '</option>';
+  });
+  if (!conGiaTriChon) {
+    html += '<option value="' + giaTriDangChon.replace(/"/g, '&quot;') + '">'
+          + giaTriDangChon + ' (0 kết quả)</option>';
+  }
+
+  sel.innerHTML = html;
+  sel.value = giaTriDangChon || '';   // gán .value không kích hoạt sự kiện 'input'
+}
+
+function soM2(nx) {
+  const raw = nx.DienTichXuong_m2 || nx['Tong DienTichDatThue (m2)'] || '';
+  const n = parseFloat(String(raw).replace(/,/g, ''));
+  return isNaN(n) ? null : n;
 }
 
 function ganSuKien() {
-  ['oTimKiem', 'locCum', 'locTrangThai', 'locLoaiHinh'].forEach(function (id) {
+  ['oTimKiem', 'locCum', 'locTrangThai', 'locLoaiHinh',
+   'locQuocTich', 'locThoiHanThue', 'locNganhNghe', 'locDTMin', 'locDTMax'
+  ].forEach(function (id) {
     document.getElementById(id).addEventListener('input', apDungBoLoc);
   });
 
   document.getElementById('nutXoaLoc').onclick = function () {
-    document.getElementById('oTimKiem').value      = '';
-    document.getElementById('locCum').value        = '';
-    document.getElementById('locTrangThai').value  = '';
-    document.getElementById('locLoaiHinh').value   = '';
+    ['oTimKiem', 'locCum', 'locTrangThai', 'locLoaiHinh',
+     'locQuocTich', 'locThoiHanThue', 'locNganhNghe', 'locDTMin', 'locDTMax'
+    ].forEach(function (id) { document.getElementById(id).value = ''; });
     apDungBoLoc();
   };
+
+  document.getElementById('nutXuatExcel').onclick = xuatExcel;
 
   document.querySelectorAll('.tab').forEach(function (b) {
     b.onclick = function () { chuyenTab(b.dataset.tab); };
@@ -486,13 +547,40 @@ function apDungBoLoc() {
   const trangThai = document.getElementById('locTrangThai').value;
   const loaiHinh  = document.getElementById('locLoaiHinh').value;
 
-  KET_QUA_LOC = (DU_LIEU.nhaXuong || []).filter(function (nx) {
+  const quocTich  = document.getElementById('locQuocTich').value;
+  const thoiHan   = document.getElementById('locThoiHanThue').value;
+  const nganhNghe = document.getElementById('locNganhNghe').value.trim().toLowerCase();
+  const dtMin     = parseFloat(document.getElementById('locDTMin').value);
+  const dtMax     = parseFloat(document.getElementById('locDTMax').value);
+
+  // ★ Vị từ lọc dùng chung — tham số boQuaQuocTich=true để bỏ điều kiện
+  //   Quốc tịch, phục vụ dựng dropdown faceted (exclude-self).
+  function khopBoLoc(nx, boQuaQuocTich) {
     const chuoi = [nx.MaDonVi, nx.TenNhaXuong, nx.KhachThue, nx.GhiChu]
                     .join(' ').toLowerCase();
+    const nn = ((nx.NganhNghe_SanPham || '') + ' ' + (nx.NganhNghe || '')).toLowerCase();
+    const dt = soM2(nx);
     return (!tuKhoa    || chuoi.indexOf(tuKhoa) > -1)
         && (!cum       || String(nx.MaCum).trim() === cum)
         && (!trangThai || String(nx.TrangThai).trim() === trangThai)
-        && (!loaiHinh  || String(nx.LoaiHinh).trim() === loaiHinh);
+        && (!loaiHinh  || String(nx.LoaiHinh).trim() === loaiHinh)
+        && (boQuaQuocTich || !quocTich || String(nx.QuocTich).trim() === quocTich)
+        && (!thoiHan   || String(nx.ThoiHanThue).trim() === thoiHan
+                       || String(nx.ThoiHanThue_ChiTiet).trim() === thoiHan)
+        && (!nganhNghe || nn.indexOf(nganhNghe) > -1)
+        && (isNaN(dtMin) || (dt !== null && dt >= dtMin))
+        && (isNaN(dtMax) || (dt !== null && dt <= dtMax));
+  }
+
+  // ★ Dựng lại dropdown Quốc tịch theo các bộ lọc KHÁC (exclude-self)
+  const tapChoDropdown = (DU_LIEU.nhaXuong || []).filter(function (nx) {
+    return khopBoLoc(nx, true);
+  });
+  capNhatLocQuocTich(tapChoDropdown, quocTich);
+
+  // Kết quả cuối cùng — áp đủ tất cả bộ lọc (kể cả Quốc tịch)
+  KET_QUA_LOC = (DU_LIEU.nhaXuong || []).filter(function (nx) {
+    return khopBoLoc(nx, false);
   });
 
   document.getElementById('soKetQua').textContent = KET_QUA_LOC.length + ' kết quả';
@@ -500,6 +588,45 @@ function apDungBoLoc() {
   renderTieuDeBang(loaiHinh);      // Tiêu đề cột động theo Loại hình
   renderBangTraCuu(KET_QUA_LOC);   // Tab 1
   toMauBanDo(KET_QUA_LOC);         // Tab 2
+}
+
+function xuatExcel() {
+  if (!KET_QUA_LOC || KET_QUA_LOC.length === 0) {
+    alert('Không có dữ liệu để xuất. Vui lòng lọc trước khi xuất.');
+    return;
+  }
+  const cotDinhDanh = AN_3_COT_CHUNG
+    ? [['Mã',            function (nx) { return nx.MaDonVi || ''; }],
+       ['Trạng thái',    function (nx) { return nx.TrangThai || ''; }]]
+    : [['Mã',            function (nx) { return nx.MaDonVi || ''; }],
+       ['Tên nhà xưởng', function (nx) { return nx.TenNhaXuong || ''; }],
+       ['Khu vực',       function (nx) { return nx.MaCum || ''; }],
+       ['Loại hình',     function (nx) { return nx.LoaiHinh || ''; }],
+       ['Trạng thái',    function (nx) { return nx.TrangThai || ''; }]];
+
+  const cot    = cotDinhDanh.concat(COT_RIENG_DANG_HIEN);
+  const tieuDe = cot.map(function (c) { return c[0]; });
+  const duLieu = KET_QUA_LOC.map(function (nx) {
+    return cot.map(function (c) { return String(c[1](nx) || ''); });
+  });
+
+  const nut = document.getElementById('nutXuatExcel');
+  const chuGoc = nut.textContent;
+  nut.disabled = true;
+  nut.textContent = '⏳ Đang tạo file…';
+  const cuaSo = window.open('', '_blank');
+
+  google.script.run
+    .withSuccessHandler(function (url) {
+      nut.disabled = false; nut.textContent = chuGoc;
+      if (cuaSo) cuaSo.location = url; else window.open(url, '_blank');
+    })
+    .withFailureHandler(function (loi) {
+      nut.disabled = false; nut.textContent = chuGoc;
+      if (cuaSo) cuaSo.close();
+      alert('Lỗi khi xuất Excel: ' + loi.message);
+    })
+    .xuatExcelTraCuu(tieuDe, duLieu);
 }
 
 

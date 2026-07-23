@@ -63,8 +63,23 @@
       <option value="Nhà xưởng">Nhà xưởng</option>
       <option value="Đất cho thuê">Đất cho thuê</option>
     </select>
+<select id="locQuocTich">
+      <option value="">— Tất cả quốc tịch —</option>
+    </select>
 
+    <select id="locThoiHanThue">
+      <option value="">— Tất cả thời hạn thuê —</option>
+    </select>
+
+    <input type="text" id="locNganhNghe"
+           placeholder="🏭 Ngành nghề / sản phẩm…" style="min-width:180px">
+
+    <input type="number" id="locDTMin" min="0"
+           placeholder="DT từ (m²)" style="max-width:130px;min-width:110px">
+    <input type="number" id="locDTMax" min="0"
+           placeholder="đến (m²)" style="max-width:130px;min-width:110px">
     <button class="nut nut-nhat nut-nho" id="nutXoaLoc">✕ Xoá lọc</button>
+    <button class="nut nut-chinh nut-nho" id="nutXuatExcel">⬇️ Xuất Excel</button>
     <span class="dem" id="soKetQua">0 kết quả</span>
   </div>
 
