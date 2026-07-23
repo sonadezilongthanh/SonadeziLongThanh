@@ -207,7 +207,35 @@
         <label>Phí quản lý (USD/m²/năm)</label>
         <input type="text" id="suaPhiQuanLy">
       </div>
-
+      
+<!-- ===== NHÓM RIÊNG: NHÀ XƯỞNG =====
+           Khối này được moHopThoaiSua() tự ẩn khi LoaiHinh = "Đất cho thuê" -->
+      <div id="nhomSuaNhaXuong">
+ 
+        <div class="tieu-de-nhom">Chi tiết thuê xưởng</div>
+ 
+        <div class="dong-form">
+          <label>Diện tích xưởng thuê (m²)</label>
+          <input type="text" id="suaDienTichXuong">
+        </div>
+ 
+        <div class="dong-form">
+          <label>Diện tích khu đất (m²)</label>
+          <input type="text" id="suaDienTichKhuDat">
+        </div>
+ 
+        <div class="dong-form">
+          <label>Tiền thuê xưởng — Đơn giá (USD/m²/tháng)</label>
+          <input type="text" id="suaDonGiaThueXuong">
+        </div>
+ 
+        <div class="dong-form">
+          <label>Tiền thuê xưởng — PT thanh toán</label>
+          <input type="text" id="suaPTThanhToanXuong"
+                 placeholder="VD: hàng quý">
+        </div>
+ 
+      </div>
       <!-- ===== NHÓM RIÊNG: ĐẤT CHO THUÊ =====
            Khối này được moHopThoaiSua() tự ẩn khi LoaiHinh = "Nhà xưởng" -->
       <div id="nhomSuaDatChoThue">

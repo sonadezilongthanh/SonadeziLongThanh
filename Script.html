@@ -1,6 +1,14 @@
 <script>
 /***********************************************************************
  * TRẠNG THÁI TOÀN CỤC — DÙNG CHUNG CHO CẢ 2 TAB
+ * ★ V3.3 (23/07/2026) — Sửa lỗi form chỉnh sửa đọc/ghi sai cột:
+ *   • moHopThoaiSua() và luuThayDoi() phân nhánh theo LoaiHinh
+ *   • Đúng tên cột: NganhNghe_SanPham / NganhNghe, ThoiHanThue /
+ *     ThoiHanThue_ChiTiet, "PhiQuanLy (USD)",
+ *     "TienThueMatBang - DonGia (USD)", "TienDatTho - DonGia (USD)"
+ *   • Gọi capNhatNhaXuong() đúng chữ ký: (ma, duLieu, {token, hoTen})
+ *   • Chỉ gửi lên server những trường thực sự có ô nhập trên màn hình
+ *     → không còn nguy cơ ghi rỗng đè lên dữ liệu thật
  ***********************************************************************/
 let DU_LIEU     = { nhaXuong: [], cum: [], trangThai: [] };
 let NGUOI_DUNG  = { duocSua: false, laQuanTri: false };
@@ -21,6 +29,38 @@ let DA_GAN_GIAO_DIEN = false;
 function duocPhepSua() {
   return !!(NGUOI_DUNG.duocSua
         || (PHIEN_SUA.vaiTro === 'QuanTri' && PHIEN_SUA.token));
+}
+
+
+/***********************************************************************
+ * ★ V3.3 — TIỆN ÍCH THAO TÁC AN TOÀN VỚI Ô NHẬP
+ *  Mọi thao tác đọc/ghi ô nhập đều đi qua 3 hàm này để:
+ *   - Không lỗi khi ô chưa tồn tại trong Index.html
+ *   - KHÔNG gửi giá trị rỗng của ô không tồn tại lên server (tránh xoá
+ *     trắng dữ liệu thật trong Sheet)
+ ***********************************************************************/
+
+/** Lấy phần tử theo id, trả về null nếu không có */
+function _o(id) {
+  return document.getElementById(id) || null;
+}
+
+/** Gán giá trị vào ô nhập nếu ô đó tồn tại */
+function _ganO(id, giaTri) {
+  const el = _o(id);
+  if (el) el.value = (giaTri === null || giaTri === undefined) ? '' : giaTri;
+}
+
+/**
+ * Thêm 1 trường vào object gửi server — CHỈ KHI ô nhập tồn tại.
+ * @param {Object} obj    object dữ liệu sẽ gửi lên server
+ * @param {string} tenCot tên cột chính xác trong Sheet DS_NhaXuong
+ * @param {string} id     id của ô nhập trên form
+ */
+function _layO(obj, tenCot, id) {
+  const el = _o(id);
+  if (!el) return;              // ô chưa có trên form → bỏ qua, không ghi rỗng
+  obj[tenCot] = el.value;
 }
 
 
@@ -752,6 +792,29 @@ function timNhaXuong(ma) {
   })[0];
 }
 
+/***********************************************************************
+ * ★ V3.3 — HAI HÀM ĐỌC "CHỊU LỖI" CHO 2 TRƯỜNG HAY BỊ LỆCH CỘT
+ *  Sheet có 2 cột khác tên cho cùng một nội dung:
+ *    Ngành nghề   : NganhNghe_SanPham (Nhà xưởng) | NganhNghe (Đất)
+ *    Thời hạn thuê: ThoiHanThue       (Nhà xưởng) | ThoiHanThue_ChiTiet (Đất)
+ *  Dữ liệu cũ có thể đang nằm ở cột "sai" do lỗi phiên bản trước, nên
+ *  khi HIỂN THỊ ta đọc cột đúng trước, thiếu thì lấy cột còn lại.
+ *  (Khi GHI thì luôn ghi vào cột đúng theo LoaiHinh — xem luuThayDoi.)
+ ***********************************************************************/
+function docNganhNghe(nx) {
+  if (!nx) return '';
+  return (String(nx.LoaiHinh || '').trim() === 'Đất cho thuê')
+    ? (nx.NganhNghe || nx.NganhNghe_SanPham || '')
+    : (nx.NganhNghe_SanPham || nx.NganhNghe || '');
+}
+
+function docThoiHanThue(nx) {
+  if (!nx) return '';
+  return (String(nx.LoaiHinh || '').trim() === 'Đất cho thuê')
+    ? (nx.ThoiHanThue_ChiTiet || nx.ThoiHanThue || '')
+    : (nx.ThoiHanThue || nx.ThoiHanThue_ChiTiet || '');
+}
+
 function moPanelChiTiet(ma) {
   const nx = timNhaXuong(ma);
   if (!nx) { alert('Chưa có dữ liệu cho đơn vị: ' + ma); return; }
@@ -822,32 +885,32 @@ function moPanelChiTiet(ma) {
     html += dongTT('Giấy CNĐT',         nx.GiayCNDT);
     html += dongTT('Người đại diện',    nx.NguoiDaiDien);
 
-    // ★ Cột G→S — riêng Nhà xưởng
-    if (nx.LoaiHinh === 'Nhà xưởng') {
+    // ★ Riêng Nhà xưởng
+    if (String(nx.LoaiHinh || '').trim() === 'Nhà xưởng') {
       html += '<div class="tieu-de-nhom">Chi tiết thuê xưởng</div>';
       html += dongTT('Quốc tịch',              nx.QuocTich);
-      html += dongTT('Ngành nghề / sản phẩm',  nx.NganhNghe_SanPham);
+      html += dongTT('Ngành nghề / sản phẩm',  docNganhNghe(nx));
       html += dongTT('Tổng vốn đầu tư',        nx.TongVonDauTu_USD ? dinhDangSo(nx.TongVonDauTu_USD, 'USD') : '');
       html += dongTT('DT xưởng thuê',          dinhDangSo(nx.DienTichXuong_m2, 'm²'));
       html += dongTT('DT khu đất',             dinhDangSo(nx.DienTichKhuDat_m2, 'm²'));
       html += dongTT('Tiền thuê xưởng',        ghepGiaPT(nx['TienThueXuong - DonGia (USD)'], nx['TienThueXuong - PTThanhToan'], 'USD'));
       html += dongTT('Phí quản lý',            nx['PhiQuanLy (USD)'] ? (nx['PhiQuanLy (USD)'] + ' USD') : '');
-      html += dongTT('Thời hạn thuê',          nx.ThoiHanThue);
+      html += dongTT('Thời hạn thuê',          docThoiHanThue(nx));
     }
 
-    // ★ Cột T→AJ — riêng Đất cho thuê
-    if (nx.LoaiHinh === 'Đất cho thuê') {
+    // ★ Riêng Đất cho thuê
+    if (String(nx.LoaiHinh || '').trim() === 'Đất cho thuê') {
       html += '<div class="tieu-de-nhom">Chi tiết giá thuê đất</div>';
       html += dongTT('Mã lô đất',         nx.LoDatThue);
       html += dongTT('Quốc tịch',         nx.QuocTich);
-      html += dongTT('Ngành nghề',        nx.NganhNghe);
+      html += dongTT('Ngành nghề',        docNganhNghe(nx));
       html += dongTT('Tổng vốn đầu tư',   nx.TongVonDauTu_USD ? dinhDangSo(nx.TongVonDauTu_USD, 'USD') : '');
       html += dongTT('Tổng DT đất thuê',  dinhDangSo(nx['Tong DienTichDatThue (m2)'], 'm²'));
       html += dongTT('DT đất thuê thêm',  dinhDangSo(nx['DienTichDatThueThem (m2)'], 'm²'));
       html += dongTT('Tiền thuê mặt bằng', ghepGiaPT(nx['TienThueMatBang - DonGia (USD)'], nx['TienThueMatBang - PTThanhToan'], 'USD'));
       html += dongTT('Tiền đất thô',       ghepGiaPT(nx['TienDatTho - DonGia (USD)'], nx['TienDatTho - PTThanhToan'], 'USD'));
       html += dongTT('Phí quản lý',        nx['PhiQuanLy (USD)'] ? (nx['PhiQuanLy (USD)'] + ' USD') : '');
-      html += dongTT('Thời hạn thuê',      nx.ThoiHanThue_ChiTiet);
+      html += dongTT('Thời hạn thuê',      docThoiHanThue(nx));
     }
 
     html += dongTT('Ghi chú',           nx.GhiChu || nx['Ghi chú']);
@@ -918,6 +981,41 @@ function ghepGiaPT(donGia, pt, donVi) {
 
 /***********************************************************************
  * HỘP THOẠI CHỈNH SỬA
+ * ★★★ V3.3 — VIẾT LẠI TOÀN BỘ PHẦN ĐỌC/GHI THEO ĐÚNG TÊN CỘT
+ *
+ *  BẢNG ĐỐI CHIẾU Ô NHẬP ↔ CỘT TRONG SHEET DS_NhaXuong
+ *  ────────────────────────────────────────────────────────────────
+ *  Ô nhập (id)              Nhà xưởng                Đất cho thuê
+ *  ────────────────────────────────────────────────────────────────
+ *  suaTrangThai             TrangThai                TrangThai
+ *  suaKhachThue             KhachThue                KhachThue
+ *  suaGiaThue               GiaThue                  GiaThue
+ *  suaNgayHetHan            NgayHetHanHD             NgayHetHanHD
+ *  suaTienDo                TienDo                   TienDo
+ *  suaGhiChu                GhiChu                   GhiChu
+ *  suaQuocTich              QuocTich                 QuocTich
+ *  suaNganhNghe             NganhNghe_SanPham        NganhNghe
+ *  suaTongVonDauTu          TongVonDauTu_USD         TongVonDauTu_USD
+ *  suaNguoiDaiDien          NguoiDaiDien             NguoiDaiDien
+ *  suaGiayCNDT              GiayCNDT                 GiayCNDT
+ *  suaSoHopDong             SoHopDong                SoHopDong
+ *  suaNgayHopDong           NgayHopDong              NgayHopDong
+ *  suaThoiHanThue           ThoiHanThue              ThoiHanThue_ChiTiet
+ *  suaPhiQuanLy             PhiQuanLy (USD)          PhiQuanLy (USD)
+ *  ── riêng Nhà xưởng (nếu Index.html đã bổ sung ô) ──
+ *  suaDienTichXuong         DienTichXuong_m2         —
+ *  suaDienTichKhuDat        DienTichKhuDat_m2        —
+ *  suaDonGiaThueXuong       TienThueXuong - DonGia (USD)
+ *  suaPTThanhToanXuong      TienThueXuong - PTThanhToan
+ *  ── riêng Đất cho thuê ──
+ *  suaLoDatThue             —                        LoDatThue
+ *  suaTongDienTichDat       —                        Tong DienTichDatThue (m2)
+ *  suaDienTichThueThem      —                        DienTichDatThueThem (m2)
+ *  suaDonGiaThueMB          —                        TienThueMatBang - DonGia (USD)
+ *  suaPTThanhToanMB         —                        TienThueMatBang - PTThanhToan
+ *  suaDonGiaDatTho          —                        TienDatTho - DonGia (USD)
+ *  suaPTThanhToanDatTho     —                        TienDatTho - PTThanhToan
+ *  ────────────────────────────────────────────────────────────────
  ***********************************************************************/
 function moHopThoaiSua(ma) {
   // ★ V3.2: chặn sớm nếu chưa có quyền; chế độ khách không mở hộp mã khoá
@@ -928,6 +1026,8 @@ function moHopThoaiSua(ma) {
 
   const nx = timNhaXuong(ma);
   if (!nx) return;
+
+  const laDat = (String(nx.LoaiHinh || '').trim() === 'Đất cho thuê');
 
   document.getElementById('suaMaDonVi').textContent = ma;
 
@@ -940,40 +1040,58 @@ function moHopThoaiSua(ma) {
       '<option value="' + t.TenTrangThai + '"' + chon + '>' + t.TenTrangThai + '</option>');
   });
 
-  document.getElementById('suaKhachThue').value  = nx.KhachThue    || '';
-  document.getElementById('suaGiaThue').value    = nx.GiaThue      || '';
-  document.getElementById('suaNgayHetHan').value = nx.NgayHetHanHD || '';
-  document.getElementById('suaTienDo').value     = nx.TienDo       || '';
-  document.getElementById('suaGhiChu').value     = nx.GhiChu       || '';
+  // ===== NHÓM CƠ BẢN =====
+  _ganO('suaKhachThue',  nx.KhachThue);
+  _ganO('suaGiaThue',    nx.GiaThue);
+  _ganO('suaNgayHetHan', nx.NgayHetHanHD);
+  _ganO('suaTienDo',     nx.TienDo);
+  _ganO('suaGhiChu',     nx.GhiChu || nx['Ghi chú']);
 
-  // ★ Các cột dùng chung cho cả NX và Đất
-  document.getElementById('suaQuocTich').value       = nx.QuocTich           || '';
-  document.getElementById('suaNganhNghe').value      = nx.NganhNghe          || '';
-  document.getElementById('suaTongVonDauTu').value   = nx.TongVonDauTu_USD   || '';
-  document.getElementById('suaSoHopDong').value      = nx.SoHopDong          || '';
-  document.getElementById('suaNgayHopDong').value    = nx.NgayHopDong        || '';
-  document.getElementById('suaThoiHanThue').value    = nx.ThoiHanThue_ChiTiet|| '';
+  // ===== NHÓM NHÀ ĐẦU TƯ (dùng chung 2 loại hình) =====
+  _ganO('suaQuocTich',      nx.QuocTich);
+  _ganO('suaNganhNghe',     docNganhNghe(nx));      // ★ đọc đúng cột theo LoaiHinh
+  _ganO('suaTongVonDauTu',  nx.TongVonDauTu_USD);
+  _ganO('suaNguoiDaiDien',  nx.NguoiDaiDien);
+  _ganO('suaGiayCNDT',      nx.GiayCNDT);
 
-  // ★ Riêng lô đất
-  document.getElementById('suaLoDatThue').value      = nx.LoDatThue         || '';
-  document.getElementById('suaGiayCNDT').value       = nx.GiayCNDT          || '';
-  document.getElementById('suaNguoiDaiDien').value   = nx.NguoiDaiDien      || '';
+  // ===== NHÓM HỢP ĐỒNG =====
+  _ganO('suaSoHopDong',   nx.SoHopDong);
+  _ganO('suaNgayHopDong', nx.NgayHopDong);
+  _ganO('suaThoiHanThue', docThoiHanThue(nx));      // ★ đọc đúng cột theo LoaiHinh
+  _ganO('suaPhiQuanLy',   nx['PhiQuanLy (USD)']);   // ★ đúng tên cột có hậu tố (USD)
 
-  // ★ Chi tiết giá thuê đất
-  document.getElementById('suaTongDienTichDat').value   = nx['Tong DienTichDatThue (m2)']      || '';
-  document.getElementById('suaDienTichThueThem').value  = nx['DienTichDatThueThem (m2)']       || '';
-  document.getElementById('suaDonGiaThueMB').value      = nx['TienThueMatBang - DonGia']       || '';
-  document.getElementById('suaPTThanhToanMB').value     = nx['TienThueMatBang - PTThanhToan']  || '';
-  document.getElementById('suaDonGiaDatTho').value      = nx['TienDatTho - DonGia']            || '';
-  document.getElementById('suaPTThanhToanDatTho').value = nx['TienDatTho - PTThanhToan']       || '';
-  document.getElementById('suaPhiQuanLy').value         = nx.PhiQuanLy                          || '';
+  // ===== RIÊNG NHÀ XƯỞNG (chỉ chạy nếu Index.html đã có các ô này) =====
+  _ganO('suaDienTichXuong',    nx.DienTichXuong_m2);
+  _ganO('suaDienTichKhuDat',   nx.DienTichKhuDat_m2);
+  _ganO('suaDonGiaThueXuong',  nx['TienThueXuong - DonGia (USD)']);
+  _ganO('suaPTThanhToanXuong', nx['TienThueXuong - PTThanhToan']);
 
-  // ★ Ẩn/hiện khối field riêng theo LoaiHinh
-  const laNhaXuong = nx.LoaiHinh === 'Nhà xưởng';
-  const khoiDat = document.getElementById('nhomSuaDatChoThue');
-  if (khoiDat) khoiDat.style.display = laNhaXuong ? 'none' : 'block';
+  // ===== RIÊNG ĐẤT CHO THUÊ =====
+  _ganO('suaLoDatThue',          nx.LoDatThue);
+  _ganO('suaTongDienTichDat',    nx['Tong DienTichDatThue (m2)']);
+  _ganO('suaDienTichThueThem',   nx['DienTichDatThueThem (m2)']);
+  _ganO('suaDonGiaThueMB',       nx['TienThueMatBang - DonGia (USD)']);   // ★ thêm (USD)
+  _ganO('suaPTThanhToanMB',      nx['TienThueMatBang - PTThanhToan']);
+  _ganO('suaDonGiaDatTho',       nx['TienDatTho - DonGia (USD)']);        // ★ thêm (USD)
+  _ganO('suaPTThanhToanDatTho',  nx['TienDatTho - PTThanhToan']);
+
+  // ===== ẨN/HIỆN KHỐI RIÊNG THEO LOẠI HÌNH =====
+  const khoiDat = _o('nhomSuaDatChoThue');
+  if (khoiDat) khoiDat.style.display = laDat ? 'block' : 'none';
+
+  const khoiNX = _o('nhomSuaNhaXuong');   // có thể chưa tồn tại — không sao
+  if (khoiNX) khoiNX.style.display = laDat ? 'none' : 'block';
+
+  // Nhãn phí quản lý đổi theo đơn vị tính của từng loại hình
+  const nhanPQL = _o('nhanPhiQuanLy');
+  if (nhanPQL) {
+    nhanPQL.textContent = laDat
+      ? 'Phí quản lý (USD/m²/năm)'
+      : 'Phí quản lý (USD/m²/năm)';
+  }
 
   document.getElementById('thongBaoSua').textContent = '';
+  document.getElementById('thongBaoSua').className   = 'thong-bao';
   document.getElementById('hopThoaiSua').classList.remove('an');
 }
 
@@ -986,32 +1104,56 @@ function luuThayDoi() {
   const nut = document.getElementById('nutLuu');
   const tb  = document.getElementById('thongBaoSua');
 
-  const duLieuMoi = {
-    TrangThai    : document.getElementById('suaTrangThai').value,
-    KhachThue    : document.getElementById('suaKhachThue').value,
-    GiaThue      : document.getElementById('suaGiaThue').value,
-    NgayHetHanHD : document.getElementById('suaNgayHetHan').value,
-    TienDo       : document.getElementById('suaTienDo').value,
-    GhiChu       : document.getElementById('suaGhiChu').value,
+  const nxHienTai = timNhaXuong(ma);
+  const laDat = nxHienTai
+    && String(nxHienTai.LoaiHinh || '').trim() === 'Đất cho thuê';
 
-    QuocTich            : document.getElementById('suaQuocTich').value,
-    NganhNghe           : document.getElementById('suaNganhNghe').value,
-    TongVonDauTu_USD    : document.getElementById('suaTongVonDauTu').value,
-    SoHopDong           : document.getElementById('suaSoHopDong').value,
-    NgayHopDong         : document.getElementById('suaNgayHopDong').value,
-    ThoiHanThue_ChiTiet : document.getElementById('suaThoiHanThue').value,
-    LoDatThue           : document.getElementById('suaLoDatThue').value,
-    GiayCNDT            : document.getElementById('suaGiayCNDT').value,
-    NguoiDaiDien        : document.getElementById('suaNguoiDaiDien').value,
+  const duLieuMoi = {};
 
-    'Tong DienTichDatThue (m2)'     : document.getElementById('suaTongDienTichDat').value,
-    'DienTichDatThueThem (m2)'      : document.getElementById('suaDienTichThueThem').value,
-    'TienThueMatBang - DonGia'      : document.getElementById('suaDonGiaThueMB').value,
-    'TienThueMatBang - PTThanhToan' : document.getElementById('suaPTThanhToanMB').value,
-    'TienDatTho - DonGia'           : document.getElementById('suaDonGiaDatTho').value,
-    'TienDatTho - PTThanhToan'      : document.getElementById('suaPTThanhToanDatTho').value,
-    PhiQuanLy                       : document.getElementById('suaPhiQuanLy').value
-  };
+  // ===== NHÓM CHUNG — áp dụng cho cả 2 loại hình =====
+  _layO(duLieuMoi, 'TrangThai',        'suaTrangThai');
+  _layO(duLieuMoi, 'KhachThue',        'suaKhachThue');
+  _layO(duLieuMoi, 'GiaThue',          'suaGiaThue');
+  _layO(duLieuMoi, 'NgayHetHanHD',     'suaNgayHetHan');
+  _layO(duLieuMoi, 'TienDo',           'suaTienDo');
+  _layO(duLieuMoi, 'GhiChu',           'suaGhiChu');
+
+  _layO(duLieuMoi, 'QuocTich',         'suaQuocTich');
+  _layO(duLieuMoi, 'TongVonDauTu_USD', 'suaTongVonDauTu');
+  _layO(duLieuMoi, 'NguoiDaiDien',     'suaNguoiDaiDien');
+  _layO(duLieuMoi, 'GiayCNDT',         'suaGiayCNDT');
+
+  _layO(duLieuMoi, 'SoHopDong',        'suaSoHopDong');
+  _layO(duLieuMoi, 'NgayHopDong',      'suaNgayHopDong');
+  _layO(duLieuMoi, 'PhiQuanLy (USD)',  'suaPhiQuanLy');
+
+  // ===== 2 TRƯỜNG GHI VÀO CỘT KHÁC NHAU TÙY LOẠI HÌNH =====
+  if (laDat) {
+    _layO(duLieuMoi, 'NganhNghe',           'suaNganhNghe');
+    _layO(duLieuMoi, 'ThoiHanThue_ChiTiet', 'suaThoiHanThue');
+  } else {
+    _layO(duLieuMoi, 'NganhNghe_SanPham',   'suaNganhNghe');
+    _layO(duLieuMoi, 'ThoiHanThue',         'suaThoiHanThue');
+  }
+
+  // ===== NHÓM RIÊNG — Nhà xưởng =====
+  if (!laDat) {
+    _layO(duLieuMoi, 'DienTichXuong_m2',             'suaDienTichXuong');
+    _layO(duLieuMoi, 'DienTichKhuDat_m2',            'suaDienTichKhuDat');
+    _layO(duLieuMoi, 'TienThueXuong - DonGia (USD)', 'suaDonGiaThueXuong');
+    _layO(duLieuMoi, 'TienThueXuong - PTThanhToan',  'suaPTThanhToanXuong');
+  }
+
+  // ===== NHÓM RIÊNG — Đất cho thuê =====
+  if (laDat) {
+    _layO(duLieuMoi, 'LoDatThue',                       'suaLoDatThue');
+    _layO(duLieuMoi, 'Tong DienTichDatThue (m2)',       'suaTongDienTichDat');
+    _layO(duLieuMoi, 'DienTichDatThueThem (m2)',        'suaDienTichThueThem');
+    _layO(duLieuMoi, 'TienThueMatBang - DonGia (USD)',  'suaDonGiaThueMB');
+    _layO(duLieuMoi, 'TienThueMatBang - PTThanhToan',   'suaPTThanhToanMB');
+    _layO(duLieuMoi, 'TienDatTho - DonGia (USD)',       'suaDonGiaDatTho');
+    _layO(duLieuMoi, 'TienDatTho - PTThanhToan',        'suaPTThanhToanDatTho');
+  }
 
   nut.disabled = true;
   nut.textContent = 'Đang lưu…';
@@ -1019,27 +1161,43 @@ function luuThayDoi() {
   tb.textContent = '';
 
   google.script.run
-    .withSuccessHandler(function () {
+    .withSuccessHandler(function (kq) {
       // Cập nhật dữ liệu trong bộ nhớ để không phải tải lại
       const nx = timNhaXuong(ma);
-      Object.keys(duLieuMoi).forEach(function (k) { nx[k] = duLieuMoi[k]; });
+      if (nx) {
+        Object.keys(duLieuMoi).forEach(function (k) { nx[k] = duLieuMoi[k]; });
+      }
 
       nut.disabled = false;
       nut.textContent = '💾 Lưu';
-      tb.className = 'thong-bao ok';
-      tb.textContent = '✓ Đã lưu thành công.';
 
-      apDungBoLoc();
-      moPanelChiTiet(ma);
-      setTimeout(dongHopThoaiSua, 800);
+      // ★ V3.3 — cảnh báo nếu có tên cột không khớp tiêu đề Sheet
+      const thieu = (kq && kq.cotKhongTonTai) || [];
+      if (thieu.length > 0) {
+        tb.className = 'thong-bao loi';
+        tb.textContent = '⚠ Đã lưu, nhưng KHÔNG tìm thấy cột: '
+          + thieu.join(', ')
+          + '. Vui lòng báo quản trị kiểm tra tiêu đề sheet DS_NhaXuong.';
+        return;   // giữ hộp thoại mở để người dùng đọc cảnh báo
+      }
+
+      tb.className = 'thong-bao ok';
+      tb.textContent = '✓ Đã lưu thành công ('
+        + ((kq && kq.soTruongDaSua) || 0) + ' ô thay đổi).';
+      setTimeout(function () {
+        dongHopThoaiSua();
+        moPanelChiTiet(ma);
+      }, 700);
     })
-    .withFailureHandler(function (loi) {
+    .withFailureHandler(function (e) {
       nut.disabled = false;
       nut.textContent = '💾 Lưu';
       tb.className = 'thong-bao loi';
-      tb.textContent = '✕ ' + loi.message;
+      tb.textContent = '✕ Lỗi: ' + e.message;
     })
-    .capNhatNhaXuong(ma, duLieuMoi, { token: PHIEN_SUA.token, hoTen: PHIEN_SUA.hoTen });
+    // ★ V3.3 — ĐÚNG CHỮ KÝ: tham số thứ 3 là OBJECT phiên, không phải chuỗi
+    .capNhatNhaXuong(ma, duLieuMoi,
+                     { token: PHIEN_SUA.token, hoTen: PHIEN_SUA.hoTen });
 }
 
 

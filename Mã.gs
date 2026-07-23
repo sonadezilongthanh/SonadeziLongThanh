@@ -1,5 +1,5 @@
 /***********************************************************************
- * HỆ THỐNG TRA CỨU & BẢN ĐỒ KCN LONG THÀNH — PHIÊN BẢN 3.2
+ * HỆ THỐNG TRA CỨU & BẢN ĐỒ KCN LONG THÀNH — PHIÊN BẢN 3.3
  *  ★ V3.0: Mở quyền chỉnh sửa bằng MÃ KHOÁ lưu trong sheet DM_CauHinh
  *  ★ V3.1: Bổ sung menu tiện ích Sao lưu (liên kết với module Backup.gs)
  *  ★ V3.2: MÀN HÌNH ĐĂNG NHẬP 3 CHẾ ĐỘ khi mở web:
@@ -9,6 +9,17 @@
  *            nội bộ, không sửa. DỮ LIỆU NỘI BỘ BỊ LỌC NGAY TỪ SERVER,
  *            không gửi xuống trình duyệt (an toàn cả khi mở DevTools).
  *          Bỏ phân quyền theo email (DM_PhanQuyen không còn dùng cho web).
+ *  ★ V3.3 (23/07/2026) — SỬA LỖI GHI SAI CỘT:
+ *          • capNhatNhaXuong() ghi vào TẤT CẢ cột trùng tên tiêu đề
+ *            (trước đây chỉ ghi cột đầu tiên → cột T, AB, AC, AD, AE
+ *             không bao giờ nhận được dữ liệu).
+ *          • Chấp nhận cả 2 kiểu gọi: (ma, duLieu, {token,hoTen})
+ *            và (ma, duLieu, token, hoTen) — tương thích ngược.
+ *          • Trả về danh sách cột KHÔNG khớp tiêu đề để giao diện cảnh báo,
+ *            thay vì bỏ qua âm thầm gây mất dữ liệu.
+ *          • Chuẩn hoá tiêu đề bằng .trim() ở cả docSheet_ và khi ghi.
+ *          • Dọn hàm layDanhSachTenNguoiDung() bị khai báo lồng.
+ *          • Thêm 2 tiện ích menu: kiểm tra cột trùng tên & dọn dữ liệu lệch cột.
  * Phòng Kinh doanh Tổng hợp — Sonadezi Long Thành
  ***********************************************************************/
 
@@ -58,15 +69,19 @@ const KHOA_CAU_HINH_MK_XEM = 'MatKhauXem';
 const COT_AN_KHACH_NHA_XUONG = [
   'QuocTich',
   'NganhNghe_SanPham',
+  'NganhNghe',
   'TongVonDauTu_USD',
   'SoHopDong',
   'NgayHopDong',
+  'GiayCNDT',
+  'NguoiDaiDien',
   'TienThueXuong - DonGia (USD)',
   'TienThueXuong - DonGia',
   'TienThueXuong - PTThanhToan',
   'PhiQuanLy (USD)',
   'PhiQuanLy',
   'ThoiHanThue',
+  'ThoiHanThue_ChiTiet',
   'GhiChu',
   'Ghi chú'
 ];
@@ -74,6 +89,7 @@ const COT_AN_KHACH_NHA_XUONG = [
 const COT_AN_KHACH_DAT = [
   'QuocTich',
   'NganhNghe',
+  'NganhNghe_SanPham',
   'TongVonDauTu_USD',
   'SoHopDong',
   'NgayHopDong',
@@ -87,6 +103,7 @@ const COT_AN_KHACH_DAT = [
   'PhiQuanLy',
   'GiayCNDT',
   'NguoiDaiDien',
+  'ThoiHanThue',
   'ThoiHanThue_ChiTiet',
   'GhiChu',
   'Ghi chú'
@@ -131,13 +148,15 @@ function docSheet_(tenSheet, batBuoc) {
   const vung = sheet.getDataRange().getValues();
   if (vung.length < 2) return [];
 
-  const tieuDe = vung.shift().map(String);
+  // ★ V3.3: .trim() để tiêu đề thừa khoảng trắng không tạo ra khoá lạ
+  const tieuDe = vung.shift().map(function (t) { return String(t).trim(); });
 
   return vung
     .filter(function (d) { return String(d[0]).trim() !== ''; })
     .map(function (dong) {
       const obj = {};
       tieuDe.forEach(function (cot, i) {
+        if (!cot) return;
         let v = dong[i];
         if (v instanceof Date) v = Utilities.formatDate(v, 'GMT+7', 'dd/MM/yyyy');
         // ★ Nếu 2 cột trùng tên tiêu đề, KHÔNG cho giá trị rỗng của cột sau
@@ -176,6 +195,27 @@ function chuanHoaLinkDrive_(link) {
     return 'https://drive.google.com/file/d/' + id + '/view';
   }
   return s;
+}
+
+/***********************************************************************
+ * ★ V3.3 — BẢN ĐỒ TIÊU ĐỀ → DANH SÁCH CHỈ SỐ CỘT
+ *  Khác với indexOf() (chỉ trả về cột đầu tiên), hàm này trả về MỌI vị trí
+ *  của một tên tiêu đề. Nhờ đó khi Sheet còn cột trùng tên (QuocTich ở G và
+ *  T, TongVonDauTu_USD ở I và AC…), dữ liệu được ghi đồng bộ ở tất cả các
+ *  vị trí — không còn tình trạng "nhập một nơi, hiển thị một nẻo".
+ *
+ *  @param  {Array}  tieuDe  mảng tiêu đề dòng 1
+ *  @return {Object}         { 'TenCot': [chiSo0, chiSo1, ...] }
+ ***********************************************************************/
+function bandoTieuDe_(tieuDe) {
+  const map = {};
+  tieuDe.forEach(function (t, i) {
+    const ten = String(t).trim();
+    if (!ten) return;
+    if (!map[ten]) map[ten] = [];
+    map[ten].push(i);
+  });
+  return map;
 }
 
 
@@ -395,6 +435,7 @@ function dangNhapWeb(matKhau, hoTen) {
  * PHÂN QUYỀN THEO EMAIL (CŨ)
  *  ★ V3.2: web không còn dùng — giữ lại để capNhatNhaXuong tương thích
  *  khi triển khai ở chế độ nhận diện email (nếu sau này chuyển Workspace).
+ *  ★ V3.3: đã gỡ bản khai báo lồng của layDanhSachTenNguoiDung().
  ***********************************************************************/
 function layThongTinNguoiDung() {
   let email = '';
@@ -418,40 +459,6 @@ function layThongTinNguoiDung() {
       }
     } catch (err) { /* bỏ qua */ }
   }
-  
-  /***********************************************************************
- * ★ HƯỚNG C — DANH SÁCH HỌ TÊN CHO MÀN HÌNH ĐĂNG NHẬP
- *  Trả về danh sách họ tên (KHÔNG kèm email/vai trò) để đổ vào ô chọn.
- *  Chạy đồng nhất mọi trình duyệt (kể cả Safari/iPad, vốn không giữ được
- *  localStorage trong iframe GAS). Nguồn: cột họ tên trong DM_PhanQuyen.
- ***********************************************************************/
-function layDanhSachTenNguoiDung() {
-  try {
-    const ds = docSheet_(TEN_SHEET.PHAN_QUYEN, false);
-    if (!ds || ds.length === 0) return [];
-
-    // Dò tên cột chứa họ tên (phòng khi tiêu đề đổi)
-    const cotUuTien = ['HoTen', 'Họ tên', 'HoVaTen', 'TenNhanVien', 'Ten'];
-    const cacCot = Object.keys(ds[0]);
-    let cotTen = '';
-    for (let i = 0; i < cotUuTien.length; i++) {
-      if (cacCot.indexOf(cotUuTien[i]) > -1) { cotTen = cotUuTien[i]; break; }
-    }
-    if (!cotTen) return [];
-
-    const tap = {};
-    ds.forEach(function (r) {
-      const t = String(r[cotTen] || '').trim();
-      if (t) tap[t] = true;
-    });
-
-    return Object.keys(tap).sort(function (a, b) {
-      return a.localeCompare(b, 'vi');
-    });
-  } catch (err) {
-    return [];
-  }
-}
 
   const suaTheoVaiTro = (vaiTro === 'QuanTri' || vaiTro === 'NhapLieu');
 
@@ -466,6 +473,7 @@ function layDanhSachTenNguoiDung() {
     laQuanTri   : (vaiTro === 'QuanTri')
   };
 }
+
 /***********************************************************************
  * ★ HƯỚNG C — DANH SÁCH HỌ TÊN CHO MÀN HÌNH ĐĂNG NHẬP
  *  Trả về danh sách họ tên (KHÔNG kèm email/vai trò) để đổ vào ô chọn.
@@ -499,6 +507,7 @@ function layDanhSachTenNguoiDung() {
     return [];
   }
 }
+
 /** Hàm chẩn đoán — chạy trong trình soạn thảo Apps Script, xem Execution log */
 function kiemTraQuyen() {
   const nd = layThongTinNguoiDung();
@@ -619,16 +628,29 @@ function ghiNhatKy_(dsDong) {
 /**
  * @param {string} maDonVi
  * @param {Object} duLieuMoi
- * @param {Object} [phien]  { token: string, hoTen: string }
+ * @param {Object|string} [phien]  { token, hoTen }  — hoặc chuỗi token (kiểu cũ)
+ * @param {string} [hoTenPhu]      Chỉ dùng khi tham số thứ 3 là chuỗi token
  *
  * ★ V3.2: chỉ token QUẢN TRỊ (kiemTraTokenSua_) mới được lưu.
  *   Token XEM và chế độ khách bị chặn ngay từ server.
  * ★ LockService: ngăn 2 người cùng ghi vào cùng 1 dòng Sheet đồng thời.
+ *
+ * ★★★ V3.3 — SỬA LỖI GHI SAI CỘT:
+ *   1) Ghi vào MỌI cột có cùng tên tiêu đề (bandoTieuDe_), thay vì chỉ cột
+ *      đầu tiên như indexOf(). Đây là nguyên nhân dữ liệu Nhà xưởng "nhảy"
+ *      sang vùng cột Đất cho thuê và ngược lại.
+ *   2) Trả về mảng cotKhongTonTai để giao diện cảnh báo khi tên cột trong
+ *      code không còn khớp tiêu đề Sheet (trước đây bị bỏ qua âm thầm).
+ *   3) Chấp nhận cả 2 kiểu gọi (object phiên hoặc chuỗi token rời).
  */
-function capNhatNhaXuong(maDonVi, duLieuMoi, phien) {
-  const nd = layThongTinNguoiDung();
+function capNhatNhaXuong(maDonVi, duLieuMoi, phien, hoTenPhu) {
+  // --- Tương thích ngược: (ma, duLieu, token, hoTen) ---
+  if (typeof phien === 'string') {
+    phien = { token: phien, hoTen: hoTenPhu || '' };
+  }
   phien = phien || {};
 
+  const nd = layThongTinNguoiDung();
   const moBangMaKhoa = kiemTraTokenSua_(phien.token);
 
   if (!nd.duocSua && !moBangMaKhoa) {
@@ -654,7 +676,11 @@ function capNhatNhaXuong(maDonVi, duLieuMoi, phien) {
     const sheet = ss.getSheetByName(TEN_SHEET.NHA_XUONG);
 
     const tieuDe = sheet.getRange(1, 1, 1, sheet.getLastColumn())
-                        .getValues()[0].map(String);
+                        .getValues()[0]
+                        .map(function (t) { return String(t).trim(); });
+
+    // ★ V3.3 — bản đồ tên cột → DANH SÁCH chỉ số (xử lý cột trùng tên)
+    const mapCot = bandoTieuDe_(tieuDe);
 
     const dsMa = sheet.getRange(2, 1, Math.max(sheet.getLastRow() - 1, 1), 1)
                       .getValues().flat()
@@ -665,26 +691,41 @@ function capNhatNhaXuong(maDonVi, duLieuMoi, phien) {
     const dong = viTri + 2;
 
     const nhatKy = [];
+    const cotKhongTonTai = [];
 
     Object.keys(duLieuMoi).forEach(function (cot) {
       if (cot === 'MaDonVi') return;
-      const iCot = tieuDe.indexOf(cot);
-      if (iCot < 0) return;
 
-      const o         = sheet.getRange(dong, iCot + 1);
-      const giaTriCu  = o.getValue();
+      const dsChiSo = mapCot[String(cot).trim()];
+      if (!dsChiSo || dsChiSo.length === 0) {
+        // ★ V3.3: không im lặng bỏ qua nữa — báo về giao diện
+        cotKhongTonTai.push(cot);
+        return;
+      }
+
       const giaTriMoi = duLieuMoi[cot];
 
-      if (String(giaTriCu) !== String(giaTriMoi)) {
-        o.setValue(giaTriMoi);
-        nhatKy.push([new Date(), nguoiGhiLog, maDonVi, cot, giaTriCu, giaTriMoi]);
-      }
+      // ★ Ghi vào TẤT CẢ vị trí trùng tên để dữ liệu không bao giờ lệch
+      dsChiSo.forEach(function (iCot) {
+        const o        = sheet.getRange(dong, iCot + 1);
+        const giaTriCu = o.getValue();
+        if (String(giaTriCu) !== String(giaTriMoi)) {
+          o.setValue(giaTriMoi);
+          nhatKy.push([new Date(), nguoiGhiLog, maDonVi,
+                       cot + ' [cột ' + tenCotTuChiSo_(iCot) + ']',
+                       giaTriCu, giaTriMoi]);
+        }
+      });
     });
 
-    const iNguoi    = tieuDe.indexOf('NguoiCapNhat');
-    const iThoiGian = tieuDe.indexOf('ThoiGianCapNhat');
-    if (iNguoi >= 0)    sheet.getRange(dong, iNguoi + 1).setValue(nguoiGhiLog);
-    if (iThoiGian >= 0) sheet.getRange(dong, iThoiGian + 1).setValue(new Date());
+    const dsNguoi    = mapCot['NguoiCapNhat']    || [];
+    const dsThoiGian = mapCot['ThoiGianCapNhat'] || [];
+    dsNguoi.forEach(function (i) {
+      sheet.getRange(dong, i + 1).setValue(nguoiGhiLog);
+    });
+    dsThoiGian.forEach(function (i) {
+      sheet.getRange(dong, i + 1).setValue(new Date());
+    });
 
     // ★ Ghi NhatKy TRONG cùng lock để tránh race condition kép
     if (nhatKy.length > 0) {
@@ -695,11 +736,27 @@ function capNhatNhaXuong(maDonVi, duLieuMoi, phien) {
     }
 
     CacheService.getScriptCache().remove('DU_LIEU_TONG_HOP');
-    return { thanhCong: true, soTruongDaSua: nhatKy.length };
+    return {
+      thanhCong      : true,
+      soTruongDaSua  : nhatKy.length,
+      cotKhongTonTai : cotKhongTonTai
+    };
 
   } finally {
     lock.releaseLock(); // luôn giải phóng khoá dù có lỗi hay không
   }
+}
+
+/** Đổi chỉ số cột (bắt đầu từ 0) sang ký hiệu chữ: 0 → A, 26 → AA */
+function tenCotTuChiSo_(i) {
+  let s = '';
+  let n = i + 1;
+  while (n > 0) {
+    const du = (n - 1) % 26;
+    s = String.fromCharCode(65 + du) + s;
+    n = Math.floor((n - 1) / 26);
+  }
+  return s;
 }
 
 
@@ -719,6 +776,105 @@ function moKhoaTamThoi() {
   SpreadsheetApp.getUi().alert('✓ Đã gỡ khoá tạm. Có thể nhập lại mật khẩu / mã khoá.');
 }
 
+/***********************************************************************
+ * ★ V3.3 — CHẨN ĐOÁN: LIỆT KÊ CÁC CỘT TRÙNG TÊN TIÊU ĐỀ
+ *  Chạy từ menu "⚙ Hệ thống KCN" → "🔍 Kiểm tra cột trùng tên".
+ *  Không sửa dữ liệu, chỉ báo cáo.
+ ***********************************************************************/
+function menuKiemTraCotTrung() {
+  const ui = SpreadsheetApp.getUi();
+  const sheet = SpreadsheetApp.openById(ID_SHEET).getSheetByName(TEN_SHEET.NHA_XUONG);
+  const tieuDe = sheet.getRange(1, 1, 1, sheet.getLastColumn())
+                      .getValues()[0]
+                      .map(function (t) { return String(t).trim(); });
+
+  const mapCot = bandoTieuDe_(tieuDe);
+  const dsTrung = [];
+  Object.keys(mapCot).forEach(function (ten) {
+    if (mapCot[ten].length > 1) {
+      dsTrung.push('• ' + ten + '  →  cột '
+        + mapCot[ten].map(tenCotTuChiSo_).join(', '));
+    }
+  });
+
+  if (dsTrung.length === 0) {
+    ui.alert('✓ KHÔNG CÓ CỘT TRÙNG TÊN\n\n'
+      + 'Sheet ' + TEN_SHEET.NHA_XUONG + ' hiện có ' + tieuDe.length + ' cột, '
+      + 'tất cả đều có tiêu đề khác nhau.');
+    return;
+  }
+
+  ui.alert('⚠ PHÁT HIỆN ' + dsTrung.length + ' TÊN CỘT BỊ TRÙNG\n\n'
+    + dsTrung.join('\n')
+    + '\n\nTừ phiên bản 3.3, hệ thống ghi dữ liệu vào TẤT CẢ các cột trùng tên '
+    + 'nên không còn lệch dữ liệu. Tuy vậy vẫn nên gộp lại để Sheet gọn hơn.');
+}
+
+/***********************************************************************
+ * ★ V3.3 — DỌN DỮ LIỆU BỊ GHI LỆCH TRƯỚC ĐÂY
+ *  Chuyển dữ liệu Nhà xưởng bị ghi nhầm vào cột của Đất cho thuê:
+ *    NganhNghe (cột Đất)          → NganhNghe_SanPham (cột Nhà xưởng)
+ *    ThoiHanThue_ChiTiet (cột Đất)→ ThoiHanThue       (cột Nhà xưởng)
+ *  NGUYÊN TẮC AN TOÀN: chỉ chuyển khi cột đích đang TRỐNG, và chỉ áp dụng
+ *  cho dòng có LoaiHinh = "Nhà xưởng". Không xoá dữ liệu gốc.
+ *  ⚠ Sao lưu file trước khi chạy.
+ ***********************************************************************/
+function menuDonDuLieuLechCot() {
+  const ui = SpreadsheetApp.getUi();
+  const tl = ui.alert('DỌN DỮ LIỆU LỆCH CỘT',
+      'Thao tác này sẽ sao chép dữ liệu Nhà xưởng đang nằm nhầm ở cột '
+    + '"NganhNghe" và "ThoiHanThue_ChiTiet" về đúng cột "NganhNghe_SanPham" '
+    + 'và "ThoiHanThue".\n\n'
+    + 'Chỉ ghi khi cột đích đang trống. Không xoá dữ liệu gốc.\n\n'
+    + 'Đã sao lưu file chưa? Tiếp tục?', ui.ButtonSet.YES_NO);
+  if (tl !== ui.Button.YES) return;
+
+  const sheet = SpreadsheetApp.openById(ID_SHEET).getSheetByName(TEN_SHEET.NHA_XUONG);
+  const vung  = sheet.getDataRange().getValues();
+  if (vung.length < 2) { ui.alert('Sheet không có dữ liệu.'); return; }
+
+  const tieuDe = vung[0].map(function (t) { return String(t).trim(); });
+  const mapCot = bandoTieuDe_(tieuDe);
+
+  const iLoaiHinh = (mapCot['LoaiHinh'] || [])[0];
+  if (iLoaiHinh === undefined) { ui.alert('Không tìm thấy cột LoaiHinh.'); return; }
+
+  const capChuyen = [
+    { nguon: 'NganhNghe',           dich: 'NganhNghe_SanPham' },
+    { nguon: 'ThoiHanThue_ChiTiet', dich: 'ThoiHanThue' }
+  ];
+
+  let soO = 0;
+  const baoCao = [];
+
+  capChuyen.forEach(function (c) {
+    const iNguon = (mapCot[c.nguon] || [])[0];
+    const iDich  = (mapCot[c.dich]  || [])[0];
+    if (iNguon === undefined || iDich === undefined) {
+      baoCao.push('• Bỏ qua ' + c.nguon + ' → ' + c.dich + ' (thiếu cột)');
+      return;
+    }
+
+    let dem = 0;
+    for (let r = 1; r < vung.length; r++) {
+      if (String(vung[r][iLoaiHinh]).trim() !== 'Nhà xưởng') continue;
+      const vNguon = String(vung[r][iNguon] || '').trim();
+      const vDich  = String(vung[r][iDich]  || '').trim();
+      if (vNguon && !vDich) {
+        sheet.getRange(r + 1, iDich + 1).setValue(vung[r][iNguon]);
+        dem++;
+      }
+    }
+    soO += dem;
+    baoCao.push('• ' + c.nguon + ' → ' + c.dich + ': ' + dem + ' ô');
+  });
+
+  CacheService.getScriptCache().remove('DU_LIEU_TONG_HOP');
+  ui.alert('✓ HOÀN TẤT — đã chuyển ' + soO + ' ô\n\n' + baoCao.join('\n')
+    + '\n\nKiểm tra lại dữ liệu, nếu đúng thì có thể xoá nội dung ở cột nguồn '
+    + 'đối với các dòng Nhà xưởng.');
+}
+
 
 /***********************************************************************
  * ★ V3.1 — MENU & CÁC HÀM BỌC CHO MODULE SAO LƯU (Backup.gs)
@@ -730,6 +886,9 @@ function onOpen() {
     .createMenu('⚙ Hệ thống KCN')
     .addItem('🔄 Làm mới dữ liệu App', 'xoaCache')
     .addItem('🔓 Gỡ khoá nhập sai mã', 'moKhoaTamThoi')
+    .addSeparator()
+    .addItem('🔍 Kiểm tra cột trùng tên', 'menuKiemTraCotTrung')
+    .addItem('🧹 Dọn dữ liệu lệch cột', 'menuDonDuLieuLechCot')
     .addSeparator()
     .addItem('💾 Sao lưu ngay', 'saoLuuThuCong')
     .addItem('📁 Kiểm tra thư mục sao lưu', 'menuKiemTraFolder')
@@ -793,6 +952,11 @@ function menuDoDungLuong() {
     ui.alert('❌ Lỗi: ' + e.message);
   }
 }
+
+
+/***********************************************************************
+ * XUẤT EXCEL KẾT QUẢ TRA CỨU
+ ***********************************************************************/
 function xuatExcelTraCuu(tieuDe, duLieu) {
   const thoiDiem = Utilities.formatDate(new Date(), 'GMT+7', 'yyyyMMdd_HHmmss');
   const ss = SpreadsheetApp.create('TraCuu_KCN_LongThanh_' + thoiDiem);
