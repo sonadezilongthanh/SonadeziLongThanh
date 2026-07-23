@@ -446,90 +446,187 @@ function guiMaKhoa() {
 
 
 /***********************************************************************
- * BỘ LỌC
+ * BỘ LỌC — v4.0: TẤT CẢ Ô LỌC ĐỀU CẬP NHẬT REAL-TIME (faceted)
  ***********************************************************************/
-function napBoLoc() {
-  const selCum = document.getElementById('locCum');
-  (DU_LIEU.cum || []).forEach(function (c) {
-    selCum.insertAdjacentHTML('beforeend',
-      '<option value="' + c.MaCum + '">' + (c.TenCum || c.MaCum) + '</option>');
-  });
 
-  const selTT = document.getElementById('locTrangThai');
-  (DU_LIEU.trangThai || []).forEach(function (t) {
-    selTT.insertAdjacentHTML('beforeend',
-      '<option value="' + t.TenTrangThai + '">' + t.TenTrangThai + '</option>');
-  });
-
-  // ★ Quốc tịch KHÔNG nạp tĩnh nữa — được dựng động (faceted) trong
-  //   apDungBoLoc()/capNhatLocQuocTich() theo các bộ lọc khác đang áp.
-  napDanhSachLoc('locThoiHanThue', function (nx) { return nx.ThoiHanThue; });
+/** Thoát ký tự đặc biệt khi dựng thẻ <option> */
+function _escHTML(s) {
+  return String(s === null || s === undefined ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function napDanhSachLoc(selectId, layGiaTri) {
-  const sel = document.getElementById(selectId);
-  const tap = {};
-  (DU_LIEU.nhaXuong || []).forEach(function (nx) {
-    const v = String(layGiaTri(nx) || '').trim();
-    if (v) tap[v] = true;
-  });
-  Object.keys(tap).sort(function (a, b) { return a.localeCompare(b, 'vi'); })
-    .forEach(function (v) {
-      const opt = document.createElement('option');
-      opt.value = v; opt.textContent = v;
-      sel.appendChild(opt);
-    });
+/** Đổi MaCum -> TenCum để hiển thị trong danh sách chọn */
+function _tenCum(maCum) {
+  const c = (DU_LIEU.cum || []).filter(function (x) { return x.MaCum === maCum; })[0];
+  return (c && c.TenCum) || maCum;
 }
 
-/** ★ FACETED — Dựng lại dropdown Quốc tịch chỉ với các quốc tịch còn
- *  xuất hiện trong tập đã áp MỌI bộ lọc khác (trừ chính Quốc tịch).
- *  Giữ nguyên lựa chọn hiện tại; nếu lựa chọn đó không còn kết quả vẫn
- *  giữ lại (kèm nhãn "0 kết quả") để dropdown không tự nhảy về "Tất cả". */
-function capNhatLocQuocTich(dsDaLoc, giaTriDangChon) {
-  const sel = document.getElementById('locQuocTich');
-  if (!sel) return;
-
-  const tap = {};
-  (dsDaLoc || []).forEach(function (nx) {
-    const v = String(nx.QuocTich || '').trim();
-    if (v) tap[v] = true;
-  });
-
-  const dsQT = Object.keys(tap).sort(function (a, b) {
-    return a.localeCompare(b, 'vi');
-  });
-  const conGiaTriChon = !giaTriDangChon || dsQT.indexOf(giaTriDangChon) > -1;
-
-  let html = '<option value="">— Tất cả quốc tịch —</option>';
-  dsQT.forEach(function (v) {
-    html += '<option value="' + v.replace(/"/g, '&quot;') + '">' + v + '</option>';
-  });
-  if (!conGiaTriChon) {
-    html += '<option value="' + giaTriDangChon.replace(/"/g, '&quot;') + '">'
-          + giaTriDangChon + ' (0 kết quả)</option>';
-  }
-
-  sel.innerHTML = html;
-  sel.value = giaTriDangChon || '';   // gán .value không kích hoạt sự kiện 'input'
-}
-
+/** Diện tích đại diện dùng cho bộ lọc khoảng m² */
 function soM2(nx) {
   const raw = nx.DienTichXuong_m2 || nx['Tong DienTichDatThue (m2)'] || '';
   const n = parseFloat(String(raw).replace(/,/g, ''));
   return isNaN(n) ? null : n;
 }
 
+/** ★ Khai báo tập trung 5 ô lọc dạng danh sách chọn.
+ *  Thêm bộ lọc mới sau này chỉ cần thêm 1 dòng vào mảng này. */
+const O_LOC_CHON = [
+  { id: 'locCum',         nhanTatCa: '— Tất cả khu vực / cụm —',
+    lay : function (nx) { return String(nx.MaCum || '').trim(); },
+    hien: _tenCum },
+
+  { id: 'locTrangThai',   nhanTatCa: '— Tất cả trạng thái —',
+    lay : function (nx) { return String(nx.TrangThai || '').trim(); } },
+
+  { id: 'locLoaiHinh',    nhanTatCa: '— Tất cả loại hình —',
+    lay : function (nx) { return String(nx.LoaiHinh || '').trim(); } },
+
+  { id: 'locQuocTich',    nhanTatCa: '— Tất cả quốc tịch —',
+    lay : function (nx) { return String(nx.QuocTich || '').trim(); } },
+
+  { id: 'locThoiHanThue', nhanTatCa: '— Tất cả thời hạn thuê —',
+    lay : function (nx) {
+            return String(nx.ThoiHanThue || nx.ThoiHanThue_ChiTiet || '').trim();
+          } }
+];
+
+/* Không còn nạp tĩnh danh mục nữa — mọi danh sách đều dựng động theo
+   dữ liệu đang khớp. Giữ lại hàm rỗng để khoiTaoApp() không phải sửa. */
+function napBoLoc() { /* cố ý để trống */ }
+
+
+/* ---------- Đọc toàn bộ giá trị đang nhập trên thanh lọc ---------- */
+function docBoLoc() {
+  function val(id) {
+    const el = document.getElementById(id);
+    return el ? el.value : '';
+  }
+  const chon = {};
+  O_LOC_CHON.forEach(function (c) { chon[c.id] = val(c.id); });
+
+  return {
+    tuKhoa   : val('oTimKiem').trim().toLowerCase(),
+    nganhNghe: val('locNganhNghe').trim().toLowerCase(),
+    dtMin    : parseFloat(val('locDTMin')),
+    dtMax    : parseFloat(val('locDTMax')),
+    chon     : chon
+  };
+}
+
+
+/* ---------- Vị từ lọc dùng chung ----------
+ * boQuaId = id ô lọc cần BỎ QUA điều kiện (dùng khi dựng danh sách
+ *           faceted cho chính ô đó — nguyên tắc "exclude-self").
+ * Truyền null để áp đủ tất cả điều kiện. */
+function khopBoLoc(nx, L, boQuaId) {
+
+  // 1. Từ khoá chung
+  if (L.tuKhoa) {
+    const chuoi = [nx.MaDonVi, nx.TenNhaXuong, nx.KhachThue, nx.GhiChu]
+                    .join(' ').toLowerCase();
+    if (chuoi.indexOf(L.tuKhoa) < 0) return false;
+  }
+
+  // 2. Ngành nghề / sản phẩm (tìm gần đúng)
+  if (L.nganhNghe) {
+    const nn = ((nx.NganhNghe_SanPham || '') + ' ' + (nx.NganhNghe || '')).toLowerCase();
+    if (nn.indexOf(L.nganhNghe) < 0) return false;
+  }
+
+  // 3. Khoảng diện tích
+  if (!isNaN(L.dtMin) || !isNaN(L.dtMax)) {
+    const dt = soM2(nx);
+    if (dt === null) return false;
+    if (!isNaN(L.dtMin) && dt < L.dtMin) return false;
+    if (!isNaN(L.dtMax) && dt > L.dtMax) return false;
+  }
+
+  // 4. Các ô danh sách chọn
+  for (let i = 0; i < O_LOC_CHON.length; i++) {
+    const c = O_LOC_CHON[i];
+    if (c.id === boQuaId) continue;
+    const v = L.chon[c.id];
+    if (v && c.lay(nx) !== v) return false;
+  }
+
+  return true;
+}
+
+
+/* ---------- Dựng lại TẤT CẢ danh sách chọn theo thời gian thực ----------
+ * Mỗi ô chỉ hiện những giá trị còn tồn tại sau khi áp các bộ lọc KHÁC,
+ * kèm số lượng bản ghi trong ngoặc. Lựa chọn hiện hành luôn được giữ. */
+function capNhatOChon(L) {
+  O_LOC_CHON.forEach(function (c) {
+    const sel = document.getElementById(c.id);
+    if (!sel) return;
+
+    const dangChon = L.chon[c.id] || '';
+    const dem = {};
+
+    (DU_LIEU.nhaXuong || []).forEach(function (nx) {
+      if (!khopBoLoc(nx, L, c.id)) return;
+      const v = c.lay(nx);
+      if (v) dem[v] = (dem[v] || 0) + 1;
+    });
+
+    const ds = Object.keys(dem).sort(function (a, b) {
+      return a.localeCompare(b, 'vi');
+    });
+
+    let html = '<option value="">' + c.nhanTatCa + '</option>';
+    ds.forEach(function (v) {
+      const ten = c.hien ? c.hien(v) : v;
+      html += '<option value="' + _escHTML(v) + '">'
+            + _escHTML(ten) + ' (' + dem[v] + ')</option>';
+    });
+
+    // Giữ lại lựa chọn hiện hành dù không còn kết quả, tránh dropdown
+    // tự nhảy về "Tất cả" làm mất thao tác của người dùng.
+    if (dangChon && ds.indexOf(dangChon) < 0) {
+      const ten = c.hien ? c.hien(dangChon) : dangChon;
+      html += '<option value="' + _escHTML(dangChon) + '">'
+            + _escHTML(ten) + ' (0 kết quả)</option>';
+    }
+
+    sel.innerHTML = html;
+    sel.value = dangChon;   // gán .value không kích hoạt sự kiện change
+  });
+}
+
+
+/* ---------- Gán sự kiện ---------- */
+let _henLoc = null;
+
+/** Ô nhập chữ/số: chờ 180ms cho khỏi giật khi gõ nhanh */
+function _locTreHoan() {
+  clearTimeout(_henLoc);
+  _henLoc = setTimeout(apDungBoLoc, 180);
+}
+
 function ganSuKien() {
-  ['oTimKiem', 'locCum', 'locTrangThai', 'locLoaiHinh',
-   'locQuocTich', 'locThoiHanThue', 'locNganhNghe', 'locDTMin', 'locDTMax'
-  ].forEach(function (id) {
-    document.getElementById(id).addEventListener('input', apDungBoLoc);
+  // Ô nhập tự do
+  ['oTimKiem', 'locNganhNghe', 'locDTMin', 'locDTMax'].forEach(function (id) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', _locTreHoan);
+  });
+
+  // Ô danh sách chọn — dùng 'change' (ổn định trên Safari/iPad)
+  O_LOC_CHON.forEach(function (c) {
+    const el = document.getElementById(c.id);
+    if (el) el.addEventListener('change', apDungBoLoc);
   });
 
   document.getElementById('nutXoaLoc').onclick = function () {
-    ['oTimKiem', 'locCum', 'locTrangThai', 'locLoaiHinh',
-     'locQuocTich', 'locThoiHanThue', 'locNganhNghe', 'locDTMin', 'locDTMax'
-    ].forEach(function (id) { document.getElementById(id).value = ''; });
+    ['oTimKiem', 'locNganhNghe', 'locDTMin', 'locDTMax'].forEach(function (id) {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    O_LOC_CHON.forEach(function (c) {
+      const el = document.getElementById(c.id);
+      if (el) el.value = '';
+    });
     apDungBoLoc();
   };
 
@@ -540,54 +637,24 @@ function ganSuKien() {
   });
 }
 
+
 /** ★ Bộ lọc tác động đồng thời lên CẢ 2 TAB */
 function apDungBoLoc() {
-  const tuKhoa    = document.getElementById('oTimKiem').value.trim().toLowerCase();
-  const cum       = document.getElementById('locCum').value;
-  const trangThai = document.getElementById('locTrangThai').value;
-  const loaiHinh  = document.getElementById('locLoaiHinh').value;
+  const L = docBoLoc();
 
-  const quocTich  = document.getElementById('locQuocTich').value;
-  const thoiHan   = document.getElementById('locThoiHanThue').value;
-  const nganhNghe = document.getElementById('locNganhNghe').value.trim().toLowerCase();
-  const dtMin     = parseFloat(document.getElementById('locDTMin').value);
-  const dtMax     = parseFloat(document.getElementById('locDTMax').value);
+  // 1. Cập nhật lại toàn bộ danh sách chọn (real-time, exclude-self)
+  capNhatOChon(L);
 
-  // ★ Vị từ lọc dùng chung — tham số boQuaQuocTich=true để bỏ điều kiện
-  //   Quốc tịch, phục vụ dựng dropdown faceted (exclude-self).
-  function khopBoLoc(nx, boQuaQuocTich) {
-    const chuoi = [nx.MaDonVi, nx.TenNhaXuong, nx.KhachThue, nx.GhiChu]
-                    .join(' ').toLowerCase();
-    const nn = ((nx.NganhNghe_SanPham || '') + ' ' + (nx.NganhNghe || '')).toLowerCase();
-    const dt = soM2(nx);
-    return (!tuKhoa    || chuoi.indexOf(tuKhoa) > -1)
-        && (!cum       || String(nx.MaCum).trim() === cum)
-        && (!trangThai || String(nx.TrangThai).trim() === trangThai)
-        && (!loaiHinh  || String(nx.LoaiHinh).trim() === loaiHinh)
-        && (boQuaQuocTich || !quocTich || String(nx.QuocTich).trim() === quocTich)
-        && (!thoiHan   || String(nx.ThoiHanThue).trim() === thoiHan
-                       || String(nx.ThoiHanThue_ChiTiet).trim() === thoiHan)
-        && (!nganhNghe || nn.indexOf(nganhNghe) > -1)
-        && (isNaN(dtMin) || (dt !== null && dt >= dtMin))
-        && (isNaN(dtMax) || (dt !== null && dt <= dtMax));
-  }
-
-  // ★ Dựng lại dropdown Quốc tịch theo các bộ lọc KHÁC (exclude-self)
-  const tapChoDropdown = (DU_LIEU.nhaXuong || []).filter(function (nx) {
-    return khopBoLoc(nx, true);
-  });
-  capNhatLocQuocTich(tapChoDropdown, quocTich);
-
-  // Kết quả cuối cùng — áp đủ tất cả bộ lọc (kể cả Quốc tịch)
+  // 2. Kết quả cuối cùng — áp đủ mọi điều kiện
   KET_QUA_LOC = (DU_LIEU.nhaXuong || []).filter(function (nx) {
-    return khopBoLoc(nx, false);
+    return khopBoLoc(nx, L, null);
   });
 
   document.getElementById('soKetQua').textContent = KET_QUA_LOC.length + ' kết quả';
 
-  renderTieuDeBang(loaiHinh);      // Tiêu đề cột động theo Loại hình
-  renderBangTraCuu(KET_QUA_LOC);   // Tab 1
-  toMauBanDo(KET_QUA_LOC);         // Tab 2
+  renderTieuDeBang(L.chon.locLoaiHinh);   // Tiêu đề cột động theo Loại hình
+  renderBangTraCuu(KET_QUA_LOC);          // Tab 1 — Tra cứu
+  toMauBanDo(KET_QUA_LOC);                // Tab 2 — Bản đồ
 }
 
 function xuatExcel() {
