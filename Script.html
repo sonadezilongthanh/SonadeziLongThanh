@@ -1287,6 +1287,7 @@ function moPanelChiTiet(ma) {
     html += dongTT('Người đại diện',        nx.NguoiDaiDien);
     html += dongTT('Giấy chứng nhận đầu tư', nx.GiayCNDT);
     html += dongTT('Giấy chứng nhận doanh nghiệp', nx.GiayCNDN);
+    html += dongTT('Ngày thành lập',        nx.NgayThanhLap);   // ★ V2.8
 
     html += '<div class="tieu-de-nhom">A2. Bản thỏa thuận &amp; Hợp đồng <small>(dùng chung)</small></div>';
     html += dongTT('Bản thỏa thuận — Số',        nx['BanThoaThuan - So']);
@@ -1410,6 +1411,7 @@ function ghepGiaPT(donGia, pt, donVi) {
  *  suaNguoiDaiDien          NguoiDaiDien             NguoiDaiDien
  *  suaGiayCNDT              GiayCNDT                 GiayCNDT
  *  suaGiayCNDN              GiayCNDN                 GiayCNDN
+ *  suaNgayThanhLap          NgayThanhLap             NgayThanhLap   ★ V2.8
  *  suaSoHopDong             SoHopDong                SoHopDong
  *  suaNgayHopDong           NgayHopDong              NgayHopDong
  *  suaBTTSo                 BanThoaThuan - So        BanThoaThuan - So
@@ -1481,6 +1483,7 @@ function moHopThoaiSua(ma) {
   _ganO('suaNguoiDaiDien',  nx.NguoiDaiDien);
   _ganO('suaGiayCNDT',      nx.GiayCNDT);
   _ganO('suaGiayCNDN',      nx.GiayCNDN);
+  _ganO('suaNgayThanhLap',  nx.NgayThanhLap);        // ★ V2.8
 
   _ganO('suaBTTSo',         nx['BanThoaThuan - So']);
   _ganO('suaBTTNgay',       nx['BanThoaThuan - Ngay']);
@@ -1557,6 +1560,7 @@ function luuThayDoi() {
   _layO(duLieuMoi, 'NguoiDaiDien',              'suaNguoiDaiDien');
   _layO(duLieuMoi, 'GiayCNDT',                  'suaGiayCNDT');
   _layO(duLieuMoi, 'GiayCNDN',                  'suaGiayCNDN');
+  _layO(duLieuMoi, 'NgayThanhLap',              'suaNgayThanhLap');   // ★ V2.8
 
   _layO(duLieuMoi, 'BanThoaThuan - So',         'suaBTTSo');
   _layO(duLieuMoi, 'BanThoaThuan - Ngay',       'suaBTTNgay');

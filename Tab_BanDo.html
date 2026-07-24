@@ -1,13 +1,18 @@
 <div class="khung-ban-do">
 
-  <!-- ★ V2.7: CẢNH BÁO HỢP ĐỒNG SẮP HẾT HẠN (≤ 6 THÁNG)
-       Đưa vào luồng bố cục (không còn position:absolute) để không đè lên header -->
+  <!-- ★ V2.8: HAI NÚT CẢNH BÁO
+       (1) Hợp đồng sắp hết hạn  (2) Kỷ niệm ngày thành lập khách thuê
+       Luôn hiển thị (không tự ẩn) để người dùng biết chức năng vẫn hoạt động -->
   <div class="hang-canh-bao">
-    <button type="button" class="nut-canh-bao-hopdong an" id="nutCanhBao" onclick="moModalCanhBao()">
+    <button type="button" class="nut-canh-bao-hopdong rong" id="nutCanhBao" onclick="moModalCanhBao()">
       🔔 <span id="soLuongCanhBao">0</span> <span class="nhan-chu">hợp đồng sắp hết hạn</span>
+    </button>
+    <button type="button" class="nut-canh-bao-hopdong nut-sinh-nhat rong" id="nutSinhNhat" onclick="moModalSinhNhat()">
+      💐 <span id="soLuongSinhNhat">0</span> <span class="nhan-chu">kỷ niệm thành lập</span>
     </button>
   </div>
 
+  <!-- MODAL 1: HỢP ĐỒNG SẮP HẾT HẠN -->
   <div class="modal-canh-bao an" id="modalCanhBao" onclick="if(event.target===this) dongModalCanhBao()">
     <div class="hop-modal">
       <div class="dau-modal">
@@ -15,6 +20,23 @@
         <button type="button" class="nut-dong" onclick="dongModalCanhBao()">✕</button>
       </div>
       <div class="than-modal" id="noiDungModalCanhBao"></div>
+    </div>
+  </div>
+
+  <!-- ★ V2.8 — MODAL 2: KỶ NIỆM NGÀY THÀNH LẬP KHÁCH THUÊ -->
+  <div class="modal-canh-bao an" id="modalSinhNhat" onclick="if(event.target===this) dongModalSinhNhat()">
+    <div class="hop-modal">
+      <div class="dau-modal dau-hong">
+        <h3>💐 Kỷ niệm ngày thành lập (trong 7 ngày tới)</h3>
+        <button type="button" class="nut-dong" onclick="dongModalSinhNhat()">✕</button>
+      </div>
+      <div class="than-modal" id="noiDungModalSinhNhat"></div>
+      <div class="chan-modal">
+        <button type="button" class="nut-sao-chep" onclick="saoChepDanhSachSinhNhat()">
+          📋 Sao chép danh sách (gửi bộ phận đặt hoa)
+        </button>
+        <span class="bao-sao-chep" id="baoSaoChepSinhNhat"></span>
+      </div>
     </div>
   </div>
 
@@ -41,11 +63,22 @@
   /* ★ V2.7: khoá gốc toạ độ cho mọi phần tử absolute bên trong khung bản đồ */
   .khung-ban-do{position:relative}
 
-  .hang-canh-bao{display:flex;justify-content:flex-end;margin:0 0 8px}
+  .hang-canh-bao{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin:0 0 8px}
   .nut-canh-bao-hopdong{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid #f59e0b;color:#b45309;padding:8px 14px;border-radius:999px;font-weight:600;font-size:13px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12)}
   .nut-canh-bao-hopdong:hover{background:#fffbeb}
   .nut-canh-bao-hopdong.an{display:none !important}
   .nut-canh-bao-hopdong>span:first-of-type{background:#dc2626;color:#fff;border-radius:999px;min-width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;padding:0 5px}
+
+  /* ★ V2.8: trạng thái "không có mục nào" — làm nhạt thay vì ẩn hẳn */
+  .nut-canh-bao-hopdong.rong{border-color:#cbd5e1;color:#64748b;box-shadow:none}
+  .nut-canh-bao-hopdong.rong:hover{background:#f8fafc}
+  .nut-canh-bao-hopdong.rong>span:first-of-type{background:#94a3b8}
+
+  /* ★ V2.8: nút kỷ niệm thành lập */
+  .nut-sinh-nhat{border-color:#ec4899;color:#be185d}
+  .nut-sinh-nhat:hover{background:#fdf2f8}
+  .nut-sinh-nhat>span:first-of-type{background:#db2777}
+
   @media (max-width:640px){
     .nut-canh-bao-hopdong{font-size:12px;padding:6px 10px}
     .nut-canh-bao-hopdong .nhan-chu{display:none}   /* màn hình hẹp: chỉ giữ icon + số */
@@ -53,22 +86,28 @@
 
   .modal-canh-bao{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:100;display:flex;align-items:center;justify-content:center}
   .modal-canh-bao.an{display:none}
-  .modal-canh-bao .hop-modal{background:#fff;border-radius:14px;width:min(640px,92vw);max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+  .modal-canh-bao .hop-modal{background:#fff;border-radius:14px;width:min(760px,92vw);max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.25)}
   .modal-canh-bao .dau-modal{background:#0B4696;color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center}
+  .modal-canh-bao .dau-modal.dau-hong{background:#be185d}
   .modal-canh-bao .dau-modal h3{margin:0;font-size:16px}
   .modal-canh-bao .nut-dong{background:none;border:none;color:#fff;font-size:20px;cursor:pointer;line-height:1}
   .modal-canh-bao .than-modal{padding:14px 20px;overflow-y:auto}
+  .modal-canh-bao .chan-modal{padding:10px 20px;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:10px;background:#f8fafc;flex-wrap:wrap}
+  .modal-canh-bao .nut-sao-chep{background:#0B4696;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer}
+  .modal-canh-bao .nut-sao-chep:hover{filter:brightness(1.1)}
+  .modal-canh-bao .bao-sao-chep{font-size:12px;color:#16a34a}
   .bang-canh-bao{width:100%;border-collapse:collapse;font-size:13px}
   .bang-canh-bao th{text-align:left;padding:8px 10px;border-bottom:2px solid #e2e8f0;color:#475569}
   .bang-canh-bao td{padding:8px 10px;border-bottom:1px solid #f1f5f9;cursor:pointer}
   .bang-canh-bao tr:hover td{background:#f8fafc}
   .bang-canh-bao tr.khan-cap td:last-child{color:#dc2626;font-weight:700}
-  .rong-canh-bao{text-align:center;color:#64748b;padding:20px 0}
+  .bang-canh-bao .suy-ra{color:#b45309;font-size:11px;font-style:italic}
+  .rong-canh-bao{text-align:center;color:#64748b;padding:20px 0;line-height:1.7}
 </style>
 
 <script>
 /***********************************************************************
- * BẢN ĐỒ 2 CẤP — v2.7
+ * BẢN ĐỒ 2 CẤP — v2.8
  *
  *  CẤP 1 (Toàn cảnh KCN) hiển thị ĐỒNG THỜI:
  *     • Vùng CỤM xưởng   → DS_Cum.ToaDoSVG               → bấm = drill-down
@@ -80,6 +119,12 @@
  *  ★ V2.6: Nút cảnh báo hợp đồng sắp hết hạn (≤ 6 tháng).
  *  ★ V2.7: Sửa lỗi nút cảnh báo đè lên header (bỏ position:absolute);
  *          cập nhật badge ở cả 2 cấp bản đồ.
+ *  ★ V2.8: (1) SỬA LỖI "mất chuông": cột ThoiHanThue_ChiTiet đã được gộp về
+ *              ThoiHanThue nên hàm cũ luôn trả về 0 -> nút bị ẩn hoàn toàn.
+ *              Nay đọc theo thứ tự ưu tiên NgayHetHanHD -> ThoiHanThue ->
+ *              NgayHopDong + số năm; và nút KHÔNG tự ẩn nữa (chỉ chuyển xám).
+ *          (2) THÊM cảnh báo kỷ niệm ngày thành lập khách thuê (trước 7 ngày)
+ *              để kịp chuẩn bị lẵng hoa chúc mừng.
  ***********************************************************************/
 const MA_CUM_KCN = 'KCN';   // mã đặc biệt: vẽ thẳng trên bản đồ tổng
 
@@ -92,25 +137,43 @@ const MAU_CUM = {
 };
 
 /***********************************************************************
- * CẢNH BÁO HỢP ĐỒNG SẮP HẾT HẠN
- *   Nhà xưởng      -> đọc cột ThoiHanThue
- *   Đất cho thuê   -> đọc cột ThoiHanThue_ChiTiet
+ * ★ V2.8 — TIỆN ÍCH NGÀY THÁNG DÙNG CHUNG CHO CẢ 2 LOẠI CẢNH BÁO
  ***********************************************************************/
-const SO_NGAY_CANH_BAO = 180; // ~ 6 tháng
 
-/** Phân tích chuỗi ngày hết hạn: hỗ trợ dd/MM/yyyy hoặc chuỗi mô tả có chứa năm */
-function phanTichHanThue_(giaTri) {
-  if (!giaTri) return null;
+/**
+ * Đọc 1 ngày từ giá trị bất kỳ trong Sheet.
+ * Hỗ trợ: đối tượng Date, chuỗi ISO (2016-04-20...), dd/MM/yyyy, dd-MM-yyyy.
+ * Lưu ý: dữ liệu cũ có lẫn định dạng MM/dd/yyyy (VD 11/30/2005) nên:
+ *   - nếu số thứ nhất > 12  -> chắc chắn là NGÀY/THÁNG
+ *   - nếu số thứ hai  > 12  -> là THÁNG/NGÀY
+ *   - còn lại mặc định hiểu theo chuẩn Việt Nam dd/MM
+ */
+function docNgay_(giaTri) {
+  if (giaTri === null || giaTri === undefined || giaTri === '') return null;
+
+  if (giaTri instanceof Date) {
+    return isNaN(giaTri.getTime())
+      ? null
+      : new Date(giaTri.getFullYear(), giaTri.getMonth(), giaTri.getDate());
+  }
+
   const s = String(giaTri).trim();
+  if (!s) return null;
 
-  // Dạng ngày đầy đủ dd/MM/yyyy
-  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
+  // ISO: 2016-04-20 hoặc 2016-04-20T00:00:00.000Z
+  let m = s.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
 
-  // Chuỗi mô tả có chứa năm -> lấy năm 4 chữ số CUỐI CÙNG, quy ước hết hạn 31/12
-  const dsNam = s.match(/\b(19|20|21)\d{2}\b/g);
-  if (dsNam && dsNam.length > 0) {
-    return new Date(+dsNam[dsNam.length - 1], 11, 31);
+  // dd/MM/yyyy | dd-MM-yyyy | dd.MM.yyyy
+  m = s.match(/(\d{1,2})\s*[\/\-.]\s*(\d{1,2})\s*[\/\-.]\s*(\d{4})/);
+  if (m) {
+    const a = +m[1], b = +m[2], nam = +m[3];
+    let ngay, thang;
+    if (a > 12)      { ngay = a; thang = b; }
+    else if (b > 12) { ngay = b; thang = a; }
+    else             { ngay = a; thang = b; }   // mặc định dd/MM
+    if (thang < 1 || thang > 12 || ngay < 1 || ngay > 31) return null;
+    return new Date(nam, thang - 1, ngay);
   }
   return null;
 }
@@ -121,26 +184,78 @@ function dinhDangNgay_(d) {
   return dd + '/' + mm + '/' + d.getFullYear();
 }
 
+/** Chống lỗi hiển thị khi tên khách thuê có ký tự < > & */
+function thoat_(t) {
+  return String(t === null || t === undefined ? '' : t)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function homNay_() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+
+/***********************************************************************
+ * CẢNH BÁO 1 — HỢP ĐỒNG SẮP HẾT HẠN
+ *
+ *  Thứ tự ưu tiên xác định ngày hết hạn (áp dụng cho CẢ nhà xưởng và đất):
+ *    (1) Cột NgayHetHanHD   — chuẩn nhất, khuyến nghị nhập đủ cột này
+ *    (2) Cột ThoiHanThue    — nếu ghi ngày đầy đủ (VD 01/10/2053) hoặc chuỗi
+ *                             có chứa năm 4 chữ số (quy ước hết hạn 31/12)
+ *    (3) NgayHopDong + số năm ghi trong ThoiHanThue (VD "5 năm", "50 năm")
+ ***********************************************************************/
+const SO_NGAY_CANH_BAO = 180; // ~ 6 tháng
+
+function phanTichHanThue_(nx) {
+  // (1) Cột ngày hết hạn hợp đồng
+  let d = docNgay_(nx.NgayHetHanHD);
+  if (d) return { ngay: d, suyRa: '' };
+
+  // Cột thời hạn thuê: tên cột đã gộp về "ThoiHanThue"; vẫn đọc dự phòng tên cũ
+  const chuoiHan = String(nx.ThoiHanThue || nx.ThoiHanThue_ChiTiet || '').trim();
+
+  // (2a) Thời hạn thuê ghi thẳng bằng một ngày cụ thể
+  d = docNgay_(chuoiHan);
+  if (d) return { ngay: d, suyRa: '' };
+
+  // (2b) Chuỗi mô tả có chứa năm 4 chữ số -> lấy năm CUỐI CÙNG, quy ước 31/12
+  const dsNam = chuoiHan.match(/\b(19|20|21)\d{2}\b/g);
+  if (dsNam && dsNam.length > 0) {
+    return { ngay: new Date(+dsNam[dsNam.length - 1], 11, 31), suyRa: 'ước theo năm' };
+  }
+
+  // (3) "N năm" cộng từ ngày hợp đồng
+  const mNam   = chuoiHan.match(/(\d{1,3})\s*n[ăa]m/i);
+  const ngayHD = docNgay_(String(nx.NgayHopDong || '').split(',')[0]);
+  if (mNam && ngayHD) {
+    const kq = new Date(ngayHD.getTime());
+    kq.setFullYear(kq.getFullYear() + (+mNam[1]));
+    return { ngay: kq, suyRa: 'tính từ ngày HĐ' };
+  }
+
+  return null;
+}
+
 /** Quét DU_LIEU.nhaXuong, trả danh sách hợp đồng còn ≤ 6 tháng, gần hạn nhất trước */
 function tinhDanhSachCanhBao_() {
-  const homNay = new Date();
-  homNay.setHours(0, 0, 0, 0);
+  const nay = homNay_();
+  const ds  = [];
 
-  const ds = [];
   (DU_LIEU.nhaXuong || []).forEach(function (nx) {
-    const laDat = String(nx.LoaiHinh).trim() === 'Đất cho thuê';
-    const giaTriHan = laDat ? nx.ThoiHanThue_ChiTiet : nx.ThoiHanThue;
-    const ngayHetHan = phanTichHanThue_(giaTriHan);
-    if (!ngayHetHan) return;
+    const kq = phanTichHanThue_(nx);
+    if (!kq) return;
 
-    const soNgay = Math.round((ngayHetHan - homNay) / 86400000);
+    const soNgay = Math.round((kq.ngay - nay) / 86400000);
     if (soNgay >= 0 && soNgay <= SO_NGAY_CANH_BAO) {
       ds.push({
-        ma: nx.MaDonVi,
-        ten: nx.TenNhaXuong || nx.MaDonVi,
-        khachThue: nx.KhachThue || '(chưa có tên khách thuê)',
-        ngayHetHan: ngayHetHan,
-        soNgay: soNgay
+        ma        : nx.MaDonVi,
+        ten       : nx.TenNhaXuong || nx.MaDonVi,
+        khachThue : nx.KhachThue || '(chưa có tên khách thuê)',
+        ngayHetHan: kq.ngay,
+        suyRa     : kq.suyRa,
+        soNgay    : soNgay
       });
     }
   });
@@ -149,16 +264,109 @@ function tinhDanhSachCanhBao_() {
   return ds;
 }
 
-/** Cập nhật số hiển thị trên nút cảnh báo, ẩn nút nếu không có mục nào */
+
+/***********************************************************************
+ * ★ V2.8 — CẢNH BÁO 2: KỶ NIỆM NGÀY THÀNH LẬP KHÁCH THUÊ
+ *
+ *  Nguồn ngày thành lập, theo thứ tự ưu tiên:
+ *    (1) Cột NgayThanhLap  — CỘT MỚI, cần bổ sung vào sheet DS_NhaXuong,
+ *                            nhập dạng dd/MM/yyyy. Đây là nguồn chính xác nhất.
+ *    (2) Ngày ĐẦU TIÊN tìm thấy trong cột GiayCNDN (Giấy CN đăng ký doanh nghiệp)
+ *    (3) Ngày ĐẦU TIÊN tìm thấy trong cột GiayCNDT (Giấy CN đầu tư)
+ *  Trường hợp (2)(3) chỉ là SUY RA từ văn bản — có thể là ngày đăng ký thay đổi
+ *  chứ không phải ngày thành lập gốc -> hiển thị kèm ghi chú "cần đối chiếu".
+ *
+ *  Nhiều lô cùng một khách thuê (VD Framas có 4 nhà xưởng) chỉ tính 1 lần.
+ ***********************************************************************/
+const SO_NGAY_BAO_SINH_NHAT = 7;   // báo trước 7 ngày để kịp đặt lẵng hoa
+
+function docNgayThanhLap_(nx) {
+  let d = docNgay_(nx.NgayThanhLap);
+  if (d) return { ngay: d, suyRa: '' };
+
+  d = docNgay_(nx.GiayCNDN);
+  if (d) return { ngay: d, suyRa: 'suy ra từ Giấy CNĐKDN — cần đối chiếu' };
+
+  d = docNgay_(nx.GiayCNDT);
+  if (d) return { ngay: d, suyRa: 'suy ra từ Giấy CNĐT — cần đối chiếu' };
+
+  return null;
+}
+
+/** Ngày kỷ niệm gần nhất kể từ hôm nay (nếu năm nay đã qua thì lấy năm sau) */
+function ngayKyNiemToi_(ngayGoc, nay) {
+  let kn = new Date(nay.getFullYear(), ngayGoc.getMonth(), ngayGoc.getDate());
+  if (kn < nay) kn = new Date(nay.getFullYear() + 1, ngayGoc.getMonth(), ngayGoc.getDate());
+  return kn;
+}
+
+function tinhDanhSachSinhNhat_() {
+  const nay  = homNay_();
+  const daCo = {};      // gộp theo tên khách thuê để không báo trùng
+  const ds   = [];
+
+  (DU_LIEU.nhaXuong || []).forEach(function (nx) {
+    const khach = String(nx.KhachThue || '').trim();
+    if (!khach) return;                       // lô trống thì không tính
+
+    const goc = docNgayThanhLap_(nx);
+    if (!goc) return;
+
+    const khoa = khach.toLowerCase() + '|' + goc.ngay.getMonth() + '-' + goc.ngay.getDate();
+    if (daCo[khoa]) {
+      if (daCo[khoa].dsMa.indexOf(nx.MaDonVi) === -1) daCo[khoa].dsMa.push(nx.MaDonVi);
+      return;
+    }
+
+    const kn     = ngayKyNiemToi_(goc.ngay, nay);
+    const soNgay = Math.round((kn - nay) / 86400000);
+    if (soNgay < 0 || soNgay > SO_NGAY_BAO_SINH_NHAT) return;
+
+    const muc = {
+      khachThue   : khach,
+      ngayThanhLap: goc.ngay,
+      ngayKyNiem  : kn,
+      soNam       : kn.getFullYear() - goc.ngay.getFullYear(),
+      soNgay      : soNgay,
+      suyRa       : goc.suyRa,
+      dsMa        : [nx.MaDonVi]
+    };
+    daCo[khoa] = muc;
+    ds.push(muc);
+  });
+
+  ds.sort(function (a, b) { return a.soNgay - b.soNgay; });
+  return ds;
+}
+
+
+/***********************************************************************
+ * CẬP NHẬT BADGE & MỞ / ĐÓNG MODAL
+ ***********************************************************************/
 function capNhatBadgeCanhBao() {
+  /* --- Cảnh báo hợp đồng --- */
   const ds = tinhDanhSachCanhBao_();
   window.__DS_CANH_BAO__ = ds;
 
   const nut = document.getElementById('nutCanhBao');
-  if (!nut) return;
-  nut.classList.toggle('an', ds.length === 0);
-  const elSo = document.getElementById('soLuongCanhBao');
-  if (elSo) elSo.textContent = ds.length;
+  if (nut) {
+    nut.classList.remove('an');                    // ★ V2.8: không ẩn nút nữa
+    nut.classList.toggle('rong', ds.length === 0);
+    const elSo = document.getElementById('soLuongCanhBao');
+    if (elSo) elSo.textContent = ds.length;
+  }
+
+  /* --- ★ V2.8: Cảnh báo kỷ niệm thành lập --- */
+  const dsSN = tinhDanhSachSinhNhat_();
+  window.__DS_SINH_NHAT__ = dsSN;
+
+  const nutSN = document.getElementById('nutSinhNhat');
+  if (nutSN) {
+    nutSN.classList.remove('an');
+    nutSN.classList.toggle('rong', dsSN.length === 0);
+    const elSoSN = document.getElementById('soLuongSinhNhat');
+    if (elSoSN) elSoSN.textContent = dsSN.length;
+  }
 }
 
 /** Mở modal liệt kê hợp đồng sắp hết hạn; bấm 1 dòng sẽ nhảy tới lô đó trên bản đồ */
@@ -167,15 +375,20 @@ function moModalCanhBao() {
   const noiDung = document.getElementById('noiDungModalCanhBao');
 
   noiDung.innerHTML = ds.length === 0
-    ? '<p class="rong-canh-bao">Không có hợp đồng nào sắp hết hạn trong 6 tháng tới.</p>'
+    ? '<p class="rong-canh-bao">Không có hợp đồng nào sắp hết hạn trong 6 tháng tới.<br>'
+      + '<small>Ngày hết hạn được lấy từ cột <b>NgayHetHanHD</b>, hoặc suy ra từ '
+      + '<b>ThoiHanThue</b> / <b>NgayHopDong</b> của sheet DS_NhaXuong.</small></p>'
     : '<table class="bang-canh-bao"><thead><tr>'
       + '<th>Mã lô</th><th>Tên</th><th>Khách thuê</th><th>Hết hạn</th><th>Còn lại</th>'
       + '</tr></thead><tbody>'
       + ds.map(function (d) {
           return '<tr class="' + (d.soNgay <= 30 ? 'khan-cap' : '') + '" '
                + 'onclick="dongModalCanhBao();highlightLoDat(\'' + d.ma + '\');">'
-               + '<td>' + d.ma + '</td><td>' + d.ten + '</td><td>' + d.khachThue + '</td>'
-               + '<td>' + dinhDangNgay_(d.ngayHetHan) + '</td><td>' + d.soNgay + ' ngày</td></tr>';
+               + '<td>' + thoat_(d.ma) + '</td><td>' + thoat_(d.ten) + '</td>'
+               + '<td>' + thoat_(d.khachThue) + '</td>'
+               + '<td>' + dinhDangNgay_(d.ngayHetHan)
+               +   (d.suyRa ? '<br><span class="suy-ra">(' + d.suyRa + ')</span>' : '')
+               + '</td><td>' + d.soNgay + ' ngày</td></tr>';
         }).join('')
       + '</tbody></table>';
 
@@ -184,6 +397,85 @@ function moModalCanhBao() {
 
 function dongModalCanhBao() {
   document.getElementById('modalCanhBao').classList.add('an');
+}
+
+/** ★ V2.8: Mở modal kỷ niệm ngày thành lập khách thuê */
+function moModalSinhNhat() {
+  const ds = window.__DS_SINH_NHAT__ || [];
+  const noiDung = document.getElementById('noiDungModalSinhNhat');
+  document.getElementById('baoSaoChepSinhNhat').textContent = '';
+
+  noiDung.innerHTML = ds.length === 0
+    ? '<p class="rong-canh-bao">Trong 7 ngày tới không có khách thuê nào kỷ niệm ngày thành lập.<br>'
+      + '<small>Ngày thành lập lấy từ cột <b>NgayThanhLap</b> (dd/MM/yyyy) của sheet '
+      + 'DS_NhaXuong. Nếu cột này trống, hệ thống tạm suy ra từ <b>GiayCNDN</b> / '
+      + '<b>GiayCNDT</b> và ghi chú "cần đối chiếu".</small></p>'
+    : '<table class="bang-canh-bao"><thead><tr>'
+      + '<th>Khách thuê</th><th>Ngày thành lập</th><th>Kỷ niệm</th>'
+      + '<th>Ngày tổ chức</th><th>Còn lại</th>'
+      + '</tr></thead><tbody>'
+      + ds.map(function (d, i) {
+          return '<tr class="' + (d.soNgay <= 3 ? 'khan-cap' : '') + '" '
+               + 'onclick="chonMucSinhNhat_(' + i + ')">'
+               + '<td>' + thoat_(d.khachThue)
+               +   '<br><span class="suy-ra">Lô: ' + thoat_(d.dsMa.join(', ')) + '</span></td>'
+               + '<td>' + dinhDangNgay_(d.ngayThanhLap)
+               +   (d.suyRa ? '<br><span class="suy-ra">(' + d.suyRa + ')</span>' : '')
+               + '</td>'
+               + '<td>' + d.soNam + ' năm</td>'
+               + '<td>' + dinhDangNgay_(d.ngayKyNiem) + '</td>'
+               + '<td>' + (d.soNgay === 0 ? 'Hôm nay' : d.soNgay + ' ngày') + '</td></tr>';
+        }).join('')
+      + '</tbody></table>';
+
+  document.getElementById('modalSinhNhat').classList.remove('an');
+}
+
+function dongModalSinhNhat() {
+  document.getElementById('modalSinhNhat').classList.add('an');
+}
+
+/** Bấm 1 dòng trong modal kỷ niệm -> nhảy tới lô đầu tiên của khách thuê đó */
+function chonMucSinhNhat_(i) {
+  const d = (window.__DS_SINH_NHAT__ || [])[i];
+  if (!d || !d.dsMa.length) return;
+  dongModalSinhNhat();
+  highlightLoDat(d.dsMa[0]);
+}
+
+/** Sao chép danh sách kỷ niệm để gửi bộ phận đặt lẵng hoa */
+function saoChepDanhSachSinhNhat() {
+  const ds  = window.__DS_SINH_NHAT__ || [];
+  const bao = document.getElementById('baoSaoChepSinhNhat');
+
+  if (ds.length === 0) {
+    bao.textContent = 'Không có nội dung để sao chép.';
+    return;
+  }
+
+  const noiDung = 'DANH SÁCH KHÁCH THUÊ KỶ NIỆM NGÀY THÀNH LẬP (07 NGÀY TỚI)\n'
+    + 'KCN Long Thành — lập ngày ' + dinhDangNgay_(homNay_()) + '\n\n'
+    + ds.map(function (d, i) {
+        return (i + 1) + '. ' + d.khachThue + '\n'
+             + '   - Ngày thành lập : ' + dinhDangNgay_(d.ngayThanhLap)
+             +   (d.suyRa ? ' (' + d.suyRa + ')' : '') + '\n'
+             + '   - Kỷ niệm        : ' + d.soNam + ' năm, ngày ' + dinhDangNgay_(d.ngayKyNiem) + '\n'
+             + '   - Lô/nhà xưởng   : ' + d.dsMa.join(', ');
+      }).join('\n\n');
+
+  const oTam = document.createElement('textarea');
+  oTam.value = noiDung;
+  oTam.style.position = 'fixed';
+  oTam.style.opacity  = '0';
+  document.body.appendChild(oTam);
+  oTam.select();
+  try {
+    document.execCommand('copy');
+    bao.textContent = '✓ Đã sao chép ' + ds.length + ' khách thuê.';
+  } catch (e) {
+    bao.textContent = '✕ Trình duyệt chặn sao chép, vui lòng bôi đen và copy thủ công.';
+  }
+  document.body.removeChild(oTam);
 }
 
 let CAP_HIEN_TAI = 'tong';
