@@ -1,25 +1,18 @@
 /***********************************************************************
- * HỆ THỐNG TRA CỨU & BẢN ĐỒ KCN LONG THÀNH — PHIÊN BẢN 3.3
- *  ★ V3.0: Mở quyền chỉnh sửa bằng MÃ KHOÁ lưu trong sheet DM_CauHinh
- *  ★ V3.1: Bổ sung menu tiện ích Sao lưu (liên kết với module Backup.gs)
- *  ★ V3.2: MÀN HÌNH ĐĂNG NHẬP 3 CHẾ ĐỘ khi mở web:
- *          • Mật khẩu QUẢN TRỊ  (khoá "MaKhoaChinhSua") → xem tất cả + chỉnh sửa
- *          • Mật khẩu XEM       (khoá "MatKhauXem")     → xem tất cả, không sửa
- *          • Nút "Xem ở chế độ khách"                   → không thấy thông tin
- *            nội bộ, không sửa. DỮ LIỆU NỘI BỘ BỊ LỌC NGAY TỪ SERVER,
- *            không gửi xuống trình duyệt (an toàn cả khi mở DevTools).
- *          Bỏ phân quyền theo email (DM_PhanQuyen không còn dùng cho web).
- *  ★ V3.3 (23/07/2026) — SỬA LỖI GHI SAI CỘT:
- *          • capNhatNhaXuong() ghi vào TẤT CẢ cột trùng tên tiêu đề
- *            (trước đây chỉ ghi cột đầu tiên → cột T, AB, AC, AD, AE
- *             không bao giờ nhận được dữ liệu).
- *          • Chấp nhận cả 2 kiểu gọi: (ma, duLieu, {token,hoTen})
- *            và (ma, duLieu, token, hoTen) — tương thích ngược.
- *          • Trả về danh sách cột KHÔNG khớp tiêu đề để giao diện cảnh báo,
- *            thay vì bỏ qua âm thầm gây mất dữ liệu.
- *          • Chuẩn hoá tiêu đề bằng .trim() ở cả docSheet_ và khi ghi.
- *          • Dọn hàm layDanhSachTenNguoiDung() bị khai báo lồng.
- *          • Thêm 2 tiện ích menu: kiểm tra cột trùng tên & dọn dữ liệu lệch cột.
+ * HỆ THỐNG TRA CỨU & BẢN ĐỒ KCN LONG THÀNH — PHIÊN BẢN 4.0
+ *  ★ V3.0–3.3: xem lịch sử trong bản sao lưu.
+ *  ★ V4.0 (23/07/2026) — XÁC THỰC THEO TÀI KHOẢN CÁ NHÂN:
+ *     • Mỗi người dùng 01 tài khoản riêng (Email + mật khẩu cá nhân),
+ *       lưu tại sheet DM_PhanQuyen, mật khẩu chỉ lưu dạng băm SHA-256.
+ *     • ĐÃ GỠ BỎ hoàn toàn cơ chế "Mã khoá chỉnh sửa" và "Mật khẩu xem"
+ *       dùng chung. Quyền thao tác do VAI TRÒ quyết định:
+ *         QuanTri  — xem tất cả + sửa + quản lý tài khoản
+ *         NhapLieu — xem tất cả + sửa
+ *         ChiXem   — xem tất cả, không sửa
+ *         Khach    — không đăng nhập; thông tin nội bộ bị lọc TỪ SERVER
+ *     • Nhật ký NhatKy ghi EMAIL lấy từ token đã xác thực → truy vết
+ *       chính xác, không thể khai tên người khác như trước.
+ *  ⚠ PHỤ THUỘC: bắt buộc phải có file TaiKhoan.js trong cùng dự án.
  * Phòng Kinh doanh Tổng hợp — Sonadezi Long Thành
  ***********************************************************************/
 
@@ -39,80 +32,70 @@ const TEN_SHEET = {
 const THOI_GIAN_CACHE = 300; // giây
 
 /***********************************************************************
- * ★ V3.0 — CẤU HÌNH MÃ KHOÁ CHỈNH SỬA
- *
- *  KHOA_CAU_HINH_MA_SUA : tên khoá trong sheet DM_CauHinh chứa mã khoá
- *  MUOI_BAO_MAT         : chuỗi bí mật dùng để băm token.
- *                         ⚠ Đổi chuỗi này = vô hiệu hoá toàn bộ token đã cấp.
- *  SO_LAN_SAI_TOI_DA    : số lần nhập sai trước khi khoá tạm
- *  THOI_GIAN_KHOA       : thời gian khoá tạm (giây)
+ * ★ V4.0 — CÁC KHOÁ CẤU HÌNH CŨ (đã ngừng sử dụng)
+ *  Giữ tên hằng số để tiếp tục XOÁ 2 dòng này khỏi dữ liệu gửi về trình
+ *  duyệt, phòng trường hợp sheet DM_CauHinh vẫn còn lưu mật khẩu cũ.
+ *  → Nên xoá hẳn 2 dòng "MaKhoaChinhSua" và "MatKhauXem" trong DM_CauHinh.
  ***********************************************************************/
 const KHOA_CAU_HINH_MA_SUA = 'MaKhoaChinhSua';
-const MUOI_BAO_MAT         = 'SZL-KCNLT-2026-v3';
-const SO_LAN_SAI_TOI_DA    = 8;
-const THOI_GIAN_KHOA       = 600;   // 10 phút
-
-/***********************************************************************
- * ★ V3.2 — MẬT KHẨU TÀI KHOẢN "XEM NỘI BỘ"
- *  Thêm 1 dòng vào sheet DM_CauHinh:
- *    Khoa = MatKhauXem | GiaTri = <mật khẩu xem do quản trị đặt>
- *  (Mật khẩu QUẢN TRỊ dùng chính khoá "MaKhoaChinhSua" sẵn có.)
- ***********************************************************************/
 const KHOA_CAU_HINH_MK_XEM = 'MatKhauXem';
 
 /***********************************************************************
- * ★ V3.2 — DANH SÁCH CỘT NỘI BỘ BỊ ẨN VỚI CHẾ ĐỘ KHÁCH
- *  (đã chốt theo 2 ảnh chụp màn hình ngày 21/07/2026)
- *  Ghi chú: một số tên cột có cả biến thể có/không hậu tố "(USD)" —
- *  liệt kê cả hai để phòng khi đổi tên tiêu đề trong Sheet.
+ * DANH SÁCH CỘT NỘI BỘ BỊ ẨN VỚI CHẾ ĐỘ KHÁCH
+ *  Cấu trúc bám theo 2 biểu mẫu "KHÁCH HÀNG THUÊ XƯỞNG" và
+ *  "KHÁCH HÀNG THUÊ ĐẤT" do Phòng KD-TH ban hành.
+ *  Các tên có/không hậu tố "(USD)" đều liệt kê để phòng đổi tiêu đề Sheet.
  ***********************************************************************/
-const COT_AN_KHACH_NHA_XUONG = [
+const COT_AN_KHACH_CHUNG = [
   'QuocTich',
   'NganhNghe_SanPham',
   'NganhNghe',
   'TongVonDauTu_USD',
   'SoHopDong',
   'NgayHopDong',
-  'GiayCNDT',
-  'NguoiDaiDien',
-  'TienThueXuong - DonGia (USD)',
-  'TienThueXuong - DonGia',
-  'TienThueXuong - PTThanhToan',
+  'BanThoaThuan - So',
+  'BanThoaThuan - Ngay',
+  'BanThoaThuan - NgayHetHan',
   'PhiQuanLy (USD)',
   'PhiQuanLy',
   'ThoiHanThue',
   'ThoiHanThue_ChiTiet',
+  'TinhTrangHoatDong',
+  'GiayCNDT',
+  'GiayCNDN',
+  'NguoiDaiDien',
   'GhiChu',
   'Ghi chú'
 ];
 
-const COT_AN_KHACH_DAT = [
-  'QuocTich',
-  'NganhNghe',
-  'NganhNghe_SanPham',
-  'TongVonDauTu_USD',
-  'SoHopDong',
-  'NgayHopDong',
+const COT_AN_KHACH_RIENG_NHA_XUONG = [
+  'NhaXuongSo',
+  'DienTichXuong_m2',
+  'DienTichKhuDat_m2',
+  'TienThueXuong - DonGia (USD)',
+  'TienThueXuong - DonGia',
+  'TienThueXuong - PTThanhToan'
+];
+
+const COT_AN_KHACH_RIENG_DAT = [
+  'LoDatThue',
+  'Tong DienTichDatThue (m2)',
+  'DienTichDatThueThem (m2)',
   'TienThueMatBang - DonGia (USD)',
   'TienThueMatBang - DonGia',
   'TienThueMatBang - PTThanhToan',
   'TienDatTho - DonGia (USD)',
   'TienDatTho - DonGia',
-  'TienDatTho - PTThanhToan',
-  'PhiQuanLy (USD)',
-  'PhiQuanLy',
-  'GiayCNDT',
-  'NguoiDaiDien',
-  'ThoiHanThue',
-  'ThoiHanThue_ChiTiet',
-  'GhiChu',
-  'Ghi chú'
+  'TienDatTho - PTThanhToan'
 ];
+
+const COT_AN_KHACH_NHA_XUONG = COT_AN_KHACH_CHUNG.concat(COT_AN_KHACH_RIENG_NHA_XUONG);
+const COT_AN_KHACH_DAT       = COT_AN_KHACH_CHUNG.concat(COT_AN_KHACH_RIENG_DAT);
 
 /***********************************************************************
  * ★★★ CỜ CHẾ ĐỘ THỬ NGHIỆM
- *  ⚠ V3.2: PHẢI để false — nếu bật true, mọi người (kể cả khách)
- *    được đánh dấu "xem đầy đủ". Chỉ bật tạm khi cần gỡ lỗi.
+ *  ⚠ PHẢI để false — nếu bật true, mọi người (kể cả khách) được đánh dấu
+ *    "xem đầy đủ". Chỉ bật tạm khi cần gỡ lỗi.
  ***********************************************************************/
 const CHE_DO_THU_NGHIEM = false;
 
@@ -148,7 +131,6 @@ function docSheet_(tenSheet, batBuoc) {
   const vung = sheet.getDataRange().getValues();
   if (vung.length < 2) return [];
 
-  // ★ V3.3: .trim() để tiêu đề thừa khoảng trắng không tạo ra khoá lạ
   const tieuDe = vung.shift().map(function (t) { return String(t).trim(); });
 
   return vung
@@ -159,7 +141,7 @@ function docSheet_(tenSheet, batBuoc) {
         if (!cot) return;
         let v = dong[i];
         if (v instanceof Date) v = Utilities.formatDate(v, 'GMT+7', 'dd/MM/yyyy');
-        // ★ Nếu 2 cột trùng tên tiêu đề, KHÔNG cho giá trị rỗng của cột sau
+        // Nếu 2 cột trùng tên tiêu đề, KHÔNG cho giá trị rỗng của cột sau
         // ghi đè lên giá trị đã có của cột trước.
         if ((v === '' || v === null || v === undefined) && obj[cot] !== undefined && obj[cot] !== '') {
           return;
@@ -198,14 +180,10 @@ function chuanHoaLinkDrive_(link) {
 }
 
 /***********************************************************************
- * ★ V3.3 — BẢN ĐỒ TIÊU ĐỀ → DANH SÁCH CHỈ SỐ CỘT
+ * BẢN ĐỒ TIÊU ĐỀ → DANH SÁCH CHỈ SỐ CỘT
  *  Khác với indexOf() (chỉ trả về cột đầu tiên), hàm này trả về MỌI vị trí
- *  của một tên tiêu đề. Nhờ đó khi Sheet còn cột trùng tên (QuocTich ở G và
- *  T, TongVonDauTu_USD ở I và AC…), dữ liệu được ghi đồng bộ ở tất cả các
- *  vị trí — không còn tình trạng "nhập một nơi, hiển thị một nẻo".
- *
- *  @param  {Array}  tieuDe  mảng tiêu đề dòng 1
- *  @return {Object}         { 'TenCot': [chiSo0, chiSo1, ...] }
+ *  của một tên tiêu đề. Nhờ đó khi Sheet còn cột trùng tên, dữ liệu được
+ *  ghi đồng bộ ở tất cả các vị trí.
  ***********************************************************************/
 function bandoTieuDe_(tieuDe) {
   const map = {};
@@ -220,22 +198,60 @@ function bandoTieuDe_(tieuDe) {
 
 
 /***********************************************************************
+ * ★ V4.0 — PHIÊN LÀM VIỆC LẤY TỪ TOKEN TÀI KHOẢN
+ ***********************************************************************/
+
+/**
+ * Giải mã token do trình duyệt gửi lên thành phiên đã xác thực.
+ * Uỷ quyền cho giaiTokenTK_() trong TaiKhoan.js.
+ * @return {{hopLe:boolean, email:string, hoTen:string, vaiTro:string}}
+ */
+function layPhienTuToken_(token) {
+  if (typeof giaiTokenTK_ !== 'function') {
+    throw new Error('Chưa cài đặt module TaiKhoan.js trong dự án Apps Script.');
+  }
+  return giaiTokenTK_(token);
+}
+
+/** Dựng object nguoiDung gửi về giao diện, theo phiên đã xác thực */
+function layNguoiDungTuPhien_(p) {
+  p = p || {};
+  const vaiTro  = p.hopLe ? String(p.vaiTro || '').trim() : 'Khach';
+  const duocSua = (vaiTro === 'QuanTri' || vaiTro === 'NhapLieu');
+
+  return {
+    email       : p.hopLe ? p.email : '',
+    hoTen       : p.hopLe ? (p.hoTen || p.email) : 'Khách',
+    vaiTro      : vaiTro,
+    nhanDienDuoc: (vaiTro !== 'Khach'),
+    duocSua     : duocSua,
+    xemDayDu    : CHE_DO_THU_NGHIEM || (vaiTro !== 'Khach'),
+    laQuanTri   : (vaiTro === 'QuanTri')
+  };
+}
+
+
+/***********************************************************************
  * ★ TẢI TOÀN BỘ DỮ LIỆU — DÙNG CHUNG CHO CẢ 2 TAB
- * ★ V3.2: nhận thêm tham số phien = { token, hoTen } từ trình duyệt.
  *   - Cache luôn lưu BẢN ĐẦY ĐỦ; việc lọc cho khách thực hiện SAU khi
  *     đọc cache, theo từng lượt gọi.
  *   - Chế độ khách: các cột nội bộ bị XOÁ TRẮNG trước khi trả về.
  ***********************************************************************/
 function layDuLieuTongHop(phien) {
   phien = phien || {};
-  const vaiTro = layVaiTroTuToken_(phien.token);
+
+  let p;
+  try { p = layPhienTuToken_(phien.token); }
+  catch (err) { p = { hopLe: false, email: '', hoTen: '', vaiTro: 'Khach' }; }
+
+  const vaiTro = p.hopLe ? p.vaiTro : 'Khach';
 
   const cache = CacheService.getScriptCache();
   const daCache = cache.get('DU_LIEU_TONG_HOP');
   if (daCache) {
     let kq = JSON.parse(daCache);
     if (vaiTro === 'Khach') kq = locDuLieuChoKhach_(kq);
-    kq.nguoiDung = layNguoiDungTuVaiTro_(vaiTro, phien.hoTen);
+    kq.nguoiDung = layNguoiDungTuPhien_(p);
     return kq;
   }
 
@@ -253,10 +269,9 @@ function layDuLieuTongHop(phien) {
   cauHinh.AnhMasterKCN = chuanHoaAnhDrive_(cauHinh.AnhMasterKCN);
 
   // ★★★ TUYỆT ĐỐI KHÔNG GỬI MẬT KHẨU VỀ TRÌNH DUYỆT ★★★
-  // Nếu quên các dòng này, người dùng chỉ cần mở DevTools là đọc được.
+  // (Hai khoá dưới đây đã ngừng dùng từ V4.0 nhưng vẫn xoá để phòng ngừa.)
   delete cauHinh[KHOA_CAU_HINH_MA_SUA];
-  delete cauHinh[KHOA_CAU_HINH_MK_XEM];   // ★ V3.2
-  cauHinh.CoMaKhoaChinhSua = true;   // chỉ báo "đã cấu hình", không lộ giá trị
+  delete cauHinh[KHOA_CAU_HINH_MK_XEM];
 
   // --- Gom tài liệu theo mã đơn vị ---
   const mapTL = {};
@@ -301,14 +316,14 @@ function layDuLieuTongHop(phien) {
     cache.put('DU_LIEU_TONG_HOP', JSON.stringify(ketQua), THOI_GIAN_CACHE);
   } catch (err) { /* vượt giới hạn cache, bỏ qua */ }
 
-  // ★ V3.2 — lọc cho khách SAU khi đã cache bản đầy đủ
+  // Lọc cho khách SAU khi đã cache bản đầy đủ
   let ketQuaTra = (vaiTro === 'Khach') ? locDuLieuChoKhach_(ketQua) : ketQua;
-  ketQuaTra.nguoiDung = layNguoiDungTuVaiTro_(vaiTro, phien.hoTen);
+  ketQuaTra.nguoiDung = layNguoiDungTuPhien_(p);
   return ketQuaTra;
 }
 
 /**
- * ★ V3.2 — Xoá trắng cột nội bộ trước khi gửi cho chế độ khách.
+ * Xoá trắng cột nội bộ trước khi gửi cho chế độ khách.
  * Danh sách cột áp dụng theo LoaiHinh của từng dòng.
  */
 function locDuLieuChoKhach_(ketQua) {
@@ -326,285 +341,16 @@ function locDuLieuChoKhach_(ketQua) {
 
 
 /***********************************************************************
- * ★ V3.2 — ĐĂNG NHẬP WEB BẰNG MẬT KHẨU (3 CHẾ ĐỘ)
+ * GHI NHẬT KÝ
+ *  ★ LockService: ngăn 2 lần ghi đồng thời chèn đè nhau.
  ***********************************************************************/
-
-/** Đọc mật khẩu XEM từ sheet DM_CauHinh (chỉ chạy phía server) */
-function layMatKhauXem_() {
-  try {
-    const ds = docSheet_(TEN_SHEET.CAU_HINH, false);
-    const r = ds.filter(function (c) {
-      return String(c.Khoa).trim() === KHOA_CAU_HINH_MK_XEM;
-    })[0];
-    return r ? String(r.GiaTri).trim() : '';
-  } catch (err) {
-    return '';
-  }
-}
-
-/** Token XEM: băm SHA-256 riêng, khác tiền tố với token SỬA */
-function taoTokenXem_(matKhau) {
-  const raw = 'SZL-XEM|' + matKhau + '|' + MUOI_BAO_MAT;
-  const bytes = Utilities.computeDigest(
-    Utilities.DigestAlgorithm.SHA_256, raw, Utilities.Charset.UTF_8);
-  return Utilities.base64Encode(bytes);
-}
-
-function kiemTraTokenXem_(token) {
-  if (!token) return false;
-  const mk = layMatKhauXem_();
-  if (!mk) return false;
-  return String(token) === taoTokenXem_(mk);
-}
-
-/** Suy ra vai trò từ token do trình duyệt gửi lên */
-function layVaiTroTuToken_(token) {
-  if (kiemTraTokenSua_(token)) return 'QuanTri';
-  if (kiemTraTokenXem_(token)) return 'ChiXem';
-  return 'Khach';
-}
-
-/** Dựng object nguoiDung gửi về giao diện, theo vai trò đã xác thực */
-function layNguoiDungTuVaiTro_(vaiTro, hoTen) {
-  return {
-    email       : '',
-    hoTen       : String(hoTen || '').trim() || (vaiTro === 'Khach' ? 'Khách' : ''),
-    vaiTro      : vaiTro,
-    nhanDienDuoc: (vaiTro !== 'Khach'),
-    duocSua     : (vaiTro === 'QuanTri'),
-    coMaKhoa    : (layMaKhoaChinhSua_() !== ''),
-    xemDayDu    : CHE_DO_THU_NGHIEM || (vaiTro === 'QuanTri') || (vaiTro === 'ChiXem'),
-    laQuanTri   : (vaiTro === 'QuanTri')
-  };
-}
-
-/**
- * ★ Hàm gọi từ màn hình đăng nhập.
- * @param {string} matKhau  Mật khẩu người dùng nhập
- * @param {string} hoTen    Họ tên người thao tác (bắt buộc, phục vụ truy vết)
- * @return {{thanhCong:boolean, vaiTro:string, token:string, hoTen:string}}
- */
-function dangNhapWeb(matKhau, hoTen) {
-  const cache = CacheService.getScriptCache();
-
-  // --- Chống dò mật khẩu: khoá tạm sau N lần sai ---
-  const soLanSai = parseInt(cache.get('SO_LAN_SAI_DANG_NHAP') || '0', 10);
-  if (soLanSai >= SO_LAN_SAI_TOI_DA) {
-    throw new Error('Đã nhập sai quá ' + SO_LAN_SAI_TOI_DA
-      + ' lần. Đăng nhập tạm ngưng khoảng 10 phút.');
-  }
-
-  hoTen = String(hoTen || '').trim();
-  if (hoTen.length < 3) {
-    throw new Error('Vui lòng nhập họ tên người sử dụng (tối thiểu 3 ký tự).');
-  }
-
-  matKhau = String(matKhau || '').trim();
-  const mkQuanTri = layMaKhoaChinhSua_();
-  const mkXem     = layMatKhauXem_();
-
-  if (!mkQuanTri && !mkXem) {
-    throw new Error('Chưa cấu hình mật khẩu. Bổ sung khoá "'
-      + KHOA_CAU_HINH_MA_SUA + '" và "' + KHOA_CAU_HINH_MK_XEM
-      + '" trong sheet ' + TEN_SHEET.CAU_HINH + '.');
-  }
-
-  if (mkQuanTri && matKhau === mkQuanTri) {
-    cache.remove('SO_LAN_SAI_DANG_NHAP');
-    ghiNhatKy_([[new Date(), 'ĐĂNG NHẬP: ' + hoTen, '(hệ thống)',
-                 'DangNhapWeb', '', 'Vai trò: Quản trị (chỉnh sửa)']]);
-    return { thanhCong: true, vaiTro: 'QuanTri',
-             token: taoTokenSua_(mkQuanTri), hoTen: hoTen };
-  }
-
-  if (mkXem && matKhau === mkXem) {
-    cache.remove('SO_LAN_SAI_DANG_NHAP');
-    ghiNhatKy_([[new Date(), 'ĐĂNG NHẬP: ' + hoTen, '(hệ thống)',
-                 'DangNhapWeb', '', 'Vai trò: Xem nội bộ']]);
-    return { thanhCong: true, vaiTro: 'ChiXem',
-             token: taoTokenXem_(mkXem), hoTen: hoTen };
-  }
-
-  cache.put('SO_LAN_SAI_DANG_NHAP', String(soLanSai + 1), THOI_GIAN_KHOA);
-  throw new Error('Mật khẩu không đúng. Còn '
-    + (SO_LAN_SAI_TOI_DA - soLanSai - 1) + ' lần thử.');
-}
-
-
-/***********************************************************************
- * PHÂN QUYỀN THEO EMAIL (CŨ)
- *  ★ V3.2: web không còn dùng — giữ lại để capNhatNhaXuong tương thích
- *  khi triển khai ở chế độ nhận diện email (nếu sau này chuyển Workspace).
- *  ★ V3.3: đã gỡ bản khai báo lồng của layDanhSachTenNguoiDung().
- ***********************************************************************/
-function layThongTinNguoiDung() {
-  let email = '';
-  try { email = String(Session.getActiveUser().getEmail() || '').trim(); }
-  catch (err) { email = ''; }
-
-  const nhanDienDuoc = (email !== '');
-
-  let vaiTro = 'ChiXem';
-  let hoTen  = email || 'Khách';
-
-  if (nhanDienDuoc) {
-    try {
-      const ds = docSheet_(TEN_SHEET.PHAN_QUYEN, false);
-      const found = ds.filter(function (r) {
-        return String(r.Email).trim().toLowerCase() === email.toLowerCase();
-      })[0];
-      if (found) {
-        vaiTro = String(found.VaiTro).trim();
-        hoTen  = found.HoTen || email;
-      }
-    } catch (err) { /* bỏ qua */ }
-  }
-
-  const suaTheoVaiTro = (vaiTro === 'QuanTri' || vaiTro === 'NhapLieu');
-
-  return {
-    email       : email,
-    hoTen       : hoTen,
-    vaiTro      : vaiTro,
-    nhanDienDuoc: nhanDienDuoc,
-    duocSua     : suaTheoVaiTro,
-    coMaKhoa    : (layMaKhoaChinhSua_() !== ''),
-    xemDayDu    : CHE_DO_THU_NGHIEM || suaTheoVaiTro || (vaiTro === 'QuanLy'),
-    laQuanTri   : (vaiTro === 'QuanTri')
-  };
-}
-
-/***********************************************************************
- * ★ HƯỚNG C — DANH SÁCH HỌ TÊN CHO MÀN HÌNH ĐĂNG NHẬP
- *  Trả về danh sách họ tên (KHÔNG kèm email/vai trò) để đổ vào ô chọn.
- *  Chạy đồng nhất mọi trình duyệt (kể cả Safari/iPad, vốn không giữ được
- *  localStorage trong iframe GAS). Nguồn: cột họ tên trong DM_PhanQuyen.
- ***********************************************************************/
-function layDanhSachTenNguoiDung() {
-  try {
-    const ds = docSheet_(TEN_SHEET.PHAN_QUYEN, false);
-    if (!ds || ds.length === 0) return [];
-
-    // Dò tên cột chứa họ tên (phòng khi tiêu đề đổi)
-    const cotUuTien = ['HoTen', 'Họ tên', 'HoVaTen', 'TenNhanVien', 'Ten'];
-    const cacCot = Object.keys(ds[0]);
-    let cotTen = '';
-    for (let i = 0; i < cotUuTien.length; i++) {
-      if (cacCot.indexOf(cotUuTien[i]) > -1) { cotTen = cotUuTien[i]; break; }
-    }
-    if (!cotTen) return [];
-
-    const tap = {};
-    ds.forEach(function (r) {
-      const t = String(r[cotTen] || '').trim();
-      if (t) tap[t] = true;
-    });
-
-    return Object.keys(tap).sort(function (a, b) {
-      return a.localeCompare(b, 'vi');
-    });
-  } catch (err) {
-    return [];
-  }
-}
-
-/** Hàm chẩn đoán — chạy trong trình soạn thảo Apps Script, xem Execution log */
-function kiemTraQuyen() {
-  const nd = layThongTinNguoiDung();
-  Logger.log(JSON.stringify(nd, null, 2));
-  return nd;
-}
-
-
-/***********************************************************************
- * ★ V3.0 — MỞ QUYỀN CHỈNH SỬA BẰNG MÃ KHOÁ
- *  (V3.2 vẫn giữ: người vào bằng mật khẩu XEM hoặc quên đăng nhập
- *   quản trị có thể mở khoá chỉnh sửa ngay giữa phiên.)
- ***********************************************************************/
-
-/** Đọc mã khoá từ sheet DM_CauHinh (chỉ chạy phía server) */
-function layMaKhoaChinhSua_() {
-  try {
-    const ds = docSheet_(TEN_SHEET.CAU_HINH, false);
-    const r = ds.filter(function (c) {
-      return String(c.Khoa).trim() === KHOA_CAU_HINH_MA_SUA;
-    })[0];
-    return r ? String(r.GiaTri).trim() : '';
-  } catch (err) {
-    return '';
-  }
-}
-
-/** Sinh token băm SHA-256 từ mã khoá + muối bảo mật (không lưu trạng thái) */
-function taoTokenSua_(maKhoa) {
-  const raw = 'SZL|' + maKhoa + '|' + MUOI_BAO_MAT;
-  const bytes = Utilities.computeDigest(
-    Utilities.DigestAlgorithm.SHA_256, raw, Utilities.Charset.UTF_8);
-  return Utilities.base64Encode(bytes);
-}
-
-/** Kiểm tra token do client gửi lên có hợp lệ không */
-function kiemTraTokenSua_(token) {
-  if (!token) return false;
-  const khoa = layMaKhoaChinhSua_();
-  if (!khoa) return false;
-  return String(token) === taoTokenSua_(khoa);
-}
-
-/**
- * ★ Hàm gọi từ giao diện: xác thực mã khoá người dùng nhập.
- * @param {string} maNhap  Mã khoá người dùng gõ
- * @param {string} hoTen   Họ tên người thao tác (bắt buộc, phục vụ truy vết)
- * @return {{thanhCong:boolean, token:string, hoTen:string}}
- */
-function xacThucMaKhoa(maNhap, hoTen) {
-  const cache = CacheService.getScriptCache();
-
-  // --- Chống dò mã: khoá tạm sau N lần sai ---
-  const soLanSai = parseInt(cache.get('SO_LAN_SAI_MA_KHOA') || '0', 10);
-  if (soLanSai >= SO_LAN_SAI_TOI_DA) {
-    throw new Error('Đã nhập sai quá ' + SO_LAN_SAI_TOI_DA
-      + ' lần. Chức năng mở khoá tạm ngưng khoảng 10 phút.');
-  }
-
-  hoTen = String(hoTen || '').trim();
-  if (hoTen.length < 3) {
-    throw new Error('Vui lòng nhập họ tên người thao tác (tối thiểu 3 ký tự).');
-  }
-
-  const khoa = layMaKhoaChinhSua_();
-  if (!khoa) {
-    throw new Error('Chưa cấu hình mã khoá. Bổ sung dòng "'
-      + KHOA_CAU_HINH_MA_SUA + '" trong sheet ' + TEN_SHEET.CAU_HINH + '.');
-  }
-
-  if (String(maNhap || '').trim() !== khoa) {
-    cache.put('SO_LAN_SAI_MA_KHOA', String(soLanSai + 1), THOI_GIAN_KHOA);
-    throw new Error('Mã khoá không đúng. Còn '
-      + (SO_LAN_SAI_TOI_DA - soLanSai - 1) + ' lần thử.');
-  }
-
-  cache.remove('SO_LAN_SAI_MA_KHOA');
-  ghiNhatKy_([[new Date(), 'MÃ KHOÁ: ' + hoTen, '(hệ thống)',
-               'MoKhoaChinhSua', '', 'Mở khoá thành công']]);
-
-  return { thanhCong: true, token: taoTokenSua_(khoa), hoTen: hoTen };
-}
-
-/**
- * Ghi nhiều dòng vào sheet NhatKy (mỗi dòng 6 cột).
- * ★ LockService: ngăn 2 lần ghi đồng thời chèn đè nhau.
- *   - Chờ tối đa 5 giây để lấy khoá.
- *   - Nếu không lấy được khoá (hiếm), bỏ qua — không để lỗi log làm hỏng thao tác chính.
- */
 function ghiNhatKy_(dsDong) {
   if (!dsDong || dsDong.length === 0) return;
 
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(5000); // chờ tối đa 5 giây
+    lock.waitLock(5000);
   } catch (errLock) {
-    // Không lấy được khoá sau 5 giây (cực kỳ hiếm với nhóm nhỏ) → bỏ qua ghi log
     console.warn('ghiNhatKy_: không lấy được LockService, bỏ qua ghi log.', errLock);
     return;
   }
@@ -628,20 +374,14 @@ function ghiNhatKy_(dsDong) {
 /**
  * @param {string} maDonVi
  * @param {Object} duLieuMoi
- * @param {Object|string} [phien]  { token, hoTen }  — hoặc chuỗi token (kiểu cũ)
+ * @param {Object|string} [phien]  { token, hoTen } — hoặc chuỗi token (kiểu cũ)
  * @param {string} [hoTenPhu]      Chỉ dùng khi tham số thứ 3 là chuỗi token
  *
- * ★ V3.2: chỉ token QUẢN TRỊ (kiemTraTokenSua_) mới được lưu.
- *   Token XEM và chế độ khách bị chặn ngay từ server.
+ * ★ V4.0: chỉ tài khoản có vai trò QuanTri hoặc NhapLieu mới được lưu.
+ *   Người ghi nhật ký lấy từ EMAIL trong token — không lấy tên do trình
+ *   duyệt khai báo, nên không thể mạo danh người khác.
+ * ★ V3.3: ghi vào MỌI cột trùng tên tiêu đề; trả về cotKhongTonTai.
  * ★ LockService: ngăn 2 người cùng ghi vào cùng 1 dòng Sheet đồng thời.
- *
- * ★★★ V3.3 — SỬA LỖI GHI SAI CỘT:
- *   1) Ghi vào MỌI cột có cùng tên tiêu đề (bandoTieuDe_), thay vì chỉ cột
- *      đầu tiên như indexOf(). Đây là nguyên nhân dữ liệu Nhà xưởng "nhảy"
- *      sang vùng cột Đất cho thuê và ngược lại.
- *   2) Trả về mảng cotKhongTonTai để giao diện cảnh báo khi tên cột trong
- *      code không còn khớp tiêu đề Sheet (trước đây bị bỏ qua âm thầm).
- *   3) Chấp nhận cả 2 kiểu gọi (object phiên hoặc chuỗi token rời).
  */
 function capNhatNhaXuong(maDonVi, duLieuMoi, phien, hoTenPhu) {
   // --- Tương thích ngược: (ma, duLieu, token, hoTen) ---
@@ -650,22 +390,22 @@ function capNhatNhaXuong(maDonVi, duLieuMoi, phien, hoTenPhu) {
   }
   phien = phien || {};
 
-  const nd = layThongTinNguoiDung();
-  const moBangMaKhoa = kiemTraTokenSua_(phien.token);
+  const p = layPhienTuToken_(phien.token);
 
-  if (!nd.duocSua && !moBangMaKhoa) {
-    throw new Error('Phiên làm việc không có quyền chỉnh sửa. '
-      + 'Vui lòng đăng nhập bằng mật khẩu quản trị rồi thử lại.');
+  if (!p.hopLe) {
+    throw new Error('Phiên làm việc đã hết hiệu lực. Vui lòng đăng nhập lại.');
+  }
+  if (p.vaiTro !== 'QuanTri' && p.vaiTro !== 'NhapLieu') {
+    throw new Error('Tài khoản của bạn (' + p.vaiTro
+      + ') không có quyền chỉnh sửa dữ liệu.');
   }
 
-  // Người ghi nhật ký: ưu tiên email thật, sau đó tới tên khai khi đăng nhập
-  const nguoiGhiLog = nd.email
-    || (phien.hoTen ? ('MÃ KHOÁ: ' + String(phien.hoTen).trim()) : '(khong xac dinh)');
+  // ★ V4.0 — người ghi nhật ký = email đã xác thực
+  const nguoiGhiLog = p.email;
 
-  // ★ Lấy khoá trước khi đọc/ghi Sheet
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(10000); // chờ tối đa 10 giây
+    lock.waitLock(10000);
   } catch (errLock) {
     throw new Error('Hệ thống đang bận (người khác đang lưu dữ liệu). '
       + 'Vui lòng thử lại sau vài giây.');
@@ -679,7 +419,6 @@ function capNhatNhaXuong(maDonVi, duLieuMoi, phien, hoTenPhu) {
                         .getValues()[0]
                         .map(function (t) { return String(t).trim(); });
 
-    // ★ V3.3 — bản đồ tên cột → DANH SÁCH chỉ số (xử lý cột trùng tên)
     const mapCot = bandoTieuDe_(tieuDe);
 
     const dsMa = sheet.getRange(2, 1, Math.max(sheet.getLastRow() - 1, 1), 1)
@@ -698,14 +437,12 @@ function capNhatNhaXuong(maDonVi, duLieuMoi, phien, hoTenPhu) {
 
       const dsChiSo = mapCot[String(cot).trim()];
       if (!dsChiSo || dsChiSo.length === 0) {
-        // ★ V3.3: không im lặng bỏ qua nữa — báo về giao diện
         cotKhongTonTai.push(cot);
         return;
       }
 
       const giaTriMoi = duLieuMoi[cot];
 
-      // ★ Ghi vào TẤT CẢ vị trí trùng tên để dữ liệu không bao giờ lệch
       dsChiSo.forEach(function (iCot) {
         const o        = sheet.getRange(dong, iCot + 1);
         const giaTriCu = o.getValue();
@@ -727,7 +464,6 @@ function capNhatNhaXuong(maDonVi, duLieuMoi, phien, hoTenPhu) {
       sheet.getRange(dong, i + 1).setValue(new Date());
     });
 
-    // ★ Ghi NhatKy TRONG cùng lock để tránh race condition kép
     if (nhatKy.length > 0) {
       const shLog = SpreadsheetApp.openById(ID_SHEET).getSheetByName(TEN_SHEET.NHAT_KY);
       if (shLog) {
@@ -739,11 +475,12 @@ function capNhatNhaXuong(maDonVi, duLieuMoi, phien, hoTenPhu) {
     return {
       thanhCong      : true,
       soTruongDaSua  : nhatKy.length,
-      cotKhongTonTai : cotKhongTonTai
+      cotKhongTonTai : cotKhongTonTai,
+      nguoiCapNhat   : nguoiGhiLog
     };
 
   } finally {
-    lock.releaseLock(); // luôn giải phóng khoá dù có lỗi hay không
+    lock.releaseLock();
   }
 }
 
@@ -768,18 +505,59 @@ function xoaCache() {
   SpreadsheetApp.getUi().alert('✓ Đã làm mới. Tải lại trang App để thấy dữ liệu mới nhất.');
 }
 
-/** ★ V3.2 — Gỡ khoá tạm khi lỡ nhập sai quá nhiều lần (cả đăng nhập lẫn mã khoá) */
+/***********************************************************************
+ * ★ V4.0 — GỠ KHOÁ ĐĂNG NHẬP CHO MỘT TÀI KHOẢN
+ *  Dùng khi nhân viên nhập sai mật khẩu quá số lần cho phép.
+ ***********************************************************************/
 function moKhoaTamThoi() {
+  const ui = SpreadsheetApp.getUi();
+  const tl = ui.prompt('GỠ KHOÁ ĐĂNG NHẬP',
+    'Nhập email của tài khoản cần gỡ khoá:', ui.ButtonSet.OK_CANCEL);
+  if (tl.getSelectedButton() !== ui.Button.OK) return;
+
+  const email = String(tl.getResponseText() || '').trim().toLowerCase();
+  if (!email) { ui.alert('Chưa nhập email.'); return; }
+
   const cache = CacheService.getScriptCache();
+  cache.remove('TK_SAI_' + email);
+
+  // Dọn thêm khoá cũ của phiên bản 3.x (nếu còn)
   cache.remove('SO_LAN_SAI_MA_KHOA');
   cache.remove('SO_LAN_SAI_DANG_NHAP');
-  SpreadsheetApp.getUi().alert('✓ Đã gỡ khoá tạm. Có thể nhập lại mật khẩu / mã khoá.');
+
+  ui.alert('✓ Đã gỡ khoá cho tài khoản:\n' + email
+    + '\n\nNgười dùng có thể đăng nhập lại ngay.');
+}
+
+/** Chẩn đoán — kiểm tra module TaiKhoan.js đã cài đặt đầy đủ chưa */
+function kiemTraQuyen() {
+  const ui = SpreadsheetApp.getUi();
+  const thieu = [];
+  ['giaiTokenTK_', 'dangNhapTaiKhoan', 'dangKyTaiKhoan',
+   'layDanhSachTaiKhoan', 'capNhatTaiKhoan'].forEach(function (h) {
+    if (typeof this[h] !== 'function' && typeof globalThis[h] !== 'function') {
+      thieu.push(h);
+    }
+  }, this);
+
+  if (thieu.length > 0) {
+    ui.alert('⚠ CHƯA CÀI ĐỦ MODULE TaiKhoan.js\n\nThiếu hàm:\n• '
+      + thieu.join('\n• '));
+    return;
+  }
+
+  let soTK = 0;
+  try {
+    soTK = Math.max(SpreadsheetApp.openById(ID_SHEET)
+      .getSheetByName(TEN_SHEET.PHAN_QUYEN).getLastRow() - 1, 0);
+  } catch (e) { /* bỏ qua */ }
+
+  ui.alert('✓ MODULE TaiKhoan.js ĐÃ SẴN SÀNG\n\n'
+    + 'Số dòng tài khoản trong ' + TEN_SHEET.PHAN_QUYEN + ': ' + soTK);
 }
 
 /***********************************************************************
- * ★ V3.3 — CHẨN ĐOÁN: LIỆT KÊ CÁC CỘT TRÙNG TÊN TIÊU ĐỀ
- *  Chạy từ menu "⚙ Hệ thống KCN" → "🔍 Kiểm tra cột trùng tên".
- *  Không sửa dữ liệu, chỉ báo cáo.
+ * CHẨN ĐOÁN: LIỆT KÊ CÁC CỘT TRÙNG TÊN TIÊU ĐỀ
  ***********************************************************************/
 function menuKiemTraCotTrung() {
   const ui = SpreadsheetApp.getUi();
@@ -806,18 +584,12 @@ function menuKiemTraCotTrung() {
 
   ui.alert('⚠ PHÁT HIỆN ' + dsTrung.length + ' TÊN CỘT BỊ TRÙNG\n\n'
     + dsTrung.join('\n')
-    + '\n\nTừ phiên bản 3.3, hệ thống ghi dữ liệu vào TẤT CẢ các cột trùng tên '
-    + 'nên không còn lệch dữ liệu. Tuy vậy vẫn nên gộp lại để Sheet gọn hơn.');
+    + '\n\nHệ thống ghi dữ liệu vào TẤT CẢ các cột trùng tên nên không '
+    + 'lệch dữ liệu. Tuy vậy vẫn nên gộp lại để Sheet gọn hơn.');
 }
 
 /***********************************************************************
- * ★ V3.3 — DỌN DỮ LIỆU BỊ GHI LỆCH TRƯỚC ĐÂY
- *  Chuyển dữ liệu Nhà xưởng bị ghi nhầm vào cột của Đất cho thuê:
- *    NganhNghe (cột Đất)          → NganhNghe_SanPham (cột Nhà xưởng)
- *    ThoiHanThue_ChiTiet (cột Đất)→ ThoiHanThue       (cột Nhà xưởng)
- *  NGUYÊN TẮC AN TOÀN: chỉ chuyển khi cột đích đang TRỐNG, và chỉ áp dụng
- *  cho dòng có LoaiHinh = "Nhà xưởng". Không xoá dữ liệu gốc.
- *  ⚠ Sao lưu file trước khi chạy.
+ * DỌN DỮ LIỆU BỊ GHI LỆCH TRƯỚC ĐÂY
  ***********************************************************************/
 function menuDonDuLieuLechCot() {
   const ui = SpreadsheetApp.getUi();
@@ -877,15 +649,17 @@ function menuDonDuLieuLechCot() {
 
 
 /***********************************************************************
- * ★ V3.1 — MENU & CÁC HÀM BỌC CHO MODULE SAO LƯU (Backup.gs)
- *  Các hàm dưới đây chỉ là "cầu nối" gọi sang Backup.gs.
- *  Nếu chưa cài Backup.gs, hệ thống báo lỗi rõ ràng thay vì treo.
+ * MENU & CÁC HÀM BỌC CHO MODULE SAO LƯU (Backup.gs)
  ***********************************************************************/
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('⚙ Hệ thống KCN')
     .addItem('🔄 Làm mới dữ liệu App', 'xoaCache')
-    .addItem('🔓 Gỡ khoá nhập sai mã', 'moKhoaTamThoi')
+    .addSeparator()
+    .addItem('🔧 Khởi tạo sheet phân quyền', 'khoiTaoSheetPhanQuyen')
+    .addItem('👤 Tạo tài khoản quản trị đầu tiên', 'taoTaiKhoanQuanTriDauTien')
+    .addItem('🔓 Gỡ khoá đăng nhập tài khoản', 'moKhoaTamThoi')
+    .addItem('🩺 Kiểm tra module tài khoản', 'kiemTraQuyen')
     .addSeparator()
     .addItem('🔍 Kiểm tra cột trùng tên', 'menuKiemTraCotTrung')
     .addItem('🧹 Dọn dữ liệu lệch cột', 'menuDonDuLieuLechCot')
@@ -894,12 +668,6 @@ function onOpen() {
     .addItem('📁 Kiểm tra thư mục sao lưu', 'menuKiemTraFolder')
     .addItem('📊 Đo dung lượng sao lưu', 'menuDoDungLuong')
     .addToUi();
-}
-
-/** Kiểm tra module Backup.gs đã được cài đặt chưa */
-function coModuleSaoLuu_(tenHam) {
-  return (typeof this[tenHam] === 'function')
-      || (typeof globalThis[tenHam] === 'function');
 }
 
 /** Sao lưu thủ công có thông báo kết quả */

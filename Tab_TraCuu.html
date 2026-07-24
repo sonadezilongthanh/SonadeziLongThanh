@@ -11,12 +11,41 @@
     white-space: normal !important;
     word-break: break-word;
   }
-  .khung-bang th[data-rong], .khung-bang td[data-nhan="Ngành nghề"],
-  .khung-bang td[data-nhan="Ngành nghề / SP"] {
+  .khung-bang th[data-rong],
+  .khung-bang td[data-nhan="Ngành nghề, sản phẩm"] {
     width: 260px !important;
   }
+  .khung-bang td[data-nhan="Giấy chứng nhận đầu tư"],
+  .khung-bang td[data-nhan="Giấy chứng nhận doanh nghiệp"] {
+    width: 200px;
+  }
   .khung-bang th:first-child, .khung-bang td[data-nhan="Mã"] { width: 110px; }
+
+  /* ★ V3.6 — Thanh bật/tắt nhóm cột */
+  .thanh-nhom-cot {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+    margin: 0 0 12px; padding: 10px 12px;
+    background: var(--trang, #fff); border-radius: 8px; box-shadow: var(--bong, 0 1px 3px rgba(0,0,0,.08));
+  }
+  .thanh-nhom-cot .nhan-nhom {
+    font-size: 12px; font-weight: 700; color: #5b6b7a;
+    text-transform: uppercase; letter-spacing: .3px; margin-right: 2px;
+  }
+  .chip-nhom {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 12px; border-radius: 999px; cursor: pointer;
+    font-size: 13px; font-weight: 600; user-select: none;
+    border: 1px solid #cbd5e1; background: #f1f5f9; color: #5b6b7a;
+    transition: background .15s, color .15s, border-color .15s;
+  }
+  .chip-nhom:hover { border-color: #0B4696; }
+  .chip-nhom.bat { background: #e3edfb; border-color: #0B4696; color: #0B4696; }
+  .chip-nhom .dau { font-size: 11px; }
+  .thanh-nhom-cot .nut-nho { margin-left: auto; }
 </style>
+
+<!-- ★ V3.6 — Bật/tắt từng nhóm cột để bảng gọn hơn khi tiếp khách -->
+<div class="thanh-nhom-cot" id="thanhNhomCot"></div>
 
 <div class="khung-bang">
   <table>
@@ -35,75 +64,192 @@
 </div>
 
 <script>
-/** Cột chung — luôn hiển thị bất kể Loại hình nào (chỉ còn cột định danh/điều hướng) */
-const COT_CHUNG_DAU = ['<th>Mã</th>','<th>Tên nhà xưởng</th>','<th>Khu vực</th>','<th>Loại hình</th>','<th>Trạng thái</th>'];
-const COT_CHUNG_CUOI = '<th>Thao tác</th>';
+/***********************************************************************
+ * ★ V3.6 — DANH SÁCH CỘT BÁM ĐÚNG SHEET DS_NhaXuong (A→AM)
+ *  Mỗi cột khai báo dạng [nhãn, hàm đọc giá trị, mã nhóm].
+ *  Mã nhóm dùng cho thanh bật/tắt phía trên bảng.
+ ***********************************************************************/
 
-/** Cột riêng — Nhà xưởng (F, G→S) */
-const COT_NHA_XUONG = [
-  ['Khách thuê',             function (nx) { return nx.KhachThue || ''; }],
-  ['Quốc tịch',              function (nx) { return nx.QuocTich || ''; }],
-  ['Ngành nghề / SP',        function (nx) { return nx.NganhNghe_SanPham || ''; }],
-  ['Tổng vốn đầu tư (USD)',  function (nx) { return dinhDangSo(nx.TongVonDauTu_USD, ''); }],
-  ['DT xưởng thuê (m²)',     function (nx) { return dinhDangSo(nx.DienTichXuong_m2, ''); }],
-  ['DT khu đất (m²)',        function (nx) { return dinhDangSo(nx.DienTichKhuDat_m2, ''); }],
-  ['Số hợp đồng',            function (nx) { return nx.SoHopDong || ''; }],
-  ['Ngày hợp đồng',          function (nx) { return nx.NgayHopDong || ''; }],
-  ['Tiền thuê xưởng (USD)',  function (nx) { return ghepGiaPT(nx['TienThueXuong - DonGia (USD)'], nx['TienThueXuong - PTThanhToan']); }],
-  ['Phí QL (USD)',           function (nx) { return nx['PhiQuanLy (USD)'] || ''; }],
-  ['Thời hạn thuê',          function (nx) { return nx.ThoiHanThue || ''; }],
-  ['Ghi chú',                function (nx) { return nx.GhiChu || ''; }]
+/** Định nghĩa nhóm cột — thứ tự trong mảng = thứ tự chip hiển thị */
+const NHOM_COT = [
+  { ma: 'nhadautu',   ten: '🏢 Nhà đầu tư',      macDinh: true  },
+  { ma: 'phaply',     ten: '📜 Pháp lý',          macDinh: false },
+  { ma: 'thoathuan',  ten: '📝 Bản thỏa thuận',   macDinh: false },
+  { ma: 'hopdong',    ten: '📄 Hợp đồng',         macDinh: true  },
+  { ma: 'dientichgia',ten: '📐 Diện tích & Giá',  macDinh: true  },
+  { ma: 'khac',       ten: '🗒️ Phí QL & Ghi chú', macDinh: true  }
 ];
 
-/** Cột riêng — Đất cho thuê (F, T→AJ) */
-const COT_DAT_CHO_THUE = [
-  ['Khách thuê',             function (nx) { return nx.KhachThue || ''; }],
-  ['Quốc tịch',              function (nx) { return nx.QuocTich || ''; }],
-  ['Ngành nghề',             function (nx) { return nx.NganhNghe || ''; }],
-  ['Tổng DT đất thuê (m²)',  function (nx) { return dinhDangSo(nx['Tong DienTichDatThue (m2)'], ''); }],
-  ['DT thuê thêm (m²)',      function (nx) { return dinhDangSo(nx['DienTichDatThueThem (m2)'], ''); }],
-  ['Tiền thuê mặt bằng (USD)', function (nx) { return ghepGiaPT(nx['TienThueMatBang - DonGia (USD)'], nx['TienThueMatBang - PTThanhToan']); }],
-  ['Tiền đất thô (USD)',     function (nx) { return ghepGiaPT(nx['TienDatTho - DonGia (USD)'], nx['TienDatTho - PTThanhToan']); }],
-  ['Phí QL (USD)',           function (nx) { return nx['PhiQuanLy (USD)'] || ''; }],
-  ['Tổng vốn đầu tư (USD)',  function (nx) { return dinhDangSo(nx.TongVonDauTu_USD, ''); }],
-  ['Số hợp đồng',            function (nx) { return nx.SoHopDong || ''; }],
-  ['Ngày hợp đồng',          function (nx) { return nx.NgayHopDong || ''; }],
-  ['Giấy CNĐT',              function (nx) { return nx.GiayCNDT || ''; }],
-  ['Người đại diện',         function (nx) { return nx.NguoiDaiDien || ''; }],
-  ['Mã lô đất',              function (nx) { return nx.LoDatThue || ''; }],
-  ['Thời hạn thuê',          function (nx) { return nx.ThoiHanThue_ChiTiet || ''; }],
-  ['Ghi chú',                function (nx) { return nx.GhiChu || nx['Ghi chú'] || ''; }]
+/** Trạng thái bật/tắt hiện hành — { nhadautu: true, ... } */
+let NHOM_DANG_BAT = {};
+
+/** A — Nhà đầu tư, bản thỏa thuận & hợp đồng (dùng chung 2 loại hình) */
+const COT_CHUNG_TRUOC = [
+  ['Tên nhà đầu tư',              function (nx) { return nx.KhachThue || ''; },        'nhadautu'],
+  ['Quốc tịch',                   function (nx) { return nx.QuocTich || ''; },         'nhadautu'],
+  ['Ngành nghề, sản phẩm',        function (nx) { return docNganhNghe(nx); },          'nhadautu'],
+  ['Tổng vốn đầu tư (USD)',       function (nx) { return dinhDangSo(nx.TongVonDauTu_USD, ''); }, 'nhadautu'],
+  ['Người đại diện',              function (nx) { return nx.NguoiDaiDien || ''; },     'nhadautu'],
+  ['Giấy chứng nhận đầu tư',      function (nx) { return nx.GiayCNDT || ''; },         'phaply'],
+  ['Giấy chứng nhận doanh nghiệp',function (nx) { return nx.GiayCNDN || ''; },         'phaply'],
+  ['Bản thỏa thuận — Số',         function (nx) { return nx['BanThoaThuan - So'] || ''; },        'thoathuan'],
+  ['Bản thỏa thuận — Ngày',       function (nx) { return nx['BanThoaThuan - Ngay'] || ''; },      'thoathuan'],
+  ['Bản thỏa thuận — Hết hạn',    function (nx) { return nx['BanThoaThuan - NgayHetHan'] || ''; },'thoathuan'],
+  ['Hợp đồng — Số',               function (nx) { return nx.SoHopDong || ''; },        'hopdong'],
+  ['Hợp đồng — Ngày',             function (nx) { return nx.NgayHopDong || ''; },      'hopdong'],
+  ['Thời hạn thuê',               function (nx) { return docThoiHanThue(nx); },        'hopdong'],
+  ['Hết hạn hợp đồng',            function (nx) { return nx.NgayHetHanHD || ''; },     'hopdong']
 ];
 
-let COT_RIENG_DANG_HIEN = [];  // cột riêng đang áp dụng cho lần render hiện tại
-let AN_3_COT_CHUNG = false;    // true khi đang lọc riêng "Đất cho thuê" -> ẩn Tên/Khu vực/Loại hình
+/** D — Phí quản lý, tình trạng, ghi chú (dùng chung 2 loại hình) */
+const COT_CHUNG_SAU = [
+  ['Phí QL (USD)',           function (nx) { return nx['PhiQuanLy (USD)'] || ''; },    'khac'],
+  ['Tình trạng hoạt động',   function (nx) { return nx.TinhTrangHoatDong || ''; },     'khac'],
+  ['Ghi chú',                function (nx) { return nx.GhiChu || nx['Ghi chú'] || ''; },'khac']
+];
 
+/** B — Chỉ Nhà xưởng */
+const COT_RIENG_NHA_XUONG = [
+  ['DT xưởng thuê (m²)',     function (nx) { return dinhDangSo(nx.DienTichXuong_m2, ''); },  'dientichgia'],
+  ['DT khu đất (m²)',        function (nx) { return dinhDangSo(nx.DienTichKhuDat_m2, ''); }, 'dientichgia'],
+  ['Tiền thuê xưởng (USD)',  function (nx) { return ghepGiaPT(nx['TienThueXuong - DonGia (USD)'], nx['TienThueXuong - PTThanhToan']); }, 'dientichgia']
+];
+
+/** C — Chỉ Đất cho thuê */
+const COT_RIENG_DAT = [
+  ['Lô đất thuê',              function (nx) { return nx.LoDatThue || ''; },                                'dientichgia'],
+  ['Tổng DT đất thuê (m²)',    function (nx) { return dinhDangSo(nx['Tong DienTichDatThue (m2)'], ''); },   'dientichgia'],
+  ['DT thuê thêm (m²)',        function (nx) { return dinhDangSo(nx['DienTichDatThueThem (m2)'], ''); },    'dientichgia'],
+  ['Tiền thuê mặt bằng (USD)', function (nx) { return ghepGiaPT(nx['TienThueMatBang - DonGia (USD)'], nx['TienThueMatBang - PTThanhToan']); }, 'dientichgia'],
+  ['Tiền đất thô (USD)',       function (nx) { return ghepGiaPT(nx['TienDatTho - DonGia (USD)'], nx['TienDatTho - PTThanhToan']); },           'dientichgia']
+];
+
+const COT_NHA_XUONG    = COT_CHUNG_TRUOC.concat(COT_RIENG_NHA_XUONG, COT_CHUNG_SAU);
+const COT_DAT_CHO_THUE = COT_CHUNG_TRUOC.concat(COT_RIENG_DAT,       COT_CHUNG_SAU);
+
+
+/***********************************************************************
+ * CỘT ĐỊNH DANH ĐẦU BẢNG — GỌN LẠI THEO LOẠI HÌNH
+ *  ★ V3.6: khi đã lọc riêng "Nhà xưởng", bỏ cột Khu vực và Loại hình
+ *    (mọi dòng đều giống nhau nên không mang thông tin).
+ ***********************************************************************/
+const O_DINH_DANH = {
+  'Mã'            : function (nx) { return '<b>' + (nx.MaDonVi || '') + '</b>'; },
+  'Tên nhà xưởng' : function (nx) { return nx.TenNhaXuong || ''; },
+  'Khu vực'       : function (nx) { return nx.MaCum || ''; },
+  'Loại hình'     : function (nx) { return nx.LoaiHinh || ''; },
+  'Trạng thái'    : function (nx) {
+      const mau = MAU_TRANG_THAI[String(nx.TrangThai).trim()] || MAU_MAC_DINH;
+      return '<span class="chip chip-mem" style="--mau-tt:' + mau + '">'
+           + (nx.TrangThai || '—') + '</span>';
+    }
+};
+
+function cotDinhDanhTheoLoaiHinh(loaiHinh) {
+  if (loaiHinh === 'Nhà xưởng')    return ['Mã', 'Tên nhà xưởng', 'Trạng thái'];
+  if (loaiHinh === 'Đất cho thuê') return ['Mã', 'Trạng thái'];
+  return ['Mã', 'Tên nhà xưởng', 'Khu vực', 'Loại hình', 'Trạng thái'];
+}
+
+let LOAI_HINH_DANG_LOC   = '';   // Loại hình của lần render gần nhất
+let COT_DINH_DANH_HIEN   = [];   // Tên các cột định danh đang hiển thị
+let COT_RIENG_DANG_HIEN  = [];   // Cột riêng SAU khi lọc theo nhóm đang bật
+let COT_RIENG_DAY_DU     = [];   // Cột riêng đầy đủ — dùng cho Xuất Excel
+
+
+/***********************************************************************
+ * ★ V3.6 — THANH BẬT/TẮT NHÓM CỘT
+ ***********************************************************************/
+function khoiPhucNhomCot() {
+  let luu = null;
+  try { luu = JSON.parse(sessionStorage.getItem('SZL_NHOM_COT') || 'null'); } catch (e) {}
+  NHOM_COT.forEach(function (n) {
+    NHOM_DANG_BAT[n.ma] = (luu && typeof luu[n.ma] === 'boolean') ? luu[n.ma] : n.macDinh;
+  });
+}
+
+function luuNhomCot() {
+  try { sessionStorage.setItem('SZL_NHOM_COT', JSON.stringify(NHOM_DANG_BAT)); } catch (e) {}
+}
+
+function veThanhNhomCot() {
+  const el = document.getElementById('thanhNhomCot');
+  if (!el) return;
+
+  el.innerHTML = '<span class="nhan-nhom">Nhóm cột:</span>'
+    + NHOM_COT.map(function (n) {
+        const bat = NHOM_DANG_BAT[n.ma];
+        return '<span class="chip-nhom' + (bat ? ' bat' : '') + '" '
+             + 'data-nhom="' + n.ma + '" role="button" tabindex="0" '
+             + 'title="Bấm để ẩn/hiện nhóm cột này">'
+             + '<span class="dau">' + (bat ? '✔' : '＋') + '</span>' + n.ten + '</span>';
+      }).join('')
+    + '<button class="nut nut-nhat nut-nho" onclick="datLaiNhomCot()" '
+    + 'title="Trở về nhóm cột mặc định">↺ Mặc định</button>';
+
+  el.querySelectorAll('.chip-nhom').forEach(function (c) {
+    c.onclick = function () { doiNhomCot(c.dataset.nhom); };
+    c.onkeydown = function (ev) {
+      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); doiNhomCot(c.dataset.nhom); }
+    };
+  });
+}
+
+function doiNhomCot(ma) {
+  NHOM_DANG_BAT[ma] = !NHOM_DANG_BAT[ma];
+  luuNhomCot();
+  veThanhNhomCot();
+  renderTieuDeBang(LOAI_HINH_DANG_LOC);
+  renderBangTraCuu(KET_QUA_LOC);
+}
+
+function datLaiNhomCot() {
+  NHOM_COT.forEach(function (n) { NHOM_DANG_BAT[n.ma] = n.macDinh; });
+  luuNhomCot();
+  veThanhNhomCot();
+  renderTieuDeBang(LOAI_HINH_DANG_LOC);
+  renderBangTraCuu(KET_QUA_LOC);
+}
+
+
+/***********************************************************************
+ * DỰNG TIÊU ĐỀ & THÂN BẢNG
+ ***********************************************************************/
 /** Dựng lại tiêu đề bảng theo Loại hình đang lọc — gọi mỗi khi bộ lọc đổi */
 function renderTieuDeBang(loaiHinh) {
+  LOAI_HINH_DANG_LOC = loaiHinh || '';
+
+  if (!Object.keys(NHOM_DANG_BAT).length) khoiPhucNhomCot();
+  const elThanh = document.getElementById('thanhNhomCot');
+  if (elThanh && !elThanh.innerHTML) veThanhNhomCot();
+
   let cotRieng = [];
-  if (loaiHinh === 'Nhà xưởng')      cotRieng = COT_NHA_XUONG;
+  if (loaiHinh === 'Nhà xưởng')         cotRieng = COT_NHA_XUONG;
   else if (loaiHinh === 'Đất cho thuê') cotRieng = COT_DAT_CHO_THUE;
-  // Loại hình khác hoặc "Tất cả" -> chỉ hiện cột chung cho gọn
+  // "Tất cả" hoặc loại hình khác → chỉ hiện cột định danh cho gọn
 
-  COT_RIENG_DANG_HIEN = cotRieng;
-  AN_3_COT_CHUNG = (loaiHinh === 'Đất cho thuê');
+  COT_RIENG_DAY_DU    = cotRieng;
+  COT_RIENG_DANG_HIEN = cotRieng.filter(function (c) {
+    return NHOM_DANG_BAT[c[2]] !== false;
+  });
+  COT_DINH_DANH_HIEN  = cotDinhDanhTheoLoaiHinh(loaiHinh);
 
-  const dauChung = AN_3_COT_CHUNG
-    ? ['<th>Mã</th>', '<th>Trạng thái</th>']
-    : COT_CHUNG_DAU;
+  const dauDinhDanh = COT_DINH_DANH_HIEN.map(function (t) {
+    return '<th>' + t + '</th>';
+  }).join('');
 
-  const giuaBang = cotRieng.map(function (c) {
-    const rong = (c[0] === 'Ngành nghề' || c[0] === 'Ngành nghề / SP');
+  const giuaBang = COT_RIENG_DANG_HIEN.map(function (c) {
+    const rong = (c[0] === 'Ngành nghề, sản phẩm');
     return '<th' + (rong ? ' data-rong' : '') + '>' + c[0] + '</th>';
   }).join('');
+
   document.getElementById('dauBang').innerHTML =
-    '<tr>' + dauChung.join('') + giuaBang + COT_CHUNG_CUOI + '</tr>';
+    '<tr>' + dauDinhDanh + giuaBang + '<th>Thao tác</th></tr>';
 }
 
 function renderBangTraCuu(ds) {
   const than = document.getElementById('thanBang');
-  const soCotChung = AN_3_COT_CHUNG ? 2 : COT_CHUNG_DAU.length;
-  const soCotTong = soCotChung + COT_RIENG_DANG_HIEN.length + 1;
+  const soCotTong = COT_DINH_DANH_HIEN.length + COT_RIENG_DANG_HIEN.length + 1;
 
   if (!ds || ds.length === 0) {
     than.innerHTML =
@@ -113,8 +259,7 @@ function renderBangTraCuu(ds) {
   }
 
   than.innerHTML = ds.map(function (nx) {
-    const mau = MAU_TRANG_THAI[String(nx.TrangThai).trim()] || MAU_MAC_DINH;
-    const ma  = nx.MaDonVi;
+    const ma = nx.MaDonVi;
 
     let nutMaps = '';
     if (nx.Lat && nx.Lng) {
@@ -124,25 +269,17 @@ function renderBangTraCuu(ds) {
               + nx.Lat + ',' + nx.Lng + '">🚗</a>';
     }
 
+    const cotDinhDanhHtml = COT_DINH_DANH_HIEN.map(function (t) {
+      return '<td data-nhan="' + t + '">' + O_DINH_DANH[t](nx) + '</td>';
+    }).join('');
+
     const cotRiengHtml = COT_RIENG_DANG_HIEN.map(function (c) {
       return '<td data-nhan="' + c[0] + '">' + c[1](nx) + '</td>';
     }).join('');
 
-    const cotChungHtml = AN_3_COT_CHUNG
-      ? ''
-      : ''
-        + '<td data-nhan="Tên">' + (nx.TenNhaXuong || '') + '</td>'
-        + '<td data-nhan="Khu vực">' + (nx.MaCum || '') + '</td>'
-        + '<td data-nhan="Loại hình">' + (nx.LoaiHinh || '') + '</td>';
-
     return ''
       + '<tr data-ma="' + ma + '">'
-      +   '<td data-nhan="Mã"><b>' + ma + '</b></td>'
-      +   cotChungHtml
-      +   '<td data-nhan="Trạng thái">'
-      +     '<span class="chip chip-mem" style="--mau-tt:' + mau + '">'
-      +     (nx.TrangThai || '—') + '</span>'
-      +   '</td>'
+      +   cotDinhDanhHtml
       +   cotRiengHtml
       +   '<td data-nhan="Thao tác" style="white-space:nowrap">'
       +     '<button class="nut nut-nhat nut-nho" title="Xem chi tiết" '

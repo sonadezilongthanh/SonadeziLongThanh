@@ -121,15 +121,29 @@
      ★ V3.1: thân form bọc trong .than-sua để cuộn được;
              tiêu đề dính trên, nhóm nút dính đáy.
      ══════════════════════════════════════════════════════════ -->
+<style>
+  /* ★ V3.4 — nhãn Loại hình hiển thị ngay tiêu đề hộp thoại chỉnh sửa */
+  .chip-loai-hinh{
+    display:inline-block; margin-left:8px; padding:2px 10px;
+    border-radius:999px; font-size:12px; font-weight:600;
+    vertical-align:middle; letter-spacing:.2px;
+  }
+  .chip-loai-hinh.nx  { background:#e3edfb; color:#0B4696; }
+  .chip-loai-hinh.dat { background:#e6f4ea; color:#1e6b3a; }
+</style>
+
 <div id="hopThoaiSua" class="an">
   <div class="hop-thoai">
 
-    <h3>✏️ Chỉnh sửa: <span id="suaMaDonVi"></span></h3>
+    <h3>✏️ Chỉnh sửa: <span id="suaMaDonVi"></span>
+        <span id="suaChipLoaiHinh" class="chip-loai-hinh"></span></h3>
 
     <div class="than-sua">
 
-      <!-- ===== NHÓM CHUNG ===== -->
-      <div class="tieu-de-nhom" style="margin-top:0">Thông tin cơ bản</div>
+      <!-- ══════════════════════════════════════════════════════════
+           PHẦN A — THÔNG TIN DÙNG CHUNG CHO CẢ 2 LOẠI HÌNH
+           ══════════════════════════════════════════════════════════ -->
+      <div class="tieu-de-nhom" style="margin-top:0">A. Thông tin cơ bản</div>
 
       <div class="dong-form">
         <label>Trạng thái</label>
@@ -137,27 +151,26 @@
       </div>
 
       <div class="dong-form">
-        <label>Khách thuê</label>
+        <label>Tên nhà đầu tư (khách thuê)</label>
         <input type="text" id="suaKhachThue" placeholder="Tên công ty thuê">
       </div>
 
       <div class="dong-form">
-        <label>Đơn giá (hiển thị chung)</label>
-        <input type="text" id="suaGiaThue" placeholder="VD: 4.5 USD/m²/tháng">
+        <label>Tình trạng hoạt động</label>
+        <select id="suaTinhTrangHoatDong">
+          <option value="">— Chưa xác định —</option>
+          <option value="Đang hoạt động">Đang hoạt động</option>
+          <option value="Chưa triển khai">Chưa triển khai</option>
+          <option value="Đang xây dựng">Đang xây dựng</option>
+        </select>
       </div>
 
       <div class="dong-form">
-        <label>Ngày hết hạn hợp đồng</label>
-        <input type="text" id="suaNgayHetHan" placeholder="dd/MM/yyyy">
-      </div>
-
-      <div class="dong-form">
-        <label>Tiến độ</label>
+        <label>Tiến độ (ghi chú thêm)</label>
         <input type="text" id="suaTienDo" placeholder="VD: Đang hoàn thiện">
       </div>
 
-      <!-- ===== NHÓM PHÁP LÝ / NHÀ ĐẦU TƯ ===== -->
-      <div class="tieu-de-nhom">Thông tin nhà đầu tư</div>
+      <div class="tieu-de-nhom">A2. Thông tin nhà đầu tư</div>
 
       <div class="dong-form">
         <label>Quốc tịch</label>
@@ -165,7 +178,7 @@
       </div>
 
       <div class="dong-form">
-        <label>Ngành nghề / sản phẩm</label>
+        <label>Ngành nghề, sản phẩm</label>
         <input type="text" id="suaNganhNghe">
       </div>
 
@@ -180,71 +193,95 @@
       </div>
 
       <div class="dong-form">
-        <label>Giấy CNĐT</label>
+        <label>Giấy chứng nhận đầu tư</label>
         <input type="text" id="suaGiayCNDT" placeholder="Số / ngày cấp">
       </div>
 
-      <!-- ===== NHÓM HỢP ĐỒNG ===== -->
-      <div class="tieu-de-nhom">Hợp đồng thuê</div>
+      <div class="dong-form">
+        <label>Giấy chứng nhận doanh nghiệp</label>
+        <input type="text" id="suaGiayCNDN"
+               placeholder="Số / lần thay đổi / ngày cấp">
+      </div>
+
+      <div class="tieu-de-nhom">A3. Bản thỏa thuận &amp; Hợp đồng</div>
 
       <div class="dong-form">
-        <label>Số hợp đồng</label>
+        <label>Bản thỏa thuận — Số</label>
+        <input type="text" id="suaBTTSo">
+      </div>
+
+      <div class="dong-form">
+        <label>Bản thỏa thuận — Ngày</label>
+        <input type="text" id="suaBTTNgay" placeholder="dd/MM/yyyy">
+      </div>
+
+      <div class="dong-form">
+        <label>Bản thỏa thuận — Ngày hết hạn</label>
+        <input type="text" id="suaBTTNgayHetHan" placeholder="dd/MM/yyyy">
+      </div>
+
+      <div class="dong-form">
+        <label>Hợp đồng — Số</label>
         <input type="text" id="suaSoHopDong">
       </div>
 
       <div class="dong-form">
-        <label>Ngày hợp đồng</label>
+        <label>Hợp đồng — Ngày</label>
         <input type="text" id="suaNgayHopDong" placeholder="dd/MM/yyyy">
       </div>
 
       <div class="dong-form">
-        <label>Thời hạn thuê (chi tiết)</label>
+        <label>Thời hạn thuê</label>
         <input type="text" id="suaThoiHanThue"
                placeholder="VD: 50 năm kể từ 2013, hết hạn 2063">
       </div>
 
       <div class="dong-form">
-        <label>Phí quản lý (USD/m²/năm)</label>
-        <input type="text" id="suaPhiQuanLy">
+        <label>Ngày hết hạn hợp đồng</label>
+        <input type="text" id="suaNgayHetHan" placeholder="dd/MM/yyyy">
       </div>
-      
-<!-- ===== NHÓM RIÊNG: NHÀ XƯỞNG =====
-           Khối này được moHopThoaiSua() tự ẩn khi LoaiHinh = "Đất cho thuê" -->
+
+      <!-- ══════════════════════════════════════════════════════════
+           PHẦN B — CHỈ HIỆN VỚI LOẠI HÌNH "NHÀ XƯỞNG"
+           moHopThoaiSua() tự ẩn khi LoaiHinh = "Đất cho thuê"
+           ══════════════════════════════════════════════════════════ -->
       <div id="nhomSuaNhaXuong">
- 
-        <div class="tieu-de-nhom">Chi tiết thuê xưởng</div>
- 
+
+        <div class="tieu-de-nhom">B. Riêng NHÀ XƯỞNG — diện tích &amp; tiền thuê xưởng</div>
+
         <div class="dong-form">
           <label>Diện tích xưởng thuê (m²)</label>
           <input type="text" id="suaDienTichXuong">
         </div>
- 
+
         <div class="dong-form">
           <label>Diện tích khu đất (m²)</label>
           <input type="text" id="suaDienTichKhuDat">
         </div>
- 
+
         <div class="dong-form">
           <label>Tiền thuê xưởng — Đơn giá (USD/m²/tháng)</label>
           <input type="text" id="suaDonGiaThueXuong">
         </div>
- 
+
         <div class="dong-form">
           <label>Tiền thuê xưởng — PT thanh toán</label>
-          <input type="text" id="suaPTThanhToanXuong"
-                 placeholder="VD: hàng quý">
+          <input type="text" id="suaPTThanhToanXuong" placeholder="VD: hàng quý">
         </div>
- 
+
       </div>
-      <!-- ===== NHÓM RIÊNG: ĐẤT CHO THUÊ =====
-           Khối này được moHopThoaiSua() tự ẩn khi LoaiHinh = "Nhà xưởng" -->
+
+      <!-- ══════════════════════════════════════════════════════════
+           PHẦN C — CHỈ HIỆN VỚI LOẠI HÌNH "ĐẤT CHO THUÊ"
+           moHopThoaiSua() tự ẩn khi LoaiHinh = "Nhà xưởng"
+           ══════════════════════════════════════════════════════════ -->
       <div id="nhomSuaDatChoThue">
 
-        <div class="tieu-de-nhom">Chi tiết giá thuê đất</div>
+        <div class="tieu-de-nhom">C. Riêng ĐẤT CHO THUÊ — diện tích &amp; tiền thuê mặt bằng</div>
 
         <div class="dong-form">
-          <label>Mã lô đất thuê</label>
-          <input type="text" id="suaLoDatThue">
+          <label>Lô đất thuê</label>
+          <input type="text" id="suaLoDatThue" placeholder="VD: C.II.III-3+4">
         </div>
 
         <div class="dong-form">
@@ -258,7 +295,7 @@
         </div>
 
         <div class="dong-form">
-          <label>Tiền thuê mặt bằng — Đơn giá (USD)</label>
+          <label>Tiền thuê mặt bằng — Đơn giá (USD/m²/năm)</label>
           <input type="text" id="suaDonGiaThueMB">
         </div>
 
@@ -275,16 +312,24 @@
 
         <div class="dong-form">
           <label>Tiền đất thô — PT thanh toán</label>
-          <input type="text" id="suaPTThanhToanDatTho">
+          <input type="text" id="suaPTThanhToanDatTho"
+                 placeholder="VD: 1 lần cho thời hạn thuê">
         </div>
 
       </div>
 
-      <!-- ===== GHI CHÚ ===== -->
-      <div class="tieu-de-nhom">Ghi chú</div>
+      <!-- ══════════════════════════════════════════════════════════
+           PHẦN D — PHÍ QUẢN LÝ & GHI CHÚ (dùng chung 2 loại hình)
+           ══════════════════════════════════════════════════════════ -->
+      <div class="tieu-de-nhom">D. Phí quản lý &amp; Ghi chú (dùng chung)</div>
 
       <div class="dong-form">
-        <label>Ghi chú nội bộ</label>
+        <label id="nhanPhiQuanLy">Phí quản lý (USD/m²/năm)</label>
+        <input type="text" id="suaPhiQuanLy">
+      </div>
+
+      <div class="dong-form">
+        <label>Ghi chú</label>
         <textarea id="suaGhiChu" rows="3"></textarea>
       </div>
 
