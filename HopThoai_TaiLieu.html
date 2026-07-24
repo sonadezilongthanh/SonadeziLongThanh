@@ -1,0 +1,339 @@
+<!-- ══════════════════════════════════════════════════════════
+     HỘP THOẠI QUẢN LÝ TÀI LIỆU ĐÍNH KÈM  (V3.3)
+     ══════════════════════════════════════════════════════════ -->
+<style>
+#hopThoaiTaiLieu {
+  position: fixed; inset: 0; z-index: 220;
+  background: rgba(0,0,0,.5);
+  display: flex; align-items: center; justify-content: center;
+}
+#hopThoaiTaiLieu.an { display: none !important; }
+
+.tl-ds { display: flex; flex-direction: column; gap: 6px; }
+
+.tl-muc {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; background: #f4f6f8; border-radius: 6px; font-size: 13px;
+}
+.tl-muc .tl-ten { flex: 1; word-break: break-word; }
+.tl-nhan {
+  font-size: 10px; padding: 2px 7px; border-radius: 9px;
+  background: #dbeafe; color: #1e40af; font-weight: 600; white-space: nowrap;
+}
+.tl-xem { font-size: 12px; color: #0B4696; font-weight: 600; text-decoration: none; }
+.tl-xoa {
+  background: none; border: none; cursor: pointer;
+  color: #b91c1c; font-size: 15px; padding: 0 2px;
+}
+.tl-trong { font-size: 13px; color: #64748b; padding: 8px 2px; }
+
+.tl-tha {
+  border: 2px dashed #9db4d0; border-radius: 10px;
+  padding: 22px 14px; text-align: center; cursor: pointer;
+  background: #f8fafc; color: #334155; transition: .15s;
+}
+.tl-tha:hover, .tl-tha.keo { border-color: #0B4696; background: #eef4ff; }
+.tl-tha small { display: block; margin-top: 6px; color: #64748b; font-size: 11px; }
+
+.tl-cho {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 6px; font-size: 13px;
+  background: #fff7ed; border: 1px solid #fed7aa;
+}
+.tl-cho.dang { background: #eff6ff; border-color: #bfdbfe; }
+.tl-cho.xong { background: #ecfdf5; border-color: #a7f3d0; }
+.tl-cho.loi  { background: #fef2f2; border-color: #fecaca; }
+.tl-cho input {
+  flex: 1; padding: 5px 8px; font-size: 13px;
+  border: 1px solid #cbd5e1; border-radius: 5px; width: auto;
+}
+.tl-dung-luong { font-size: 11px; color: #64748b; white-space: nowrap; }
+.tl-hang-chon { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.tl-hang-chon select { flex: 1; }
+</style>
+
+<div id="hopThoaiTaiLieu" class="an">
+  <div class="hop-thoai hop-thoai-lon">
+
+    <div class="ht-dau">
+      <h3>📎 Tài liệu đính kèm — <span id="tlTenDonVi"></span></h3>
+      <button class="nut-dong-ht" onclick="dongHopThoaiTaiLieu()">✕</button>
+    </div>
+
+    <div class="ht-than">
+
+      <div class="tieu-de-nhom" style="margin-top:0">Tài liệu hiện có</div>
+      <div class="tl-ds" id="tlDanhSach"></div>
+
+      <div class="tieu-de-nhom">Tải tài liệu mới</div>
+
+      <div class="tl-hang-chon">
+        <label style="white-space:nowrap;margin:0">Loại tài liệu</label>
+        <select id="tlLoai">
+          <option>Brochure</option>
+          <option>Bản vẽ</option>
+          <option>Hình ảnh</option>
+          <option>Hợp đồng</option>
+          <option>Khác</option>
+        </select>
+      </div>
+
+      <div id="tlVungTha" class="tl-tha"
+           onclick="document.getElementById('tlChonTep').click()"
+           ondragover="event.preventDefault(); this.classList.add('keo')"
+           ondragleave="this.classList.remove('keo')"
+           ondrop="event.preventDefault(); this.classList.remove('keo'); tlNhanTep(event.dataTransfer.files)">
+        <div style="font-size:28px;line-height:1">⬆️</div>
+        <b>Bấm để chọn tệp</b> hoặc kéo – thả tệp vào đây
+        <small>PDF, JPG, PNG, DOCX, XLSX, DWG, ZIP — tối đa 20 MB mỗi tệp</small>
+      </div>
+
+      <input type="file" id="tlChonTep" multiple style="display:none"
+             onchange="tlNhanTep(this.files)">
+
+      <div class="tl-ds" id="tlHangCho" style="margin-top:10px"></div>
+
+      <div class="thong-bao" id="tlThongBao"></div>
+
+      <div class="bc-nut" style="margin-top:14px">
+        <button class="nut nut-chinh" id="tlNutTai" onclick="tlBatDauTaiLen()">⬆️ Tải lên Drive</button>
+        <button class="nut nut-nhat" onclick="dongHopThoaiTaiLieu()">Đóng</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+/***********************************************************************
+ * QUẢN LÝ TÀI LIỆU ĐÍNH KÈM — PHÍA GIAO DIỆN
+ ***********************************************************************/
+let TL_MA       = null;   // mã đơn vị đang mở
+let TL_HANG_CHO = [];     // [{tep, ten, trangThai, loi}]
+
+function moHopThoaiTaiLieu(ma) {
+  if (!duocPhepSua()) { moHopThoaiMaKhoa(); return; }
+
+  TL_MA = ma;
+  TL_HANG_CHO = [];
+
+  const nx = timNhaXuong(ma);
+  document.getElementById('tlTenDonVi').textContent =
+    (nx && nx.TenNhaXuong) ? nx.TenNhaXuong : ma;
+
+  document.getElementById('tlThongBao').textContent = '';
+  document.getElementById('tlThongBao').className   = 'thong-bao';
+  document.getElementById('tlChonTep').value = '';
+
+  tlVeDanhSach();
+  tlVeHangCho();
+  document.getElementById('hopThoaiTaiLieu').classList.remove('an');
+}
+
+function dongHopThoaiTaiLieu() {
+  document.getElementById('hopThoaiTaiLieu').classList.add('an');
+  if (TL_MA) moPanelChiTiet(TL_MA);   // vẽ lại panel để thấy tài liệu mới
+}
+
+/** Rút FileId từ link Drive (phục vụ nút xoá) */
+function tlLayId(link) {
+  const m = String(link || '').match(/[-\w]{25,}/);
+  return m ? m[0] : '';
+}
+
+/** Vẽ danh sách tài liệu hiện có của đơn vị */
+function tlVeDanhSach() {
+  const nx  = timNhaXuong(TL_MA);
+  const ds  = (nx && nx.DanhSachTaiLieu) ? nx.DanhSachTaiLieu : [];
+  const khu = document.getElementById('tlDanhSach');
+
+  if (ds.length === 0) {
+    khu.innerHTML = '<div class="tl-trong">Chưa có tài liệu nào cho đơn vị này.</div>';
+    return;
+  }
+
+  khu.innerHTML = ds.map(function (t) {
+    const id = tlLayId(t.link);
+    return '<div class="tl-muc">'
+         +   '<span class="tl-ten">📄 ' + t.ten + '</span>'
+         +   (t.loai ? '<span class="tl-nhan">' + t.loai + '</span>' : '')
+         +   '<a class="tl-xem" href="' + t.link + '" target="_blank" rel="noopener">Xem ↗</a>'
+         +   (id ? '<button class="tl-xoa" title="Xoá tài liệu" '
+         +          'onclick="tlXoa(\'' + id + '\')">🗑</button>' : '')
+         + '</div>';
+  }).join('');
+}
+
+/** Nhận tệp từ hộp chọn hoặc kéo – thả */
+function tlNhanTep(dsTep) {
+  const tb = document.getElementById('tlThongBao');
+  tb.className = 'thong-bao';
+  tb.textContent = '';
+
+  Array.prototype.forEach.call(dsTep, function (f) {
+    if (f.size > 20 * 1024 * 1024) {
+      tb.className = 'thong-bao loi';
+      tb.textContent = '✕ "' + f.name + '" nặng '
+                     + (f.size / 1048576).toFixed(1) + ' MB, vượt giới hạn 20 MB.';
+      return;
+    }
+    TL_HANG_CHO.push({
+      tep       : f,
+      ten       : f.name.replace(/\.[^.]+$/, ''),
+      trangThai : 'cho',
+      loi       : ''
+    });
+  });
+
+  tlVeHangCho();
+}
+
+/** Vẽ hàng chờ tải lên (tên hiển thị có thể sửa trực tiếp) */
+function tlVeHangCho() {
+  const khu = document.getElementById('tlHangCho');
+  if (TL_HANG_CHO.length === 0) { khu.innerHTML = ''; return; }
+
+  khu.innerHTML = TL_HANG_CHO.map(function (m, i) {
+    let bieuTuong = '⏳';
+    if (m.trangThai === 'dang') bieuTuong = '🔄';
+    if (m.trangThai === 'xong') bieuTuong = '✅';
+    if (m.trangThai === 'loi')  bieuTuong = '❌';
+
+    return '<div class="tl-cho ' + m.trangThai + '">'
+         +   '<span>' + bieuTuong + '</span>'
+         +   '<input type="text" value="' + String(m.ten).replace(/"/g, '&quot;') + '" '
+         +     'placeholder="Tên hiển thị cho khách" '
+         +     'oninput="TL_HANG_CHO[' + i + '].ten = this.value" '
+         +     (m.trangThai === 'cho' ? '' : 'disabled') + '>'
+         +   '<span class="tl-dung-luong">'
+         +     (m.loi ? m.loi : (m.tep.size / 1048576).toFixed(1) + ' MB')
+         +   '</span>'
+         +   (m.trangThai === 'cho'
+              ? '<button class="tl-xoa" title="Bỏ khỏi danh sách" '
+                + 'onclick="TL_HANG_CHO.splice(' + i + ',1); tlVeHangCho()">✕</button>'
+              : '')
+         + '</div>';
+  }).join('');
+}
+
+/** Bắt đầu tải lên tuần tự từng tệp */
+function tlBatDauTaiLen() {
+  const tb  = document.getElementById('tlThongBao');
+  const con = TL_HANG_CHO.filter(function (m) { return m.trangThai === 'cho'; });
+
+  if (con.length === 0) {
+    tb.className = 'thong-bao loi';
+    tb.textContent = '✕ Chưa chọn tệp nào để tải lên.';
+    return;
+  }
+
+  document.getElementById('tlNutTai').disabled = true;
+  document.getElementById('tlNutTai').textContent = 'Đang tải lên…';
+  tb.className = 'thong-bao';
+  tb.textContent = 'Đang tải ' + con.length + ' tệp, vui lòng không đóng cửa sổ…';
+
+  tlTaiTiep(0);
+}
+
+function tlTaiTiep(i) {
+  if (i >= TL_HANG_CHO.length) {
+    const soLoi = TL_HANG_CHO.filter(function (m) { return m.trangThai === 'loi'; }).length;
+    const tb = document.getElementById('tlThongBao');
+    tb.className   = soLoi ? 'thong-bao loi' : 'thong-bao ok';
+    tb.textContent = soLoi
+      ? '⚠ Hoàn tất, có ' + soLoi + ' tệp lỗi (xem chi tiết phía trên).'
+      : '✓ Đã tải lên và ghi vào DS_TaiLieu thành công.';
+
+    document.getElementById('tlNutTai').disabled = false;
+    document.getElementById('tlNutTai').textContent = '⬆️ Tải lên Drive';
+    document.getElementById('tlChonTep').value = '';
+    return;
+  }
+
+  const m = TL_HANG_CHO[i];
+  if (m.trangThai !== 'cho') { tlTaiTiep(i + 1); return; }
+
+  m.trangThai = 'dang';
+  tlVeHangCho();
+
+  const doc = new FileReader();
+
+  doc.onerror = function () {
+    m.trangThai = 'loi';
+    m.loi = 'Không đọc được tệp';
+    tlVeHangCho();
+    tlTaiTiep(i + 1);
+  };
+
+  doc.onload = function () {
+    const base64 = String(doc.result).split(',')[1];
+
+    google.script.run
+      .withSuccessHandler(function (kq) {
+        m.trangThai = 'xong';
+
+        // Cập nhật dữ liệu trong bộ nhớ để hiển thị ngay, không phải tải lại
+        const nx = timNhaXuong(TL_MA);
+        if (nx) {
+          nx.DanhSachTaiLieu = nx.DanhSachTaiLieu || [];
+          nx.DanhSachTaiLieu.push({ ten: kq.ten, link: kq.link, loai: kq.loai });
+        }
+
+        tlVeHangCho();
+        tlVeDanhSach();
+        tlTaiTiep(i + 1);
+      })
+      .withFailureHandler(function (loi) {
+        m.trangThai = 'loi';
+        m.loi = loi.message;
+        tlVeHangCho();
+        tlTaiTiep(i + 1);
+      })
+      .taiLenTaiLieu({
+        maDonVi     : TL_MA,
+        tenHienThi  : m.ten,
+        loaiTaiLieu : document.getElementById('tlLoai').value,
+        tenFile     : m.tep.name,
+        mime        : m.tep.type,
+        duLieu      : base64,
+        token       : PHIEN_SUA.token,
+        hoTen       : PHIEN_SUA.hoTen
+      });
+  };
+
+  doc.readAsDataURL(m.tep);
+}
+
+/** Xoá 1 tài liệu (chuyển tệp vào Thùng rác Drive + xoá dòng trong Sheet) */
+function tlXoa(fileId) {
+  if (!confirm('Xoá tài liệu này khỏi hệ thống?\n'
+             + 'Tệp sẽ được chuyển vào Thùng rác Drive (khôi phục được trong 30 ngày).')) return;
+
+  const tb = document.getElementById('tlThongBao');
+  tb.className = 'thong-bao';
+  tb.textContent = 'Đang xoá…';
+
+  google.script.run
+    .withSuccessHandler(function () {
+      const nx = timNhaXuong(TL_MA);
+      if (nx && nx.DanhSachTaiLieu) {
+        nx.DanhSachTaiLieu = nx.DanhSachTaiLieu.filter(function (t) {
+          return tlLayId(t.link) !== fileId;
+        });
+      }
+      tb.className = 'thong-bao ok';
+      tb.textContent = '✓ Đã xoá tài liệu.';
+      tlVeDanhSach();
+    })
+    .withFailureHandler(function (loi) {
+      tb.className = 'thong-bao loi';
+      tb.textContent = '✕ ' + loi.message;
+    })
+    .xoaTaiLieu({
+      maDonVi : TL_MA,
+      fileId  : fileId,
+      token   : PHIEN_SUA.token,
+      hoTen   : PHIEN_SUA.hoTen
+    });
+}
+</script>

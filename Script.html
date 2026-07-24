@@ -1336,13 +1336,20 @@ function moPanelChiTiet(ma) {
 
   // --- Tài liệu ---
   const dsTL = nx.DanhSachTaiLieu || [];
-  if (dsTL.length > 0) {
+  if (dsTL.length > 0 || duocPhepSua()) {
     html += '<div class="tieu-de-nhom">Tài liệu đính kèm</div>';
-    dsTL.forEach(function (tl) {
-      html += '<a href="' + tl.link + '" target="_blank" rel="noopener" class="muc-tai-lieu">'
-            + '📄 ' + tl.ten + (tl.loai ? ' <small>(' + tl.loai + ')</small>' : '')
-            + '</a>';
-    });
+  }
+  dsTL.forEach(function (tl) {
+    html += '<a href="' + tl.link + '" target="_blank" rel="noopener" class="muc-tai-lieu">'
+          + '📄 ' + tl.ten + (tl.loai ? ' <small>(' + tl.loai + ')</small>' : '')
+          + '</a>';
+  });
+  // ★ V3.3 — nút tải lên / quản lý tài liệu (chỉ hiện với vai trò Quản trị)
+  if (duocPhepSua()) {
+    html += '<button class="nut nut-nhat" '
+          + 'style="width:100%;justify-content:center;margin-top:8px" '
+          + 'onclick="moHopThoaiTaiLieu(\'' + ma + '\')">'
+          + '📎 Thêm / quản lý tài liệu</button>';
   }
   if (nx.LinkBrochure) {
     html += '<a href="' + nx.LinkBrochure + '" target="_blank" rel="noopener" class="muc-tai-lieu">📘 Brochure</a>';
@@ -1722,7 +1729,7 @@ function layDanhSachTaiLieu(nx) {
   return ds;
 }
 
-/** Sinh nội dung tin nhắn từ mẫu trong DM_CauHinh */
+/** Sinh nội dung tin nhắn từ mẫu trong DM_CauHinh — v3.3 */
 function soanTinNhan() {
   if (!BC_DON_VI) return;
   const nx = BC_DON_VI;
@@ -1740,7 +1747,7 @@ function soanTinNhan() {
 
   let linkDinhVi = '';
   if (nx.Lat && nx.Lng) {
-    linkDinhVi = '📍 Xem vị trí trên bản đồ:\n'
+    linkDinhVi = '📍 Vị trí trên bản đồ:\n'
                + 'https://www.google.com/maps/search/?api=1&query='
                + nx.Lat + ',' + nx.Lng + '\n\n';
   }
@@ -1749,41 +1756,67 @@ function soanTinNhan() {
     return c.MaCum === nx.MaCum;
   })[0];
 
-  // Tính giá chào thuê + phí quản lý theo đúng LoaiHinh
+  const laDat = (nx.LoaiHinh === 'Đất cho thuê');
+
+  // ★ Giá chào thuê theo đúng LoaiHinh
   // (Chế độ khách: các trường này đã bị server xoá trắng → tự về "Liên hệ")
-  const giaChaoThue = giaChaoThue_(nx) || 'Liên hệ';
+  let giaChaoThue = 'Liên hệ';
+  if (!laDat) {
+    giaChaoThue = nx['TienThueXuong - DonGia (USD)']
+      ? nx['TienThueXuong - DonGia (USD)'] + ' USD/m²/tháng'
+      : 'Liên hệ';
+  } else {
+    const giaMB  = nx['TienThueMatBang - DonGia (USD)'];
+    const giaTho = nx['TienDatTho - DonGia (USD)'];
+    const phanGia = [];
+    if (giaMB)  phanGia.push('Tiền thuê mặt bằng: ' + giaMB + ' USD/m²/năm');
+    if (giaTho) phanGia.push('Tiền đất thô: '       + giaTho + ' USD/m²/năm');
+    giaChaoThue = phanGia.length ? phanGia.join('\n• ') : 'Liên hệ';
+  }
 
   const phiQuanLy = nx['PhiQuanLy (USD)']
     ? nx['PhiQuanLy (USD)'] + ' USD/m²/năm'
     : 'Liên hệ';
 
-  const mau = ch.MauTinNhanZalo || MAU_TIN_MAC_DINH;
+  // ★ Chọn mẫu riêng cho Đất cho thuê nếu DM_CauHinh có khai báo
+  const mau = (laDat && ch.MauTinNhanZalo_Dat)
+    ? ch.MauTinNhanZalo_Dat
+    : (ch.MauTinNhanZalo || MAU_TIN_MAC_DINH);
 
-  const tin = String(mau)
+  let tin = String(mau)
     .replace(/{MaDonVi}/g,          nx.MaDonVi || '')
     .replace(/{TenNhaXuong}/g,      nx.TenNhaXuong || nx.MaDonVi || '')
     .replace(/{TenCum}/g,           (cum && cum.TenCum) || nx.MaCum || '')
     .replace(/{LoaiHinh}/g,         nx.LoaiHinh || '')
-    .replace(/{DienTichDat}/g,      dinhDangSo(dienTichChinh_(nx), 'm²') || 'Liên hệ')
-    .replace(/{DienTichXayDung}/g,  dinhDangSo(nx.DienTichXayDung || nx.DienTichXuong_m2, 'm²') || 'Liên hệ')
-    .replace(/{DienTichVanPhong}/g, dinhDangSo(nx.DienTichVanPhong, 'm²') || '—')
-    .replace(/{GiaThue}/g,          giaChaoThue)
     .replace(/{TrangThai}/g,        nx.TrangThai || '')
     .replace(/{TienDo}/g,           nx.TienDo || '')
+    .replace(/{ThoiHanThue}/g,      nx.ThoiHanThue || 'Theo thoả thuận')
+    .replace(/{LoDatThue}/g,        nx.LoDatThue || 'Liên hệ')
+    // --- Diện tích ---
     .replace(/{DienTichXuong_m2}/g,        dinhDangSo(nx.DienTichXuong_m2, 'm²') || 'Liên hệ')
     .replace(/{DienTichKhuDat_m2}/g,       dinhDangSo(nx.DienTichKhuDat_m2, 'm²') || 'Liên hệ')
     .replace(/{TongDienTichDatThue_m2}/g,  dinhDangSo(nx['Tong DienTichDatThue (m2)'], 'm²') || 'Liên hệ')
-    .replace(/{DienTichDatThueThem_m2}/g,  dinhDangSo(nx['DienTichDatThueThem (m2)'], 'm²') || 'Liên hệ')
+    .replace(/{DienTichDatThueThem_m2}/g,  dinhDangSo(nx['DienTichDatThueThem (m2)'], 'm²') || '—')
+    // --- Giá (tên ngắn, khuyến nghị dùng) ---
+    .replace(/{GiaChaoThue}/g,      giaChaoThue)
+    .replace(/{PhiQuanLy}/g,        phiQuanLy)
+    // --- Giữ tương thích mẫu cũ (tên cột đầy đủ có dấu ngoặc) ---
     .replaceAll('{TienThueXuong - DonGia (USD)}', giaChaoThue)
     .replaceAll('{PhiQuanLy (USD)}',              phiQuanLy)
+    // --- Khối động ---
     .replace(/{DanhSachLink}/g,     dsLink)
     .replace(/{LinkDinhVi}/g,       linkDinhVi)
     .replace(/{NguoiLienHe}/g,      ch.NguoiLienHe || NGUOI_DUNG.hoTen || '')
     .replace(/{SoDienThoai}/g,      ch.SoDienThoai || '')
     .replace(/{Email}/g,            ch.Email || NGUOI_DUNG.email || '')
-    .replace(/{Website}/g,          ch.Website || '')
-    // Dọn mọi placeholder còn sót để không hiển thị thẻ {...} thô cho khách
-    .replace(/{[^{}]+}/g, '');
+    .replace(/{Website}/g,          ch.Website || '');
+
+  // ★ Dọn dẹp cuối: xoá placeholder còn sót, dòng gạch đầu dòng rỗng, dòng trắng thừa
+  tin = tin
+    .replace(/{[^{}]+}/g, '')
+    .replace(/^[•\-–]\s*$/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 
   document.getElementById('bcTinNhan').value = tin;
 }
