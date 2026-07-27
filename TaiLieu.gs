@@ -1,22 +1,23 @@
 /***********************************************************************
- * TaiLieu.gs — MODULE TẢI LÊN & QUẢN LÝ TÀI LIỆU ĐÍNH KÈM (V3.3b)
+ * TaiLieu.gs — MODULE TẢI LÊN & QUẢN LÝ TÀI LIỆU ĐÍNH KÈM (V4.0)
  * Phòng Kinh doanh Tổng hợp — Sonadezi Long Thành
  *
- * ★ V3.3b: Chạy ĐỘC LẬP với Mã.gs.
- *   - Nếu thấy ID_SHEET / TEN_SHEET / docSheet_ / ghiNhatKy_ /
- *     kiemTraTokenSua_ của Mã.gs  → dùng lại.
- *   - Nếu không thấy → dùng bản sao nội bộ bên dưới.
- *   Toàn bộ tên riêng của file này đều bắt đầu bằng TL_ / tl → không
- *   xung đột với bất kỳ khai báo nào trong Mã.gs.
+ * ★ V4.0 (SỬA LỖI): Chuyển sang cơ chế xác thực bằng TOKEN TÀI KHOẢN
+ *   (giaiTokenTK_ trong TaiKhoan.gs), thống nhất với capNhatNhaXuong().
+ *   Bản V3.3b cũ vẫn kiểm tra token theo "mã khoá chỉnh sửa" đã ngừng
+ *   sử dụng → mọi lượt tải tài liệu đều bị chặn dù đã đăng nhập QuanTri.
+ *
+ * ★ Quyền: QuanTri và NhapLieu được tải lên / xoá tài liệu.
+ * ★ Người tải / người xoá ghi vào Sheet lấy từ EMAIL trong token
+ *   (không lấy tên do trình duyệt khai báo → không thể mạo danh).
  ***********************************************************************/
 
-// ⚠ BẮT BUỘC: dán ID thư mục Drive "03_Brochure"
-const TL_ID_THU_MUC = 'DAN_ID_THU_MUC_03_Brochure_VAO_DAY';
+// ⚠ BẮT BUỘC: dán ID thư mục Drive "03_Brochure".
+// Có thể để trống và khai báo tại sheet DM_CauHinh, khoá: IdThuMucTaiLieu
+const TL_ID_THU_MUC = '1C3KqfsBB6yuG7Ok3Es_jk9-NabfRLzCh';
 
 // --- Bản sao dự phòng (chỉ dùng khi không thấy khai báo trong Mã.gs) ---
-const TL_ID_SHEET_DUPHONG     = '1hL3_avZm09wgM3MXrJ4CEjRRHhi-6Q9w_iBHsGVxGwE';
-const TL_MUOI_DUPHONG         = 'SZL-KCNLT-2026-v3';   // ⚠ phải giống MUOI_BAO_MAT trong Mã.gs
-const TL_KHOA_MA_SUA_DUPHONG  = 'MaKhoaChinhSua';
+const TL_ID_SHEET_DUPHONG = '1hL3_avZm09wgM3MXrJ4CEjRRHhi-6Q9w_iBHsGVxGwE';
 
 const TL_KICH_THUOC_TOI_DA_MB = 20;
 const TL_DUOI_CHO_PHEP = [
@@ -25,28 +26,29 @@ const TL_DUOI_CHO_PHEP = [
 ];
 const TL_LOAI_CHO_PHEP = ['Brochure', 'Bản vẽ', 'Hình ảnh', 'Hợp đồng', 'Khác'];
 
+// Vai trò được phép thao tác tài liệu
+const TL_VAI_TRO_DUOC_TAI = ['QuanTri', 'NhapLieu'];
+
 
 /***********************************************************************
  * HÀM CHẨN ĐOÁN — CHẠY TRONG TRÌNH SOẠN THẢO
  ***********************************************************************/
 function tlChanDoan() {
   const kq = {
-    ID_SHEET         : (typeof ID_SHEET         !== 'undefined'),
-    TEN_SHEET        : (typeof TEN_SHEET        !== 'undefined'),
-    MUOI_BAO_MAT     : (typeof MUOI_BAO_MAT     !== 'undefined'),
-    docSheet_        : (typeof docSheet_        === 'function'),
-    ghiNhatKy_       : (typeof ghiNhatKy_       === 'function'),
-    kiemTraTokenSua_ : (typeof kiemTraTokenSua_ === 'function')
+    ID_SHEET          : (typeof ID_SHEET          !== 'undefined'),
+    TEN_SHEET         : (typeof TEN_SHEET         !== 'undefined'),
+    docSheet_         : (typeof docSheet_         === 'function'),
+    ghiNhatKy_        : (typeof ghiNhatKy_        === 'function'),
+    giaiTokenTK_      : (typeof giaiTokenTK_      === 'function'),
+    layPhienTuToken_  : (typeof layPhienTuToken_  === 'function'),
+    TL_ID_THU_MUC_OK  : (TL_ID_THU_MUC.indexOf('DAN_ID') !== 0)
   };
   Logger.log(JSON.stringify(kq, null, 2));
   return kq;
 }
 
 function kiemTraThuMucTaiLieu() {
-  if (TL_ID_THU_MUC.indexOf('DAN_ID') === 0) {
-    throw new Error('Chưa dán ID thư mục 03_Brochure vào TL_ID_THU_MUC.');
-  }
-  const tm = DriveApp.getFolderById(TL_ID_THU_MUC);
+  const tm = DriveApp.getFolderById(tlIdThuMuc_());
   Logger.log('OK — Thư mục gốc: ' + tm.getName() + ' | ' + tm.getUrl());
   return tm.getName();
 }
@@ -66,11 +68,6 @@ function tlTenSheet_(khoa, macDinh) {
     return TEN_SHEET[khoa];
   }
   return macDinh;
-}
-
-function tlMuoi_() {
-  return (typeof MUOI_BAO_MAT !== 'undefined' && MUOI_BAO_MAT)
-       ? MUOI_BAO_MAT : TL_MUOI_DUPHONG;
 }
 
 /** Đọc 1 sheet thành mảng object theo tiêu đề dòng 1 */
@@ -102,29 +99,55 @@ function tlGhiNhatKy_(dsDong) {
   } catch (e) { /* không để lỗi log làm hỏng thao tác chính */ }
 }
 
-/** Lấy mã khoá quản trị từ DM_CauHinh */
-function tlLayMaKhoa_() {
+/** Lấy 1 giá trị trong DM_CauHinh theo khoá */
+function tlLayCauHinh_(khoa) {
   const ds = tlDocSheet_(tlTenSheet_('CAU_HINH', 'DM_CauHinh'));
-  const khoaCan = (typeof KHOA_CAU_HINH_MA_SUA !== 'undefined')
-                ? KHOA_CAU_HINH_MA_SUA : TL_KHOA_MA_SUA_DUPHONG;
   const r = ds.filter(function (c) {
-    return String(c.Khoa).trim() === khoaCan;
+    return String(c.Khoa).trim() === khoa;
   })[0];
   return r ? String(r.GiaTri).trim() : '';
 }
 
-/** Xác thực token quản trị — ưu tiên hàm gốc của Mã.gs */
-function tlKiemTraToken_(token) {
-  if (typeof kiemTraTokenSua_ === 'function') {
-    try { return kiemTraTokenSua_(token); } catch (e) { /* rơi xuống bản nội bộ */ }
+/** ID thư mục gốc lưu tài liệu: hằng số → DM_CauHinh → báo lỗi rõ ràng */
+function tlIdThuMuc_() {
+  if (TL_ID_THU_MUC && TL_ID_THU_MUC.indexOf('DAN_ID') !== 0) {
+    return TL_ID_THU_MUC;
   }
-  if (!token) return false;
-  const khoa = tlLayMaKhoa_();
-  if (!khoa) return false;
-  const raw = 'SZL|' + khoa + '|' + tlMuoi_();
-  const bytes = Utilities.computeDigest(
-    Utilities.DigestAlgorithm.SHA_256, raw, Utilities.Charset.UTF_8);
-  return String(token) === Utilities.base64Encode(bytes);
+  const idCauHinh = tlLayCauHinh_('IdThuMucTaiLieu');
+  if (idCauHinh) return idCauHinh;
+
+  throw new Error('Chưa cấu hình thư mục lưu tài liệu. '
+    + 'Dán ID thư mục 03_Brochure vào hằng TL_ID_THU_MUC (file TaiLieu.gs) '
+    + 'hoặc thêm dòng IdThuMucTaiLieu vào sheet DM_CauHinh.');
+}
+
+/***********************************************************************
+ * ★ V4.0 — XÁC THỰC PHIÊN BẰNG TOKEN TÀI KHOẢN
+ ***********************************************************************/
+
+/**
+ * Giải token tài khoản và bắt buộc vai trò được phép thao tác tài liệu.
+ * @return {{hopLe:boolean, email:string, hoTen:string, vaiTro:string}}
+ */
+function tlLayPhien_(token, hanhDong) {
+  let p = { hopLe: false, email: '', hoTen: '', vaiTro: 'Khach' };
+
+  if (typeof layPhienTuToken_ === 'function') {
+    try { p = layPhienTuToken_(token); } catch (e) { /* giữ mặc định */ }
+  } else if (typeof giaiTokenTK_ === 'function') {
+    try { p = giaiTokenTK_(token); } catch (e) { /* giữ mặc định */ }
+  } else {
+    throw new Error('Chưa cài đặt module TaiKhoan.gs trong dự án Apps Script.');
+  }
+
+  if (!p || !p.hopLe) {
+    throw new Error('Phiên làm việc đã hết hiệu lực. Vui lòng đăng nhập lại.');
+  }
+  if (TL_VAI_TRO_DUOC_TAI.indexOf(p.vaiTro) < 0) {
+    throw new Error('Tài khoản của bạn (' + p.vaiTro + ') không có quyền '
+      + (hanhDong || 'thao tác') + ' tài liệu.');
+  }
+  return p;
 }
 
 function tlXoaCache_() {
@@ -159,10 +182,7 @@ function tlTimDonVi_(maDonVi) {
 
 /** 03_Brochure / MaCum / MaDonVi - Tên / LoaiTaiLieu */
 function tlLayThuMucLuu_(maDonVi, loai) {
-  if (TL_ID_THU_MUC.indexOf('DAN_ID') === 0) {
-    throw new Error('Chưa cấu hình TL_ID_THU_MUC trong file TaiLieu.gs.');
-  }
-  const goc = DriveApp.getFolderById(TL_ID_THU_MUC);
+  const goc = DriveApp.getFolderById(tlIdThuMuc_());
   const nx  = tlTimDonVi_(maDonVi);
 
   const maCum = (nx && nx.MaCum) ? String(nx.MaCum).trim() : 'KHAC';
@@ -209,10 +229,8 @@ function tlLayIdTuLink_(link) {
 function taiLenTaiLieu(tep) {
   tep = tep || {};
 
-  if (!tlKiemTraToken_(tep.token)) {
-    throw new Error('Phiên làm việc không có quyền tải tài liệu. '
-      + 'Vui lòng đăng nhập bằng mật khẩu quản trị.');
-  }
+  // ★ V4.0 — xác thực bằng token tài khoản
+  const p = tlLayPhien_(tep.token, 'tải lên');
 
   const maDonVi = String(tep.maDonVi || '').trim();
   if (!maDonVi) throw new Error('Thiếu mã đơn vị.');
@@ -252,7 +270,9 @@ function taiLenTaiLieu(tep) {
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   } catch (e) { /* tổ chức chặn chia sẻ ngoài — quản trị chỉnh tay */ }
 
-  const nguoi = String(tep.hoTen || '').trim() || '(khong xac dinh)';
+  // ★ V4.0 — người tải lấy từ email đã xác thực, không lấy từ trình duyệt
+  const nguoi = p.email;
+
   tlThemDong_({
     MaDonVi     : maDonVi,
     TenTaiLieu  : tenHienThi,
@@ -263,7 +283,7 @@ function taiLenTaiLieu(tep) {
     NguoiTai    : nguoi
   });
 
-  tlGhiNhatKy_([[new Date(), 'TẢI LÊN: ' + nguoi, maDonVi,
+  tlGhiNhatKy_([[new Date(), nguoi, maDonVi,
                  'TaiLenTaiLieu', '', loai + ' — ' + tenHienThi]]);
   tlXoaCache_();
 
@@ -282,9 +302,9 @@ function taiLenTaiLieu(tep) {
  ***********************************************************************/
 function xoaTaiLieu(tt) {
   tt = tt || {};
-  if (!tlKiemTraToken_(tt.token)) {
-    throw new Error('Phiên làm việc không có quyền xoá tài liệu.');
-  }
+
+  // ★ V4.0 — xác thực bằng token tài khoản
+  const p = tlLayPhien_(tt.token, 'xoá');
 
   const fileId  = String(tt.fileId || '').trim();
   const maDonVi = String(tt.maDonVi || '').trim();
@@ -323,7 +343,7 @@ function xoaTaiLieu(tt) {
 
   try { DriveApp.getFileById(fileId).setTrashed(true); } catch (e) {}
 
-  tlGhiNhatKy_([[new Date(), 'XOÁ TL: ' + (tt.hoTen || ''), maDonVi,
+  tlGhiNhatKy_([[new Date(), p.email, maDonVi,
                  'XoaTaiLieu', tenXoa, 'Đã chuyển vào Thùng rác Drive']]);
   tlXoaCache_();
 
