@@ -387,7 +387,30 @@ function layDanhSachTaiKhoan(token) {
   });
   return ds;
 }
-
+/**
+ * Danh sách cán bộ đang HOẠT ĐỘNG (chỉ email + họ tên) — phục vụ dropdown
+ * "Cán bộ phụ trách". KHÔNG yêu cầu quyền quản trị (mọi người biên tập đều
+ * cần chọn), KHÔNG trả về mật khẩu băm/muối.
+ */
+function layDanhSachCanBo_() {
+  try {
+    const b  = docBangTK_();
+    const ds = [];
+    for (let i = 1; i < b.vung.length; i++) {
+      const email = chuanHoaEmail_(b.vung[i][b.idx[COT_TK.EMAIL]]);
+      if (!email) continue;
+      if (String(b.vung[i][b.idx[COT_TK.TRANGTHAI]]).trim() !== 'HoatDong') continue;
+      ds.push({
+        email: email,
+        hoTen: String(b.vung[i][b.idx[COT_TK.HOTEN]]).trim() || email
+      });
+    }
+    ds.sort(function (x, y) { return x.hoTen.localeCompare(y.hoTen, 'vi'); });
+    return ds;
+  } catch (e) {
+    return [];   // thiếu sheet/cột → trả rỗng, form vẫn mở được
+  }
+}
 function dinhDangNgay_(v) {
   if (!v) return '';
   try {

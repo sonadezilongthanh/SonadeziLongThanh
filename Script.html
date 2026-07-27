@@ -1370,7 +1370,9 @@ function moPanelChiTiet(ma) {
     html += dongTT('Giấy chứng nhận đầu tư', nx.GiayCNDT);
     html += dongTT('Giấy chứng nhận doanh nghiệp', nx.GiayCNDN);
     html += dongTT('Ngày thành lập',        nx.NgayThanhLap);   // ★ V2.8
-
+    html += dongTT('Cán bộ phụ trách',      tenCanBo(nx.NguoiPhuTrach));
+    html += dongTT('Tặng hoa kỷ niệm',      nx.TangHoa);
+    html += dongTT('Ghi chú tặng hoa',      nx.GhiChuTangHoa);
     html += '<div class="tieu-de-nhom">A2. Bản thỏa thuận &amp; Hợp đồng <small>(dùng chung)</small></div>';
     html += dongTT('Bản thỏa thuận — Số',        nx['BanThoaThuan - So']);
     html += dongTT('Bản thỏa thuận — Ngày',      nx['BanThoaThuan - Ngay']);
@@ -1456,7 +1458,38 @@ function dongPanel() {
   document.getElementById('lopPhu').classList.add('an');
   boHighlight();
 }
+/** Đổ danh sách cán bộ vào dropdown "Cán bộ phụ trách" rồi chọn giá trị hiện tại.
+ *  Nguồn: DU_LIEU.danhSachCanBo (server gửi kèm cho tài khoản biên tập). */
+function napChonCanBo(emailHienTai) {
+  const sel = _o('suaNguoiPhuTrach');
+  if (!sel) return;
+  const ds = (DU_LIEU && DU_LIEU.danhSachCanBo) ? DU_LIEU.danhSachCanBo : [];
+  let html = '<option value="">— Chưa phân công —</option>';
+  ds.forEach(function (cb) {
+    html += '<option value="' + _escHTML(cb.email) + '">'
+          + _escHTML(cb.hoTen) + '</option>';
+  });
+  // Cán bộ cũ nay đã khoá/xoá khỏi danh sách → vẫn giữ lại để không mất dữ liệu.
+  const email = String(emailHienTai || '').trim();
+  const conTrongDs = ds.some(function (cb) { return cb.email === email; });
+  if (email && !conTrongDs) {
+    html += '<option value="' + _escHTML(email) + '">'
+          + _escHTML(email) + ' (ngoài danh sách)</option>';
+  }
+  sel.innerHTML = html;
+  sel.value = email;
+}
 
+/** Đổi email cán bộ → "Họ tên (email)" để hiển thị; không tìm được thì giữ email. */
+function tenCanBo(email) {
+  email = String(email || '').trim();
+  if (!email) return '';
+  const ds = (DU_LIEU && DU_LIEU.danhSachCanBo) ? DU_LIEU.danhSachCanBo : [];
+  for (let i = 0; i < ds.length; i++) {
+    if (ds[i].email === email) return _escHTML(ds[i].hoTen) + ' (' + _escHTML(email) + ')';
+  }
+  return _escHTML(email);
+}
 function dongTT(nhan, giaTri) {
   if (giaTri === '' || giaTri === null || giaTri === undefined) return '';
   return '<div class="dong-tt"><span class="nhan-tt">' + nhan + '</span>'
@@ -1573,7 +1606,9 @@ function moHopThoaiSua(ma) {
   _ganO('suaGiayCNDT',      nx.GiayCNDT);
   _ganO('suaGiayCNDN',      nx.GiayCNDN);
   _ganO('suaNgayThanhLap',  nx.NgayThanhLap);        // ★ V2.8
-
+  napChonCanBo(nx.NguoiPhuTrach);                    // ★ đổ danh sách + chọn cán bộ
+  _ganO('suaTangHoa',        nx.TangHoa);
+  _ganO('suaGhiChuTangHoa',  nx.GhiChuTangHoa);
   _ganO('suaBTTSo',         nx['BanThoaThuan - So']);
   _ganO('suaBTTNgay',       nx['BanThoaThuan - Ngay']);
   _ganO('suaBTTNgayHetHan', nx['BanThoaThuan - NgayHetHan']);
@@ -1650,7 +1685,9 @@ function luuThayDoi() {
   _layO(duLieuMoi, 'GiayCNDT',                  'suaGiayCNDT');
   _layO(duLieuMoi, 'GiayCNDN',                  'suaGiayCNDN');
   _layO(duLieuMoi, 'NgayThanhLap',              'suaNgayThanhLap');   // ★ V2.8
-
+  _layO(duLieuMoi, 'NguoiPhuTrach',             'suaNguoiPhuTrach');  // ★ phụ trách
+  _layO(duLieuMoi, 'TangHoa',                   'suaTangHoa');
+  _layO(duLieuMoi, 'GhiChuTangHoa',             'suaGhiChuTangHoa');
   _layO(duLieuMoi, 'BanThoaThuan - So',         'suaBTTSo');
   _layO(duLieuMoi, 'BanThoaThuan - Ngay',       'suaBTTNgay');
   _layO(duLieuMoi, 'BanThoaThuan - NgayHetHan', 'suaBTTNgayHetHan');

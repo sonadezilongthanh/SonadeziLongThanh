@@ -65,7 +65,10 @@ const COT_AN_KHACH_CHUNG = [
   'GiayCNDN',
   'NguoiDaiDien',
   'GhiChu',
-  'Ghi chú'
+  'Ghi chú',
+  'NguoiPhuTrach',
+  'TangHoa',
+  'GhiChuTangHoa'
 ];
 
 const COT_AN_KHACH_RIENG_NHA_XUONG = [
@@ -260,6 +263,7 @@ function layDuLieuTongHop(phien) {
     let kq = JSON.parse(daCache);
     if (vaiTro === 'Khach') kq = locDuLieuChoKhach_(kq);
     kq.nguoiDung = layNguoiDungTuPhien_(p);
+    if (vaiTro !== 'Khach') kq.danhSachCanBo = layDanhSachCanBo_();
     return kq;
   }
 
@@ -327,6 +331,7 @@ function layDuLieuTongHop(phien) {
   // Lọc cho khách SAU khi đã cache bản đầy đủ
   let ketQuaTra = (vaiTro === 'Khach') ? locDuLieuChoKhach_(ketQua) : ketQua;
   ketQuaTra.nguoiDung = layNguoiDungTuPhien_(p);
+  if (vaiTro !== 'Khach') ketQuaTra.danhSachCanBo = layDanhSachCanBo_();
   return ketQuaTra;
 }
 
