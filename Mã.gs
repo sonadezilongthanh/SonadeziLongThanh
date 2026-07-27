@@ -451,10 +451,22 @@ function capNhatNhaXuong(maDonVi, duLieuMoi, phien, hoTenPhu) {
 
       const giaTriMoi = duLieuMoi[cot];
 
+      // ★ Chống đảo ngày/tháng cho các cột NGÀY (nhập theo dd/MM/yyyy).
+      //   setValue("06/08/2025") sẽ bị Google Sheets tự diễn giải theo locale
+      //   của bảng tính (đang là MM/dd) → lưu nhầm thành 08/06/2025.
+      //   Cách xử lý: ép ô về định dạng CHỮ (@) trước khi ghi, giữ nguyên đúng
+      //   chuỗi người dùng nhập, không phụ thuộc locale.
+      const COT_NGAY  = ['NgayThanhLap', 'BanThoaThuan - Ngay',
+                         'BanThoaThuan - NgayHetHan', 'NgayHopDong', 'NgayHetHanHD'];
+      const laCotNgay = COT_NGAY.indexOf(String(cot).trim()) >= 0;
+
       dsChiSo.forEach(function (iCot) {
         const o        = sheet.getRange(dong, iCot + 1);
         const giaTriCu = o.getValue();
         if (String(giaTriCu) !== String(giaTriMoi)) {
+          if (laCotNgay && giaTriMoi !== '' && giaTriMoi !== null) {
+            o.setNumberFormat('@');   // ép định dạng chữ, chống đảo ngày/tháng
+          }
           o.setValue(giaTriMoi);
           nhatKy.push([new Date(), nguoiGhiLog, maDonVi,
                        cot + ' [cột ' + tenCotTuChiSo_(iCot) + ']',
