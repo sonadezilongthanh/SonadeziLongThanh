@@ -10,6 +10,9 @@
     <button type="button" class="nut-canh-bao-hopdong nut-sinh-nhat rong" id="nutSinhNhat" onclick="moModalSinhNhat()">
       💐 <span id="soLuongSinhNhat">0</span> <span class="nhan-chu">kỷ niệm thành lập</span>
     </button>
+    <button type="button" class="nut-canh-bao-hopdong nut-cua-toi rong an" id="nutCuaToi" onclick="moModalCuaToi()">
+      👤 <span id="soLuongCuaToi">0</span> <span class="nhan-chu">việc của tôi</span>
+    </button>
   </div>
 
   <!-- MODAL 1: HỢP ĐỒNG SẮP HẾT HẠN -->
@@ -37,6 +40,16 @@
         </button>
         <span class="bao-sao-chep" id="baoSaoChepSinhNhat"></span>
       </div>
+    </div>
+  </div>
+  <!-- ★ GĐ2 — MODAL 3: THÔNG BÁO CỦA TÔI (theo cán bộ phụ trách) -->
+  <div class="modal-canh-bao an" id="modalCuaToi" onclick="if(event.target===this) dongModalCuaToi()">
+    <div class="hop-modal">
+      <div class="dau-modal">
+        <h3>👤 Việc cần xử lý của tôi</h3>
+        <button type="button" class="nut-dong" onclick="dongModalCuaToi()">✕</button>
+      </div>
+      <div class="than-modal" id="noiDungModalCuaToi"></div>
     </div>
   </div>
 
@@ -253,6 +266,7 @@ function tinhDanhSachCanhBao_() {
         ma        : nx.MaDonVi,
         ten       : nx.TenNhaXuong || nx.MaDonVi,
         khachThue : nx.KhachThue || '(chưa có tên khách thuê)',
+        nguoiPhuTrach: nx.NguoiPhuTrach || '',    // ★ GĐ2
         ngayHetHan: kq.ngay,
         suyRa     : kq.suyRa,
         soNgay    : soNgay
@@ -329,6 +343,9 @@ function tinhDanhSachSinhNhat_() {
       soNam       : kn.getFullYear() - goc.ngay.getFullYear(),
       soNgay      : soNgay,
       suyRa       : goc.suyRa,
+      nguoiPhuTrach: nx.NguoiPhuTrach || '',    // ★ GĐ2
+      tangHoa      : nx.TangHoa || '',          // ★ GĐ2
+      ghiChuTangHoa: nx.GhiChuTangHoa || '',    // ★ GĐ2
       dsMa        : [nx.MaDonVi]
     };
     daCo[khoa] = muc;
@@ -367,8 +384,120 @@ function capNhatBadgeCanhBao() {
     const elSoSN = document.getElementById('soLuongSinhNhat');
     if (elSoSN) elSoSN.textContent = dsSN.length;
   }
+
+  /* --- ★ GĐ2: badge "Thông báo của tôi" (lọc theo cán bộ đăng nhập) --- */
+  const tbToi   = tinhThongBaoCuaToi_();
+  const tongToi = tbToi.hoa.length + tbToi.hetHan.length;
+  window.__DS_CUA_TOI__ = tbToi;
+
+  const nutToi = document.getElementById('nutCuaToi');
+  if (nutToi) {
+    // chỉ hiện với người đã đăng nhập
+    nutToi.classList.toggle('an', !(NGUOI_DUNG && NGUOI_DUNG.nhanDienDuoc));
+    nutToi.classList.toggle('rong', tongToi === 0);
+    const elSoToi = document.getElementById('soLuongCuaToi');
+    if (elSoToi) elSoToi.textContent = tongToi;
+  }
+}
+/***********************************************************************
+ * ★ GĐ2 — THÔNG BÁO CỦA TÔI (lọc theo cán bộ phụ trách đang đăng nhập)
+ ***********************************************************************/
+function tinhThongBaoCuaToi_() {
+  const email = String((NGUOI_DUNG && NGUOI_DUNG.email) || '').trim().toLowerCase();
+  const laMinh = function (nptr) {
+    return !!email && String(nptr || '').trim().toLowerCase() === email;
+  };
+  const hoa = tinhDanhSachSinhNhat_().filter(function (d) {
+    if (String(d.tangHoa || '').trim() === 'Không') return false;  // KH đã chốt không tặng
+    return laMinh(d.nguoiPhuTrach);
+  });
+  const hetHan = tinhDanhSachCanhBao_().filter(function (d) {
+    return laMinh(d.nguoiPhuTrach);
+  });
+  return { hoa: hoa, hetHan: hetHan };
 }
 
+/** Mở modal tổng hợp việc của cán bộ đang đăng nhập */
+function moModalCuaToi() {
+  const tb      = tinhThongBaoCuaToi_();
+  const noiDung = document.getElementById('noiDungModalCuaToi');
+  const H4 = 'style="margin:14px 0 6px;color:#0B4696;font-size:15px"';
+  let html = '';
+
+  /* Phần 1 — Tặng hoa kỷ niệm */
+  html += '<h4 ' + H4 + '>💐 Khách hàng cần tặng hoa (1 tháng tới)</h4>';
+  html += tb.hoa.length === 0
+    ? '<p class="rong-canh-bao">Không có khách hàng nào của bạn cần tặng hoa trong tháng.</p>'
+    : '<table class="bang-canh-bao"><thead><tr>'
+      + '<th>Khách thuê</th><th>Kỷ niệm</th><th>Ngày tổ chức</th><th>Còn lại</th><th>Ghi chú</th>'
+      + '</tr></thead><tbody>'
+      + tb.hoa.map(function (d) {
+          return '<tr class="' + (d.soNgay <= 3 ? 'khan-cap' : '') + '">'
+               + '<td>' + thoat_(d.khachThue)
+               +   '<br><span class="suy-ra">Lô: ' + thoat_(d.dsMa.join(', ')) + '</span></td>'
+               + '<td>' + d.soNam + ' năm</td>'
+               + '<td>' + dinhDangNgay_(d.ngayKyNiem) + '</td>'
+               + '<td>' + (d.soNgay === 0 ? 'Hôm nay' : d.soNgay + ' ngày') + '</td>'
+               + '<td>' + thoat_(d.ghiChuTangHoa || '') + '</td></tr>';
+        }).join('')
+      + '</tbody></table>';
+
+  /* Phần 2 — Hợp đồng sắp hết hạn */
+  html += '<h4 ' + H4 + '>⏰ Hợp đồng sắp hết hạn (6 tháng tới)</h4>';
+  html += tb.hetHan.length === 0
+    ? '<p class="rong-canh-bao">Không có hợp đồng nào của bạn sắp hết hạn.</p>'
+    : '<table class="bang-canh-bao"><thead><tr>'
+      + '<th>Mã lô</th><th>Khách thuê</th><th>Hết hạn</th><th>Còn lại</th>'
+      + '</tr></thead><tbody>'
+      + tb.hetHan.map(function (d) {
+          return '<tr class="' + (d.soNgay <= 30 ? 'khan-cap' : '') + '" '
+               + 'onclick="dongModalCuaToi();highlightLoDat(\'' + d.ma + '\');">'
+               + '<td>' + thoat_(d.ma) + '</td>'
+               + '<td>' + thoat_(d.khachThue) + '</td>'
+               + '<td>' + dinhDangNgay_(d.ngayHetHan)
+               +   (d.suyRa ? '<br><span class="suy-ra">(' + d.suyRa + ')</span>' : '')
+               + '</td><td>' + d.soNgay + ' ngày</td></tr>';
+        }).join('')
+      + '</tbody></table>';
+
+  noiDung.innerHTML = html;
+  document.getElementById('modalCuaToi').classList.remove('an');
+}
+
+function dongModalCuaToi() {
+  document.getElementById('modalCuaToi').classList.add('an');
+}
+
+/** Toast nhắc việc hiện 1 lần khi vừa đăng nhập (chỉ khi có việc của mình) */
+function hienToastThongBaoCuaToi() {
+  if (!(NGUOI_DUNG && NGUOI_DUNG.nhanDienDuoc)) return;   // khách → bỏ qua
+  const tb   = tinhThongBaoCuaToi_();
+  const tong = tb.hoa.length + tb.hetHan.length;
+  if (tong === 0) return;
+
+  const cu = document.getElementById('toastCuaToi');
+  if (cu) cu.remove();
+
+  const box = document.createElement('div');
+  box.id = 'toastCuaToi';
+  box.style.cssText =
+    'position:fixed;right:16px;bottom:16px;z-index:9999;max-width:330px;'
+    + 'background:#0B4696;color:#fff;padding:14px 16px;border-radius:12px;'
+    + 'box-shadow:0 6px 24px rgba(0,0,0,.25);font-size:14px;line-height:1.45';
+  box.innerHTML =
+      '<div style="font-weight:700;margin-bottom:6px">🔔 Nhắc việc của bạn</div>'
+    + '<div>💐 ' + tb.hoa.length + ' khách cần tặng hoa'
+    + ' &nbsp;•&nbsp; ⏰ ' + tb.hetHan.length + ' hợp đồng sắp hết hạn</div>'
+    + '<div style="margin-top:10px;text-align:right">'
+    + '<button onclick="document.getElementById(\'toastCuaToi\').remove()" '
+    +   'style="background:transparent;border:1px solid rgba(255,255,255,.6);color:#fff;'
+    +   'border-radius:8px;padding:5px 10px;margin-right:6px;cursor:pointer">Để sau</button>'
+    + '<button onclick="document.getElementById(\'toastCuaToi\').remove();moModalCuaToi()" '
+    +   'style="background:#fff;border:0;color:#0B4696;font-weight:700;'
+    +   'border-radius:8px;padding:5px 12px;cursor:pointer">Xem chi tiết</button>'
+    + '</div>';
+  document.body.appendChild(box);
+}
 /** Mở modal liệt kê hợp đồng sắp hết hạn; bấm 1 dòng sẽ nhảy tới lô đó trên bản đồ */
 function moModalCanhBao() {
   const ds = window.__DS_CANH_BAO__ || [];

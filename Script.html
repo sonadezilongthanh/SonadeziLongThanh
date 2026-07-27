@@ -146,6 +146,9 @@ function khoiTaoApp(dl) {
 
   document.getElementById('manHinhTai').classList.add('an');
   document.getElementById('ungDung').classList.remove('an');
+
+  // ★ GĐ2: nhắc việc của cán bộ đăng nhập (nếu có)
+  try { hienToastThongBaoCuaToi(); } catch (e) {}
 }
 
 /** Cập nhật tên + chip vai trò trên header (nhấn chip để mở menu tài khoản) */
