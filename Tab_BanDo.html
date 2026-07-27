@@ -27,7 +27,7 @@
   <div class="modal-canh-bao an" id="modalSinhNhat" onclick="if(event.target===this) dongModalSinhNhat()">
     <div class="hop-modal">
       <div class="dau-modal dau-hong">
-        <h3>💐 Kỷ niệm ngày thành lập (trong 7 ngày tới)</h3>
+        <h3>💐 Kỷ niệm ngày thành lập (trong 1 tháng tới)</h3>
         <button type="button" class="nut-dong" onclick="dongModalSinhNhat()">✕</button>
       </div>
       <div class="than-modal" id="noiDungModalSinhNhat"></div>
@@ -278,7 +278,7 @@ function tinhDanhSachCanhBao_() {
  *
  *  Nhiều lô cùng một khách thuê (VD Framas có 4 nhà xưởng) chỉ tính 1 lần.
  ***********************************************************************/
-const SO_NGAY_BAO_SINH_NHAT = 7;   // báo trước 7 ngày để kịp đặt lẵng hoa
+const SO_NGAY_BAO_SINH_NHAT = 30;  // báo trước 30 ngày (~1 tháng) để kịp đặt lẵng hoa
 
 function docNgayThanhLap_(nx) {
   let d = docNgay_(nx.NgayThanhLap);
@@ -406,7 +406,7 @@ function moModalSinhNhat() {
   document.getElementById('baoSaoChepSinhNhat').textContent = '';
 
   noiDung.innerHTML = ds.length === 0
-    ? '<p class="rong-canh-bao">Trong 7 ngày tới không có khách thuê nào kỷ niệm ngày thành lập.<br>'
+    ? '<p class="rong-canh-bao">Trong 1 tháng tới không có khách thuê nào kỷ niệm ngày thành lập.<br>'
       + '<small>Ngày thành lập lấy từ cột <b>NgayThanhLap</b> (dd/MM/yyyy) của sheet '
       + 'DS_NhaXuong. Nếu cột này trống, hệ thống tạm suy ra từ <b>GiayCNDN</b> / '
       + '<b>GiayCNDT</b> và ghi chú "cần đối chiếu".</small></p>'
