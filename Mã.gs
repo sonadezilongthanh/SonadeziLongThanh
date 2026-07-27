@@ -219,9 +219,17 @@ function layNguoiDungTuPhien_(p) {
   const vaiTro  = p.hopLe ? String(p.vaiTro || '').trim() : 'Khach';
   const duocSua = (vaiTro === 'QuanTri' || vaiTro === 'NhapLieu');
 
+  // ★ PA-B — kèm SĐT + email liên hệ cá nhân (chỉ với người đã đăng nhập)
+  let lienHe = { soDienThoai: '', emailLienHe: '' };
+  if (p.hopLe && typeof layLienHeTK_ === 'function') {
+    lienHe = layLienHeTK_(p.email);
+  }
+
   return {
     email       : p.hopLe ? p.email : '',
     hoTen       : p.hopLe ? (p.hoTen || p.email) : 'Khách',
+    soDienThoai : lienHe.soDienThoai,
+    emailLienHe : lienHe.emailLienHe,
     vaiTro      : vaiTro,
     nhanDienDuoc: (vaiTro !== 'Khach'),
     duocSua     : duocSua,

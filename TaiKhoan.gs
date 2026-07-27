@@ -547,3 +547,78 @@ function taoTaiKhoanQuanTriDauTien() {
   Logger.log('Đã tạo/cập nhật tài khoản quản trị: ' + email);
   return 'Đã tạo/cập nhật tài khoản quản trị: ' + email;
 }
+/***********************************************************************
+ * ★ PA-B — THÔNG TIN LIÊN HỆ CÁ NHÂN (SĐT + email hiển thị cho khách)
+ *  Hai cột 'SoDienThoai' & 'EmailLienHe' là TÙY CHỌN: không thuộc
+ *  COT_TK_CHUAN, không nằm trong chữ ký token → thêm cột không làm
+ *  mất hiệu lực token đang dùng.
+ ***********************************************************************/
+
+/** Đọc SĐT + email liên hệ theo email tài khoản. Cột thiếu → trả '' */
+function layLienHeTK_(email) {
+  const rong = { soDienThoai: '', emailLienHe: '' };
+  try {
+    email = chuanHoaEmail_(email);
+    if (!email) return rong;
+    const b = docBangTK_();
+    const i = timDongTK_(b, email);
+    if (i < 0) return rong;
+    const iSDT   = b.idx['SoDienThoai'];
+    const iEmail = b.idx['EmailLienHe'];
+    return {
+      soDienThoai: (iSDT   !== undefined) ? String(b.vung[i][iSDT]   || '').trim() : '',
+      emailLienHe: (iEmail !== undefined) ? String(b.vung[i][iEmail] || '').trim() : ''
+    };
+  } catch (e) {
+    return rong;
+  }
+}
+
+/**
+ * Người dùng tự cập nhật SĐT + email liên hệ của CHÍNH MÌNH.
+ * Khớp dòng theo email đã xác thực trong token (KHÔNG nhận email từ client).
+ * @param {string} token
+ * @param {{soDienThoai:string, emailLienHe:string}} thongTin
+ * @return {{thanhCong:boolean, soDienThoai:string, emailLienHe:string}}
+ */
+function luuLienHeCaNhan(token, thongTin) {
+  const p = giaiTokenTK_(token);
+  if (!p.hopLe) throw new Error('Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.');
+
+  thongTin = thongTin || {};
+  const sdt   = String(thongTin.soDienThoai || '').trim();
+  const email = String(thongTin.emailLienHe || '').trim();
+
+  if (email && !hopLeEmail_(email)) {
+    throw new Error('Email liên hệ không hợp lệ. Vui lòng kiểm tra lại.');
+  }
+  if (sdt && !/^[0-9()+.\-\s]{6,20}$/.test(sdt)) {
+    throw new Error('Số điện thoại không hợp lệ (chỉ gồm số và + - . khoảng trắng).');
+  }
+
+  const lock = LockService.getScriptLock();
+  try { lock.waitLock(10000); }
+  catch (e) { throw new Error('Hệ thống đang bận, vui lòng thử lại sau vài giây.'); }
+
+  try {
+    const b = docBangTK_();
+    const iSDT   = b.idx['SoDienThoai'];
+    const iEmail = b.idx['EmailLienHe'];
+    if (iSDT === undefined && iEmail === undefined) {
+      throw new Error('Sheet ' + SHEET_TK + ' chưa có cột "SoDienThoai" / "EmailLienHe". '
+        + 'Vui lòng bổ sung 2 cột này trước (Bước 1).');
+    }
+    const i = timDongTK_(b, p.email);
+    if (i < 0) throw new Error('Không tìm thấy tài khoản trong danh sách.');
+
+    if (iSDT   !== undefined) ghiOTK_(b, i, 'SoDienThoai', sdt);
+    if (iEmail !== undefined) ghiOTK_(b, i, 'EmailLienHe', email);
+
+    nhatKyTK_(p.hoTen || p.email, 'CapNhatLienHe',
+              'SĐT: ' + (sdt || '—') + ' | Email: ' + (email || '—'));
+
+    return { thanhCong: true, soDienThoai: sdt, emailLienHe: email };
+  } finally {
+    lock.releaseLock();
+  }
+}

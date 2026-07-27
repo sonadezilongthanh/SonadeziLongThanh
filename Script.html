@@ -224,6 +224,8 @@ function moMenuTaiKhoan(ev) {
   } else {
     html += '<button class="mtk-muc" onclick="dongMenuTaiKhoan();moDoiMatKhau()">'
           + '🔑 Đổi mật khẩu</button>';
+    html += '<button class="mtk-muc" onclick="dongMenuTaiKhoan();moThongTinCaNhan()">'
+          + '👤 Thông tin của tôi</button>';
     if (laQuanTri()) {
       html += '<button class="mtk-muc" onclick="dongMenuTaiKhoan();moQuanLyTaiKhoan()">'
             + '👥 Quản lý tài khoản</button>';
@@ -256,8 +258,88 @@ function dongMenuTaiKhoan() {
   if (m) m.classList.add('an');
   if (l) l.classList.add('an');
 }
+/***********************************************************************
+ * ★ PA-B — HỘP THOẠI "THÔNG TIN CỦA TÔI"
+ ***********************************************************************/
+function taoHopThoaiCaNhan() {
+  if (document.getElementById('hopThoaiCaNhan')) return;
+  const div = document.createElement('div');
+  div.id = 'hopThoaiCaNhan';
+  div.className = 'an';
+  div.style.cssText = 'position:fixed;inset:0;z-index:10060;display:flex;'
+    + 'align-items:center;justify-content:center;background:rgba(0,0,0,.45);padding:16px';
+  div.innerHTML = ''
+    + '<div class="hop-thoai" style="max-width:460px;width:100%">'
+    +   '<h3>👤 Thông tin liên hệ của tôi</h3>'
+    +   '<div class="than-sua">'
+    +     '<div class="dong-form"><label>Họ tên</label>'
+    +       '<input type="text" id="cnHoTen" disabled></div>'
+    +     '<div class="dong-form"><label>Email đăng nhập</label>'
+    +       '<input type="text" id="cnEmailDN" disabled></div>'
+    +     '<div class="dong-form"><label>Số điện thoại (hiển thị cho khách)</label>'
+    +       '<input type="text" id="cnSoDienThoai" placeholder="VD: 0912 345 678"></div>'
+    +     '<div class="dong-form"><label>Email liên hệ (hiển thị cho khách)</label>'
+    +       '<input type="text" id="cnEmailLienHe" placeholder="VD: hoten@sonadezilongthanh.com.vn"></div>'
+    +     '<p class="bc-goi-y" style="margin-top:6px">💡 SĐT và email liên hệ sẽ tự điền vào '
+    +       'mẫu tin Zalo/brochure khi bạn chia sẻ. Bỏ trống email liên hệ thì dùng email đăng nhập.</p>'
+    +   '</div>'
+    +   '<div class="thong-bao" id="cnThongBao"></div>'
+    +   '<div class="nhom-nut">'
+    +     '<button class="nut nut-nhat" onclick="dongHopThoaiCaNhan()">Huỷ</button>'
+    +     '<button class="nut nut-chinh" id="cnNutLuu" onclick="luuHopThoaiCaNhan()">💾 Lưu</button>'
+    +   '</div>'
+    + '</div>';
+  div.addEventListener('click', function (e) { if (e.target === div) dongHopThoaiCaNhan(); });
+  document.body.appendChild(div);
+}
 
+function moThongTinCaNhan() {
+  if (!PHIEN_SUA.token || !(NGUOI_DUNG && NGUOI_DUNG.nhanDienDuoc)) {
+    alert('Vui lòng đăng nhập để cập nhật thông tin cá nhân.');
+    return;
+  }
+  taoHopThoaiCaNhan();
+  document.getElementById('cnHoTen').value       = PHIEN_SUA.hoTen || NGUOI_DUNG.hoTen || '';
+  document.getElementById('cnEmailDN').value     = PHIEN_SUA.email || NGUOI_DUNG.email || '';
+  document.getElementById('cnSoDienThoai').value = NGUOI_DUNG.soDienThoai || '';
+  document.getElementById('cnEmailLienHe').value = NGUOI_DUNG.emailLienHe || '';
+  document.getElementById('cnThongBao').textContent = '';
+  document.getElementById('hopThoaiCaNhan').classList.remove('an');
+}
 
+function dongHopThoaiCaNhan() {
+  const el = document.getElementById('hopThoaiCaNhan');
+  if (el) el.classList.add('an');
+}
+
+function luuHopThoaiCaNhan() {
+  const sdt   = document.getElementById('cnSoDienThoai').value.trim();
+  const email = document.getElementById('cnEmailLienHe').value.trim();
+  const tb    = document.getElementById('cnThongBao');
+  const nut   = document.getElementById('cnNutLuu');
+
+  nut.disabled = true; nut.textContent = 'Đang lưu…';
+  tb.style.color = ''; tb.textContent = '';
+
+  google.script.run
+    .withSuccessHandler(function (kq) {
+      nut.disabled = false; nut.textContent = '💾 Lưu';
+      NGUOI_DUNG.soDienThoai = kq.soDienThoai || '';
+      NGUOI_DUNG.emailLienHe = kq.emailLienHe || '';
+      tb.style.color = '#15803d';
+      tb.textContent = '✓ Đã lưu thông tin liên hệ.';
+      if (typeof soanTinNhan === 'function' && document.getElementById('bcTinNhan')) {
+        try { soanTinNhan(); } catch (e) {}
+      }
+      setTimeout(dongHopThoaiCaNhan, 900);
+    })
+    .withFailureHandler(function (loi) {
+      nut.disabled = false; nut.textContent = '💾 Lưu';
+      tb.style.color = '#b91c1c';
+      tb.textContent = '✕ ' + loi.message;
+    })
+    .luuLienHeCaNhan(PHIEN_SUA.token, { soDienThoai: sdt, emailLienHe: email });
+}
 /***********************************************************************
  * ★ V4.0 — MÀN HÌNH ĐĂNG NHẬP / ĐĂNG KÝ
  *  Tạo bằng JS, không cần sửa Index.html.
@@ -1782,7 +1864,15 @@ function soanTinNhan() {
   const mau = (laDat && ch.MauTinNhanZalo_Dat)
     ? ch.MauTinNhanZalo_Dat
     : (ch.MauTinNhanZalo || MAU_TIN_MAC_DINH);
-
+// ★ PA-B — Người liên hệ: ưu tiên thông tin cá nhân người đăng nhập;
+  //   khách/chưa đăng nhập → dùng thông tin chung trong DM_CauHinh
+  const nguoiKy = (NGUOI_DUNG && NGUOI_DUNG.nhanDienDuoc)
+    ? { ten  : NGUOI_DUNG.hoTen       || ch.NguoiLienHe || '',
+        sdt  : NGUOI_DUNG.soDienThoai || ch.SoDienThoai || '',
+        email: NGUOI_DUNG.emailLienHe || NGUOI_DUNG.email || ch.Email || '' }
+    : { ten  : ch.NguoiLienHe || '',
+        sdt  : ch.SoDienThoai || '',
+        email: ch.Email       || '' };
   let tin = String(mau)
     .replace(/{MaDonVi}/g,          nx.MaDonVi || '')
     .replace(/{TenNhaXuong}/g,      nx.TenNhaXuong || nx.MaDonVi || '')
@@ -1806,9 +1896,9 @@ function soanTinNhan() {
     // --- Khối động ---
     .replace(/{DanhSachLink}/g,     dsLink)
     .replace(/{LinkDinhVi}/g,       linkDinhVi)
-    .replace(/{NguoiLienHe}/g,      ch.NguoiLienHe || NGUOI_DUNG.hoTen || '')
-    .replace(/{SoDienThoai}/g,      ch.SoDienThoai || '')
-    .replace(/{Email}/g,            ch.Email || NGUOI_DUNG.email || '')
+    .replace(/{NguoiLienHe}/g,      nguoiKy.ten)
+    .replace(/{SoDienThoai}/g,      nguoiKy.sdt)
+    .replace(/{Email}/g,            nguoiKy.email)
     .replace(/{Website}/g,          ch.Website || '');
 
   // ★ Dọn dẹp cuối: xoá placeholder còn sót, dòng gạch đầu dòng rỗng, dòng trắng thừa
