@@ -1,0 +1,438 @@
+<!-- ════════════════════════════════════════════════════════════════════
+     TAB CÔNG VIỆC  —  Theo dõi công việc toàn Phòng
+     Chỉ hiển thị với vai trò QuanTri và QuanLy (gác bằng xemCongViec()).
+     Dùng lại bộ máy cảnh báo đã có trong Tab_BanDo.html:
+        homNay_(), docNgay_(), dinhDangNgay_(), thoat_(),
+        phanTichHanThue_(nx), docNgayThanhLap_(nx), ngayKyNiemToi_()
+     và tenCanBo() trong Script.html.
+     KHÔNG chạm vào badge / modal "Của tôi" hiện có — tab này độc lập.
+     ★ MỚI: thẻ "Tiến độ rà soát & nhập liệu (theo cán bộ)".
+     ═══════════════════════════════════════════════════════════════════ -->
+<style>
+  .cv-boc          { max-width: 1100px; margin: 0 auto; }
+  .cv-tieude       { font-size: 18px; font-weight: 700; color: var(--xanh-dam, #0B4696);
+                     margin: 4px 0 2px; }
+  .cv-mota         { color: #64748b; font-size: 13px; margin: 0 0 14px; }
+  .cv-thanhloc     { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
+                     background: #f6f8fc; border: 1px solid #e4e8ef; border-radius: 12px;
+                     padding: 12px 14px; margin-bottom: 16px; }
+  .cv-thanhloc .o  { display: flex; flex-direction: column; gap: 4px; }
+  .cv-thanhloc label { font-size: 12px; color: #475569; font-weight: 600; }
+  .cv-thanhloc select{ padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 8px;
+                     font-size: 13px; background: #fff; min-width: 190px; }
+  .cv-lam-moi      { margin-left: auto; padding: 8px 14px; border: 0; border-radius: 8px;
+                     background: var(--xanh-dam, #0B4696); color: #fff; font-size: 13px;
+                     font-weight: 600; cursor: pointer; }
+  .cv-lam-moi:hover{ opacity: .9; }
+  .cv-the          { background: #fff; border: 1px solid #e4e8ef; border-radius: 14px;
+                     padding: 14px 16px 18px; margin-bottom: 18px;
+                     box-shadow: 0 2px 10px rgba(15,40,90,.05); }
+  .cv-the-dau      { display: flex; align-items: center; justify-content: space-between;
+                     margin-bottom: 10px; }
+  .cv-the-ten      { font-size: 15px; font-weight: 700; color: #0f172a; }
+  .cv-dem          { background: #eef3fb; color: #0B4696; font-weight: 700; font-size: 12px;
+                     border-radius: 20px; padding: 3px 11px; }
+  .cv-chip         { display: inline-block; color: #fff; font-weight: 700; font-size: 11.5px;
+                     border-radius: 20px; padding: 2px 9px; white-space: nowrap; }
+  .cv-muc          { font-size: 11px; font-weight: 700; margin-left: 4px; }
+  .cv-cb           { font-weight: 600; color: #0f172a; }
+  .cv-cb-trong     { color: #b45309; font-style: italic; font-weight: 600; }
+  .cv-chugiai      { display: flex; flex-wrap: wrap; gap: 14px; font-size: 11.5px;
+                     color: #475569; margin: 2px 0 14px; }
+  .cv-chugiai span { display: inline-flex; align-items: center; gap: 5px; }
+  .cv-dot          { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+
+  /* ★ MỚI — Tiến độ rà soát & nhập liệu */
+  .cvtd-tomtat   { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+  .cvtd-o        { flex: 1 1 120px; background: #f6f8fc; border: 1px solid #e4e8ef;
+                   border-radius: 10px; padding: 9px 12px; }
+  .cvtd-o .so    { font-size: 19px; font-weight: 700; color: var(--xanh-dam, #0B4696); }
+  .cvtd-o .nhan  { font-size: 11.5px; color: #64748b; margin-top: 1px; }
+  .cvtd-hang     { padding: 11px 0; border-top: 1px dashed #e4e8ef; }
+  .cvtd-hang:first-of-type { border-top: 0; }
+  .cvtd-dau      { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .cvtd-ten      { font-weight: 700; color: #0f172a; font-size: 14px; }
+  .cvtd-pct      { font-weight: 700; font-size: 16px; }
+  .cvtd-phu      { font-size: 11.5px; color: #64748b; margin: 3px 0 6px; }
+  .cvtd-bar      { height: 9px; border-radius: 6px; background: #eef2f7; overflow: hidden; }
+  .cvtd-bar > i  { display: block; height: 100%; border-radius: 6px; }
+  .cvtd-chitiet  { margin-top: 7px; }
+  .cvtd-chitiet summary { cursor: pointer; font-size: 12.5px;
+                   color: var(--xanh-dam, #0B4696); list-style: none; }
+  .cvtd-chitiet summary::-webkit-details-marker { display: none; }
+  .cvtd-dv       { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0;
+                   border-top: 1px dashed #eef2f7; font-size: 12.5px; cursor: pointer; }
+  .cvtd-dv .ma   { color: var(--xanh-dam, #0B4696); font-weight: 600; }
+  .cvtd-dv .thieu{ color: #b45309; text-align: right; }
+</style>
+
+<div class="cv-boc">
+  <div class="cv-tieude">📌 Theo dõi công việc toàn Phòng</div>
+  <p class="cv-mota">
+    Tổng hợp các đầu việc cần nhắc theo từng cán bộ phụ trách: tiến độ rà soát &amp;
+    nhập liệu, hợp đồng sắp hết hạn (chuẩn bị gia hạn) và khách hàng cần tặng hoa
+    dịp kỷ niệm thành lập.
+  </p>
+
+  <div class="cv-chugiai">
+    <span><i class="cv-dot" style="background:#dc2626"></i>≤ 30 ngày — Khẩn</span>
+    <span><i class="cv-dot" style="background:#ea580c"></i>31–60 ngày — Gấp</span>
+    <span><i class="cv-dot" style="background:#ca8a04"></i>61–90 ngày — Sắp tới</span>
+    <span><i class="cv-dot" style="background:#64748b"></i>&gt; 90 ngày — Theo dõi</span>
+  </div>
+
+  <div class="cv-thanhloc">
+    <div class="o">
+      <label for="cvChonMoc">Mốc thời gian cảnh báo</label>
+      <select id="cvChonMoc">
+        <option value="30">Trong 30 ngày tới</option>
+        <option value="60">Trong 60 ngày tới</option>
+        <option value="90" selected>Trong 90 ngày tới</option>
+        <option value="180">Trong 180 ngày tới</option>
+      </select>
+    </div>
+    <div class="o">
+      <label for="cvChonCanBo">Cán bộ phụ trách</label>
+      <select id="cvChonCanBo"><option value="">— Tất cả cán bộ —</option></select>
+    </div>
+    <button class="cv-lam-moi" id="cvNutLamMoi">🔄 Làm mới</button>
+  </div>
+
+  <!-- ★ MỚI — Tiến độ rà soát & nhập liệu (đặt đầu tiên cho dễ theo dõi) -->
+  <div class="cv-the">
+    <div class="cv-the-dau">
+      <span class="cv-the-ten">📊 Tiến độ rà soát &amp; nhập liệu (theo cán bộ)</span>
+      <span class="cv-dem" id="cvDemTienDo">—</span>
+    </div>
+    <div id="cvBangTienDo"></div>
+  </div>
+
+  <div class="cv-the">
+    <div class="cv-the-dau">
+      <span class="cv-the-ten">⏰ Hợp đồng sắp hết hạn</span>
+      <span class="cv-dem" id="cvDemHopDong">0</span>
+    </div>
+    <div id="cvBangHopDong"></div>
+  </div>
+
+  <div class="cv-the">
+    <div class="cv-the-dau">
+      <span class="cv-the-ten">💐 Khách hàng cần tặng hoa (kỷ niệm thành lập)</span>
+      <span class="cv-dem" id="cvDemTangHoa">0</span>
+    </div>
+    <div id="cvBangTangHoa"></div>
+  </div>
+</div>
+
+<script>
+var _CV_DA_NAP_CB = false;
+
+function _cvChipNgay(soNgay) {
+  var mau, chu;
+  if      (soNgay <= 30) { mau = '#dc2626'; chu = 'Khẩn';    }
+  else if (soNgay <= 60) { mau = '#ea580c'; chu = 'Gấp';     }
+  else if (soNgay <= 90) { mau = '#ca8a04'; chu = 'Sắp tới'; }
+  else                   { mau = '#64748b'; chu = 'Theo dõi';}
+  return '<span class="cv-chip" style="background:' + mau + '">'
+       + (soNgay === 0 ? 'Hôm nay' : soNgay + ' ngày') + '</span>'
+       + '<span class="cv-muc" style="color:' + mau + '">' + chu + '</span>';
+}
+
+function _cvOCanBo(email) {
+  var e = String(email || '').trim();
+  if (!e) return '<span class="cv-cb-trong">— Chưa phân công —</span>';
+  return '<span class="cv-cb">' + tenCanBo(e) + '</span>';
+}
+
+function _cvHopDong(soNgayToiDa) {
+  var nay = homNay_(), ds = [];
+  (DU_LIEU.nhaXuong || []).forEach(function (nx) {
+    var kq = phanTichHanThue_(nx);
+    if (!kq) return;
+    var soNgay = Math.round((kq.ngay - nay) / 86400000);
+    if (soNgay < 0 || soNgay > soNgayToiDa) return;
+    ds.push({
+      ma: nx.MaDonVi, ten: nx.TenNhaXuong || nx.MaDonVi,
+      khachThue: nx.KhachThue || '(chưa có tên khách thuê)',
+      nguoiPhuTrach: nx.NguoiPhuTrach || '',
+      ngayHetHan: kq.ngay, suyRa: kq.suyRa, soNgay: soNgay
+    });
+  });
+  ds.sort(function (a, b) { return a.soNgay - b.soNgay; });
+  return ds;
+}
+
+function _cvTangHoa(soNgayToiDa) {
+  var nay = homNay_(), daCo = {}, ds = [];
+  (DU_LIEU.nhaXuong || []).forEach(function (nx) {
+    var khach = String(nx.KhachThue || '').trim();
+    if (!khach) return;
+    if (String(nx.TangHoa || '').trim() === 'Không') return;
+    var goc = docNgayThanhLap_(nx);
+    if (!goc) return;
+    var kn = ngayKyNiemToi_(goc.ngay, nay);
+    var soNgay = Math.round((kn - nay) / 86400000);
+    if (soNgay < 0 || soNgay > soNgayToiDa) return;
+    var khoa = khach.toLowerCase() + '|' + goc.ngay.getMonth() + '-' + goc.ngay.getDate();
+    if (daCo[khoa]) {
+      if (daCo[khoa].dsMa.indexOf(nx.MaDonVi) === -1) daCo[khoa].dsMa.push(nx.MaDonVi);
+      if (!daCo[khoa].nguoiPhuTrach && nx.NguoiPhuTrach) daCo[khoa].nguoiPhuTrach = nx.NguoiPhuTrach;
+      return;
+    }
+    var muc = {
+      khachThue: khach, ngayThanhLap: goc.ngay, ngayKyNiem: kn,
+      soNam: kn.getFullYear() - goc.ngay.getFullYear(),
+      soNgay: soNgay, suyRa: goc.suyRa,
+      nguoiPhuTrach: nx.NguoiPhuTrach || '',
+      tangHoa: nx.TangHoa || '', ghiChuTangHoa: nx.GhiChuTangHoa || '',
+      dsMa: [nx.MaDonVi]
+    };
+    daCo[khoa] = muc; ds.push(muc);
+  });
+  ds.sort(function (a, b) { return a.soNgay - b.soNgay; });
+  return ds;
+}
+
+function _cvVeHopDong(ds) {
+  var el = document.getElementById('cvBangHopDong');
+  document.getElementById('cvDemHopDong').textContent = ds.length + ' việc';
+  if (!ds.length) {
+    el.innerHTML = '<p class="rong-canh-bao">Không có hợp đồng nào cần nhắc trong mốc đã chọn.<br>'
+      + '<small>Ngày hết hạn lấy từ cột <b>NgayHetHanHD</b> (hoặc suy ra từ '
+      + '<b>ThoiHanThue</b> / <b>NgayHopDong</b>) của sheet DS_NhaXuong.</small></p>';
+    return;
+  }
+  var html = '<table class="bang-canh-bao"><thead><tr>'
+           + '<th>Mã lô</th><th>Khách thuê</th><th>Ngày hết hạn</th>'
+           + '<th>Còn lại</th><th>Cán bộ phụ trách</th></tr></thead><tbody>';
+  ds.forEach(function (d) {
+    html += '<tr onclick="xemTrongBang(\'' + d.ma + '\')">'
+          + '<td>' + thoat_(d.ma) + '</td>'
+          + '<td>' + thoat_(d.khachThue)
+          +   '<br><span class="suy-ra">' + thoat_(d.ten) + '</span></td>'
+          + '<td>' + dinhDangNgay_(d.ngayHetHan)
+          +   (d.suyRa ? '<br><span class="suy-ra">(' + d.suyRa + ')</span>' : '') + '</td>'
+          + '<td>' + _cvChipNgay(d.soNgay) + '</td>'
+          + '<td>' + _cvOCanBo(d.nguoiPhuTrach) + '</td></tr>';
+  });
+  el.innerHTML = html + '</tbody></table>';
+}
+
+function _cvVeTangHoa(ds) {
+  var el = document.getElementById('cvBangTangHoa');
+  document.getElementById('cvDemTangHoa').textContent = ds.length + ' việc';
+  if (!ds.length) {
+    el.innerHTML = '<p class="rong-canh-bao">Không có khách hàng nào cần tặng hoa trong mốc đã chọn.<br>'
+      + '<small>Chỉ tính khách có cột <b>TangHoa</b> ≠ "Không" và có '
+      + '<b>NgayThanhLap</b> hợp lệ trong sheet DS_NhaXuong.</small></p>';
+    return;
+  }
+  var html = '<table class="bang-canh-bao"><thead><tr>'
+           + '<th>Khách thuê</th><th>Kỷ niệm</th><th>Ngày tổ chức</th>'
+           + '<th>Còn lại</th><th>Cán bộ phụ trách</th><th>Ghi chú</th></tr></thead><tbody>';
+  ds.forEach(function (d) {
+    html += '<tr>'
+          + '<td>' + thoat_(d.khachThue)
+          +   '<br><span class="suy-ra">Lô: ' + thoat_(d.dsMa.join(', ')) + '</span></td>'
+          + '<td>' + d.soNam + ' năm'
+          +   (d.suyRa ? '<br><span class="suy-ra">(' + thoat_(d.suyRa) + ')</span>' : '') + '</td>'
+          + '<td>' + dinhDangNgay_(d.ngayKyNiem) + '</td>'
+          + '<td>' + _cvChipNgay(d.soNgay) + '</td>'
+          + '<td>' + _cvOCanBo(d.nguoiPhuTrach) + '</td>'
+          + '<td>' + thoat_(d.ghiChuTangHoa || '') + '</td></tr>';
+  });
+  el.innerHTML = html + '</tbody></table>';
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ★ MỚI — TIẾN ĐỘ RÀ SOÁT & NHẬP LIỆU THEO CÁN BỘ
+   % = số trường đã điền / tổng số trường cần điền (theo Loại hình).
+   Đơn vị còn trống (không có khách thuê) được bỏ khỏi mẫu số.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Bộ trường tính tiến độ — chỉnh thoải mái. Mỗi trường liệt kê các biến
+   thể tên cột (phòng khi tiêu đề Sheet có/không hậu tố "(USD)"). */
+var CV_TRUONG_NX = [
+  { nhan: 'Khách thuê',    ten: ['KhachThue'] },
+  { nhan: 'Quốc tịch',     ten: ['QuocTich'] },
+  { nhan: 'Ngành nghề',    ten: ['NganhNghe_SanPham', 'NganhNghe'] },
+  { nhan: 'Tổng vốn ĐT',   ten: ['TongVonDauTu_USD'] },
+  { nhan: 'DT xưởng',      ten: ['DienTichXuong_m2'] },
+  { nhan: 'Số hợp đồng',   ten: ['SoHopDong'] },
+  { nhan: 'Ngày hợp đồng', ten: ['NgayHopDong'] },
+  { nhan: 'Đơn giá thuê',  ten: ['TienThueXuong - DonGia (USD)', 'TienThueXuong - DonGia'] },
+  { nhan: 'Phí quản lý',   ten: ['PhiQuanLy (USD)', 'PhiQuanLy'] },
+  { nhan: 'Thời hạn thuê', ten: ['ThoiHanThue'] }
+];
+var CV_TRUONG_DAT = [
+  { nhan: 'Khách thuê',      ten: ['KhachThue'] },
+  { nhan: 'Quốc tịch',       ten: ['QuocTich'] },
+  { nhan: 'Ngành nghề',      ten: ['NganhNghe', 'NganhNghe_SanPham'] },
+  { nhan: 'Tổng vốn ĐT',     ten: ['TongVonDauTu_USD'] },
+  { nhan: 'DT đất thuê',     ten: ['Tong DienTichDatThue (m2)'] },
+  { nhan: 'Số hợp đồng',     ten: ['SoHopDong'] },
+  { nhan: 'Ngày hợp đồng',   ten: ['NgayHopDong'] },
+  { nhan: 'Đơn giá mặt bằng',ten: ['TienThueMatBang - DonGia (USD)', 'TienThueMatBang - DonGia'] },
+  { nhan: 'Phí quản lý',     ten: ['PhiQuanLy (USD)', 'PhiQuanLy'] },
+  { nhan: 'Thời hạn thuê',   ten: ['ThoiHanThue_ChiTiet', 'ThoiHanThue'] },
+  { nhan: 'Người đại diện',  ten: ['NguoiDaiDien'] }
+];
+
+function _cvCoGiaTri(v) {
+  var s = (v === null || v === undefined) ? '' : String(v).trim();
+  return s !== '' && s !== '-';
+}
+function _cvLayTruong(nx, dsTen) {
+  for (var i = 0; i < dsTen.length; i++) if (_cvCoGiaTri(nx[dsTen[i]])) return true;
+  return false;
+}
+
+/* Đơn vị coi như "không cần nhập" → không tính vào %.
+   ⚠ Đang nhận diện qua cột TrangThai / TinhTrangHoatDong chứa chữ "trống"
+   và không có khách thuê. Nếu quy ước khác, chỉnh lại hàm này. Nếu tên cột
+   không khớp, hàm chỉ đơn giản không bỏ đơn vị nào (không gây lỗi). */
+function _cvDonViBoQua(nx) {
+  var tt = (String(nx.TrangThai || '') + ' ' + String(nx.TinhTrangHoatDong || '')).toLowerCase();
+  var laTrong = tt.indexOf('trống') > -1 || tt.indexOf('trong') > -1;
+  return laTrong && !_cvCoGiaTri(nx.KhachThue);
+}
+
+function _cvTinhDonVi(nx) {
+  var loai = String(nx.LoaiHinh || '');
+  var truong = (loai.indexOf('Đất') > -1) ? CV_TRUONG_DAT : CV_TRUONG_NX;
+  var dien = 0, thieu = [];
+  truong.forEach(function (t) {
+    if (_cvLayTruong(nx, t.ten)) dien++; else thieu.push(t.nhan);
+  });
+  return { soCan: truong.length, soDien: dien, hoanTat: (dien === truong.length), thieu: thieu };
+}
+
+function _cvMauPct(p) { return p >= 90 ? '#16a34a' : (p >= 60 ? '#d97706' : '#dc2626'); }
+
+/* Gom nhóm theo cán bộ (email). Tôn trọng bộ lọc cvChonCanBo (locCB). */
+function _cvTienDo(locCB) {
+  var nhom = {};
+  (DU_LIEU.nhaXuong || []).forEach(function (nx) {
+    if (_cvDonViBoQua(nx)) return;
+    var email = String(nx.NguoiPhuTrach || '').trim();
+    if (locCB) {
+      var khop = (locCB === '__KHONG__') ? (email === '')
+               : (email.toLowerCase() === locCB.toLowerCase());
+      if (!khop) return;
+    }
+    var khoa = email ? email.toLowerCase() : '__KHONG__';
+    if (!nhom[khoa]) nhom[khoa] = { email: email, dv: [], can: 0, dien: 0, ht: 0 };
+    var kq = _cvTinhDonVi(nx);
+    nhom[khoa].dv.push({ nx: nx, kq: kq });
+    nhom[khoa].can += kq.soCan; nhom[khoa].dien += kq.soDien;
+    if (kq.hoanTat) nhom[khoa].ht++;
+  });
+  var ds = Object.keys(nhom).map(function (k) {
+    var g = nhom[k];
+    g.tong = g.dv.length;
+    g.pct = g.can > 0 ? Math.round(g.dien / g.can * 100) : 100;
+    g.tenHienThi = g.email ? tenCanBo(g.email) : '(Chưa phân công)';
+    return g;
+  });
+  ds.sort(function (a, b) {
+    var aCP = !a.email, bCP = !b.email;
+    if (aCP !== bCP) return aCP ? 1 : -1;   // "chưa phân công" xuống cuối
+    return a.pct - b.pct;                    // còn lại: % thấp lên trước
+  });
+  return ds;
+}
+
+function _cvVeTienDo(ds) {
+  var el = document.getElementById('cvBangTienDo');
+  if (!el) return;
+  if (!ds.length) {
+    document.getElementById('cvDemTienDo').textContent = '—';
+    el.innerHTML = '<p class="rong-canh-bao">Chưa có dữ liệu để thống kê.</p>';
+    return;
+  }
+  var can = 0, dien = 0, tong = 0, ht = 0;
+  ds.forEach(function (g) { can += g.can; dien += g.dien; tong += g.tong; ht += g.ht; });
+  var pctChung = can > 0 ? Math.round(dien / can * 100) : 100;
+  document.getElementById('cvDemTienDo').textContent = pctChung + '%';
+
+  var html = '<div class="cvtd-tomtat">'
+    + '<div class="cvtd-o"><div class="so">' + pctChung + '%</div><div class="nhan">Tiến độ chung</div></div>'
+    + '<div class="cvtd-o"><div class="so">' + ht + '/' + tong + '</div><div class="nhan">Đơn vị đủ thông tin</div></div>'
+    + '<div class="cvtd-o"><div class="so">' + ds.length + '</div><div class="nhan">Cán bộ có việc</div></div>'
+    + '</div>';
+
+  ds.forEach(function (g) {
+    var mau = _cvMauPct(g.pct);
+    var thieuDS = g.dv.filter(function (x) { return !x.kq.hoanTat; });
+    html += '<div class="cvtd-hang">'
+      + '<div class="cvtd-dau"><span class="cvtd-ten">' + thoat_(g.tenHienThi) + '</span>'
+      + '<span class="cvtd-pct" style="color:' + mau + '">' + g.pct + '%</span></div>'
+      + '<div class="cvtd-phu">' + g.ht + '/' + g.tong + ' đơn vị đủ thông tin'
+      + (thieuDS.length ? ' · còn ' + thieuDS.length + ' đơn vị chưa đủ' : ' · đã xong ✅') + '</div>'
+      + '<div class="cvtd-bar"><i style="width:' + g.pct + '%;background:' + mau + '"></i></div>';
+    if (thieuDS.length) {
+      html += '<details class="cvtd-chitiet"><summary>Xem đơn vị chưa đủ (' + thieuDS.length + ') ▾</summary>';
+      thieuDS.forEach(function (x) {
+        var ma  = String(x.nx.MaDonVi || '');
+        var ten = String(x.nx.KhachThue || x.nx.TenNhaXuong || '');
+        html += '<div class="cvtd-dv" onclick="xemTrongBang(\'' + ma.replace(/'/g, "\\'") + '\')">'
+          + '<span class="ma">' + thoat_(ma) + (ten ? ' · ' + thoat_(ten) : '') + '</span>'
+          + '<span class="thieu">thiếu: ' + thoat_(x.kq.thieu.join(', ')) + '</span></div>';
+      });
+      html += '</details>';
+    }
+    html += '</div>';
+  });
+  el.innerHTML = html;
+}
+
+function _cvNapChonCanBo() {
+  if (_CV_DA_NAP_CB) return;
+  var sel = document.getElementById('cvChonCanBo');
+  if (!sel) return;
+  var ds = (DU_LIEU && DU_LIEU.danhSachCanBo) ? DU_LIEU.danhSachCanBo : [];
+  var html = '<option value="">— Tất cả cán bộ —</option>';
+  ds.forEach(function (cb) {
+    html += '<option value="' + _escHTML(cb.email) + '">' + _escHTML(cb.hoTen) + '</option>';
+  });
+  html += '<option value="__KHONG__">(Chưa phân công)</option>';
+  sel.innerHTML = html;
+  _CV_DA_NAP_CB = true;
+}
+
+function renderCongViec() {
+  if (typeof xemCongViec === 'function' && !xemCongViec()) return;
+  if (!DU_LIEU || !DU_LIEU.nhaXuong) return;
+  _cvNapChonCanBo();
+  var elMoc = document.getElementById('cvChonMoc');
+  var elCB  = document.getElementById('cvChonCanBo');
+  var soNgay = parseInt((elMoc && elMoc.value) || '90', 10);
+  var locCB  = (elCB && elCB.value) || '';
+  var dsHD  = _cvHopDong(soNgay);
+  var dsHoa = _cvTangHoa(soNgay);
+  if (locCB) {
+    var khop = function (email) {
+      var e = String(email || '').trim().toLowerCase();
+      return (locCB === '__KHONG__') ? (e === '') : (e === locCB.toLowerCase());
+    };
+    dsHD  = dsHD.filter(function (d) { return khop(d.nguoiPhuTrach); });
+    dsHoa = dsHoa.filter(function (d) { return khop(d.nguoiPhuTrach); });
+  }
+  _cvVeTienDo(_cvTienDo(locCB));   // ★ MỚI — tiến độ rà soát & nhập liệu (bỏ qua mốc thời gian)
+  _cvVeHopDong(dsHD);
+  _cvVeTangHoa(dsHoa);
+}
+
+(function _cvGanSuKien() {
+  function gan() {
+    var m = document.getElementById('cvChonMoc');
+    var c = document.getElementById('cvChonCanBo');
+    var b = document.getElementById('cvNutLamMoi');
+    if (m) m.onchange = renderCongViec;
+    if (c) c.onchange = renderCongViec;
+    if (b) b.onclick  = renderCongViec;
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', gan);
+  else gan();
+})();
+</script>

@@ -87,6 +87,7 @@
   <nav class="thanh-tab">
     <button class="tab dang-chon" data-tab="traCuu">📋 Tra cứu</button>
     <button class="tab"           data-tab="banDo">🗺️ Bản đồ</button>
+    <button class="tab" id="nutTabCongViec" data-tab="congViec" style="display:none">📌 Công việc</button>
   </nav>
 
   <!-- ---------- NỘI DUNG TAB 1: TRA CỨU ---------- -->
@@ -97,6 +98,11 @@
   <!-- ---------- NỘI DUNG TAB 2: BẢN ĐỒ ---------- -->
   <section class="noi-dung-tab an" id="tab-banDo">
     <?!= include('Tab_BanDo'); ?>
+  </section>
+  
+  <!-- ---------- NỘI DUNG TAB 3: CÔNG VIỆC ---------- -->
+  <section class="noi-dung-tab an" id="tab-congViec">
+    <?!= include('Tab_CongViec'); ?>
   </section>
 
 </div>
@@ -215,6 +221,14 @@
         <label>Cán bộ phụ trách</label>
         <select id="suaNguoiPhuTrach">
           <option value="">— Chưa phân công —</option>
+        </select>
+      </div>
+      
+      <div class="dong-form">
+        <label>Trạng thái rà soát</label>
+        <select id="suaTrangThaiRaSoat">
+          <option value="">— Chưa rà soát —</option>
+          <option value="Đã rà soát">Đã rà soát</option>
         </select>
       </div>
 

@@ -220,7 +220,7 @@ function layPhienTuToken_(token) {
 function layNguoiDungTuPhien_(p) {
   p = p || {};
   const vaiTro  = p.hopLe ? String(p.vaiTro || '').trim() : 'Khach';
-  const duocSua = (vaiTro === 'QuanTri' || vaiTro === 'NhapLieu');
+  const duocSua = (vaiTro === 'QuanTri' || vaiTro === 'QuanLy' || vaiTro === 'NhapLieu');
 
   // ★ PA-B — kèm SĐT + email liên hệ cá nhân (chỉ với người đã đăng nhập)
   let lienHe = { soDienThoai: '', emailLienHe: '' };
@@ -237,7 +237,9 @@ function layNguoiDungTuPhien_(p) {
     nhanDienDuoc: (vaiTro !== 'Khach'),
     duocSua     : duocSua,
     xemDayDu    : CHE_DO_THU_NGHIEM || (vaiTro !== 'Khach'),
-    laQuanTri   : (vaiTro === 'QuanTri')
+    laQuanTri   : (vaiTro === 'QuanTri'),
+    laQuanLy    : (vaiTro === 'QuanLy'),
+    xemCongViec : (vaiTro === 'QuanTri' || vaiTro === 'QuanLy')
   };
 }
 
@@ -266,7 +268,41 @@ function layDuLieuTongHop(phien) {
     if (vaiTro !== 'Khach') kq.danhSachCanBo = layDanhSachCanBo_();
     return kq;
   }
+/***********************************************************************
+ * ★ DANH SÁCH CÁN BỘ PHỤ TRÁCH (chỉ vai trò NhapLieu)
+ *  Dùng riêng cho ô "Cán bộ phụ trách" trong form chỉnh sửa.
+ *  KHÔNG ảnh hưởng danh sách họ tên ở màn hình đăng nhập.
+ *  Nguồn: DM_PhanQuyen — lọc VaiTro === 'NhapLieu'.
+ ***********************************************************************/
+function layDanhSachCanBoPhuTrach() {
+  try {
+    const ds = docSheet_(TEN_SHEET.PHAN_QUYEN, false);
+    if (!ds || ds.length === 0) return [];
 
+    // Dò tên cột họ tên (phòng khi tiêu đề đổi)
+    const cotUuTien = ['HoTen', 'Họ tên', 'HoVaTen', 'TenNhanVien', 'Ten'];
+    const cacCot = Object.keys(ds[0]);
+    let cotTen = '';
+    for (let i = 0; i < cotUuTien.length; i++) {
+      if (cacCot.indexOf(cotUuTien[i]) > -1) { cotTen = cotUuTien[i]; break; }
+    }
+    if (!cotTen) return [];
+
+    const tap = {};
+    ds.forEach(function (r) {
+      const vaiTro = String(r.VaiTro || '').trim();
+      if (vaiTro !== 'NhapLieu') return;              // ← chỉ giữ NhapLieu
+      const t = String(r[cotTen] || '').trim();
+      if (t) tap[t] = true;
+    });
+
+    return Object.keys(tap).sort(function (a, b) {
+      return a.localeCompare(b, 'vi');
+    });
+  } catch (err) {
+    return [];
+  }
+}
   const nhaXuong  = docSheet_(TEN_SHEET.NHA_XUONG, true);
   const cum       = docSheet_(TEN_SHEET.CUM, true);
   const trangThai = docSheet_(TEN_SHEET.TRANG_THAI, true);
@@ -408,7 +444,7 @@ function capNhatNhaXuong(maDonVi, duLieuMoi, phien, hoTenPhu) {
   if (!p.hopLe) {
     throw new Error('Phiên làm việc đã hết hiệu lực. Vui lòng đăng nhập lại.');
   }
-  if (p.vaiTro !== 'QuanTri' && p.vaiTro !== 'NhapLieu') {
+  if (p.vaiTro !== 'QuanTri' && p.vaiTro !== 'QuanLy' && p.vaiTro !== 'NhapLieu') {
     throw new Error('Tài khoản của bạn (' + p.vaiTro
       + ') không có quyền chỉnh sửa dữ liệu.');
   }

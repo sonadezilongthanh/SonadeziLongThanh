@@ -27,12 +27,23 @@ let DA_GAN_GIAO_DIEN = false;
 /** Quyền sửa hiệu lực — do SERVER xác nhận qua vai trò của tài khoản */
 function duocPhepSua() {
   const vt = PHIEN_SUA.vaiTro || NGUOI_DUNG.vaiTro;
-  return !!(NGUOI_DUNG.duocSua || vt === 'QuanTri' || vt === 'NhapLieu');
+  return !!(NGUOI_DUNG.duocSua || vt === 'QuanTri' || vt === 'QuanLy' || vt === 'NhapLieu');
 }
 
 /** Có phải tài khoản quản trị không */
 function laQuanTri() {
   return (PHIEN_SUA.vaiTro || NGUOI_DUNG.vaiTro) === 'QuanTri';
+}
+
+/** Có phải tài khoản Quản lý không */
+function laQuanLy() {
+  return (PHIEN_SUA.vaiTro || NGUOI_DUNG.vaiTro) === 'QuanLy';
+}
+
+/** Được xem bảng theo dõi công việc toàn phòng (Quản trị + Quản lý) */
+function xemCongViec() {
+  const vt = PHIEN_SUA.vaiTro || NGUOI_DUNG.vaiTro;
+  return !!(NGUOI_DUNG.xemCongViec || vt === 'QuanTri' || vt === 'QuanLy');
 }
 
 
@@ -135,6 +146,7 @@ function khoiTaoApp(dl) {
   });
 
   capNhatChipVaiTro();
+  capNhatHienThiTabCongViec();   // ★ hiện/ẩn tab Công việc theo vai trò
 
   // Chỉ nạp bộ lọc + gắn sự kiện 1 lần duy nhất
   if (!DA_GAN_GIAO_DIEN) {
@@ -150,7 +162,17 @@ function khoiTaoApp(dl) {
   // ★ GĐ2: nhắc việc của cán bộ đăng nhập (nếu có)
   try { hienToastThongBaoCuaToi(); } catch (e) {}
 }
-
+/** ★ Hiện tab "Công việc" cho Quản trị & Quản lý; ẩn với vai trò khác */
+function capNhatHienThiTabCongViec() {
+  const nut = document.getElementById('nutTabCongViec');
+  if (!nut) return;
+  const hien = (typeof xemCongViec === 'function') && xemCongViec();
+  nut.style.display = hien ? '' : 'none';
+  if (!hien) {
+    const sec = document.getElementById('tab-congViec');
+    if (sec && sec.classList.contains('hien')) chuyenTab('traCuu');
+  }
+}
 /** Cập nhật tên + chip vai trò trên header (nhấn chip để mở menu tài khoản) */
 function capNhatChipVaiTro() {
   const elTen = document.getElementById('tenNguoiDung');
@@ -161,6 +183,7 @@ function capNhatChipVaiTro() {
   let nhan;
   switch (PHIEN_SUA.vaiTro || NGUOI_DUNG.vaiTro) {
     case 'QuanTri':  nhan = '🔑 Quản trị';    break;
+    case 'QuanLy':   nhan = '📋 Quản lý';     break;
     case 'NhapLieu': nhan = '✏️ Nhập liệu';   break;
     case 'ChiXem':   nhan = '👁 Xem nội bộ';  break;
     default:         nhan = 'Chế độ khách';
@@ -801,6 +824,9 @@ function taoHopThoaiQuanLyTK() {
     +         'Khoa (tạm ngưng truy cập).<br>'
     +         'Dòng nền vàng là tài khoản mới đăng ký đang chờ cấp quyền. '
     +         'Sau khi chọn vai trò và trạng thái, bấm <b>Lưu</b> để áp dụng.'
+    +         '<b>Vai trò:</b> QuanTri (toàn quyền, quản lý tài khoản) · '
+    +         'QuanLy (xem + sửa dữ liệu + theo dõi công việc toàn phòng) · '
+    +         'NhapLieu (xem + sửa dữ liệu) · ChiXem (chỉ tra cứu nội bộ).<br>'
     +       '</p>'
     +     '</div>'
     +   '</div>'
@@ -851,7 +877,7 @@ function veBangTaiKhoan(ds) {
     return;
   }
 
-  const VAI_TRO   = ['QuanTri', 'NhapLieu', 'ChiXem'];
+  const VAI_TRO   = ['QuanTri', 'QuanLy', 'NhapLieu', 'ChiXem'];
   const TRANG_THAI = ['ChoDuyet', 'HoatDong', 'Khoa'];
 
   let html = '<tr><th>Họ tên / Email</th><th>Vai trò</th><th>Trạng thái</th>'
@@ -1207,6 +1233,8 @@ function chuyenTab(tenTab) {
     b.classList.remove('dang-chon');
   });
   document.querySelector('[data-tab="' + tenTab + '"]').classList.add('dang-chon');
+
+  if (tenTab === 'congViec' && typeof renderCongViec === 'function') renderCongViec();
 }
 
 
