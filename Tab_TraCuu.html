@@ -133,7 +133,8 @@ const COT_CHUNG_SAU = [
 
 /** B — Chỉ Nhà xưởng */
 const COT_RIENG_NHA_XUONG = [
-  ['DT xưởng thuê (m²)',     function (nx) { return dinhDangSo(nx.DienTichXuong_m2, ''); },  'dientichgia'],
+  ['DT nhà xưởng (m²)',      function (nx) { return dinhDangSo(nx.DienTichXuong_m2, ''); },  'dientichgia'],
+  ['DT văn phòng (m²)',      function (nx) { return dinhDangSo(nx.DienTichVanPhong, ''); },  'dientichgia'],
   ['DT khu đất (m²)',        function (nx) { return dinhDangSo(nx.DienTichKhuDat_m2, ''); }, 'dientichgia'],
   ['Tiền thuê xưởng (USD)',  function (nx) { return ghepGiaPT(nx['TienThueXuong - DonGia (USD)'], nx['TienThueXuong - PTThanhToan']); }, 'dientichgia']
 ];
