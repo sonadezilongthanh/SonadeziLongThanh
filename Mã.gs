@@ -67,6 +67,7 @@ const COT_AN_KHACH_CHUNG = [
   'GhiChu',
   'Ghi chú',
   'NguoiPhuTrach',
+  'TrangThaiRaSoat',
   'TangHoa',
   'GhiChuTangHoa'
 ];

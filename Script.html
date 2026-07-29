@@ -1402,6 +1402,7 @@ function moPanelChiTiet(ma) {
     html += dongTT('Giấy chứng nhận doanh nghiệp', nx.GiayCNDN);
     html += dongTT('Ngày thành lập',        nx.NgayThanhLap);   // ★ V2.8
     html += dongTT('Cán bộ phụ trách',      tenCanBo(nx.NguoiPhuTrach));
+    html += dongTT('Trạng thái rà soát',    nx.TrangThaiRaSoat);
     html += dongTT('Tặng hoa kỷ niệm',      nx.TangHoa);
     html += dongTT('Ghi chú tặng hoa',      nx.GhiChuTangHoa);
     html += '<div class="tieu-de-nhom">A2. Bản thỏa thuận &amp; Hợp đồng <small>(dùng chung)</small></div>';
@@ -1638,6 +1639,11 @@ function moHopThoaiSua(ma) {
   _ganO('suaGiayCNDN',      nx.GiayCNDN);
   _ganO('suaNgayThanhLap',  nx.NgayThanhLap);        // ★ V2.8
   napChonCanBo(nx.NguoiPhuTrach);                    // ★ đổ danh sách + chọn cán bộ
+
+  // ★ Trạng thái rà soát — <select> nên gán bằng chuỗi đã chuẩn hoá,
+  //   giá trị lạ (không có trong danh sách option) sẽ tự về "— Chưa rà soát —".
+  const selRaSoat = _o('suaTrangThaiRaSoat');
+  if (selRaSoat) selRaSoat.value = String(nx.TrangThaiRaSoat || '').trim();
   _ganO('suaTangHoa',        nx.TangHoa);
   _ganO('suaGhiChuTangHoa',  nx.GhiChuTangHoa);
   _ganO('suaBTTSo',         nx['BanThoaThuan - So']);
@@ -1717,6 +1723,7 @@ function luuThayDoi() {
   _layO(duLieuMoi, 'GiayCNDN',                  'suaGiayCNDN');
   _layO(duLieuMoi, 'NgayThanhLap',              'suaNgayThanhLap');   // ★ V2.8
   _layO(duLieuMoi, 'NguoiPhuTrach',             'suaNguoiPhuTrach');  // ★ phụ trách
+  _layO(duLieuMoi, 'TrangThaiRaSoat',           'suaTrangThaiRaSoat');// ★ rà soát
   _layO(duLieuMoi, 'TangHoa',                   'suaTangHoa');
   _layO(duLieuMoi, 'GhiChuTangHoa',             'suaGhiChuTangHoa');
   _layO(duLieuMoi, 'BanThoaThuan - So',         'suaBTTSo');
