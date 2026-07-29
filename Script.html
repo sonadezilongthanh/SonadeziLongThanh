@@ -46,6 +46,13 @@ function xemCongViec() {
   return !!(NGUOI_DUNG.xemCongViec || vt === 'QuanTri' || vt === 'QuanLy');
 }
 
+/** Chế độ khách — chưa đăng nhập hoặc vai trò 'Khach'.
+ *  Khách: KHÔNG xuất Excel, KHÔNG soạn/gửi thông tin chào thuê; chỉ xem brochure. */
+function laKhach() {
+  const vt = PHIEN_SUA.vaiTro || NGUOI_DUNG.vaiTro;
+  return (!PHIEN_SUA.token) || vt === 'Khach' || (NGUOI_DUNG && NGUOI_DUNG.nhanDienDuoc === false);
+}
+
 
 /***********************************************************************
  * TIỆN ÍCH THAO TÁC AN TOÀN VỚI Ô NHẬP
@@ -196,6 +203,10 @@ function capNhatChipVaiTro() {
     el.style.cursor = 'pointer';
     el.onclick = function (ev) { moMenuTaiKhoan(ev); };
   }
+
+  // ★ Chế độ khách: ẩn nút Xuất Excel (không được xuất dữ liệu)
+  const nutXuat = document.getElementById('nutXuatExcel');
+  if (nutXuat) nutXuat.style.display = laKhach() ? 'none' : '';
 }
 
 
@@ -1179,6 +1190,10 @@ function apDungBoLoc() {
 }
 
 function xuatExcel() {
+  if (laKhach()) {
+    alert('Chế độ khách không được xuất dữ liệu ra Excel. Vui lòng đăng nhập bằng tài khoản nội bộ.');
+    return;
+  }
   if (!KET_QUA_LOC || KET_QUA_LOC.length === 0) {
     alert('Không có dữ liệu để xuất. Vui lòng lọc trước khi xuất.');
     return;
@@ -1215,7 +1230,7 @@ function xuatExcel() {
       if (cuaSo) cuaSo.close();
       alert('Lỗi khi xuất Excel: ' + loi.message);
     })
-    .xuatExcelTraCuu(tieuDe, duLieu);
+    .xuatExcelTraCuu(tieuDe, duLieu, { token: PHIEN_SUA.token });
 }
 
 
@@ -1854,7 +1869,18 @@ function moBrochure(ma) {
     }).join('');
   }
 
-  soanTinNhan();
+  // ★ Phân quyền: khách chỉ XEM brochure, không soạn/gửi thông tin chào thuê
+  const khoiGui = document.getElementById('bcKhoiSoanGui');
+  const tdTaiLieu = document.getElementById('bcTieuDeTaiLieu');
+  if (laKhach()) {
+    if (khoiGui) khoiGui.style.display = 'none';
+    if (tdTaiLieu) tdTaiLieu.textContent = 'Tài liệu brochure';
+  } else {
+    if (khoiGui) khoiGui.style.display = '';
+    if (tdTaiLieu) tdTaiLieu.textContent = 'Chọn tài liệu gửi khách';
+    soanTinNhan();
+  }
+
   document.getElementById('hopThoaiBrochure').classList.remove('an');
 }
 

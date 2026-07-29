@@ -787,7 +787,17 @@ function menuDoDungLuong() {
 /***********************************************************************
  * XUẤT EXCEL KẾT QUẢ TRA CỨU
  ***********************************************************************/
-function xuatExcelTraCuu(tieuDe, duLieu) {
+function xuatExcelTraCuu(tieuDe, duLieu, phien) {
+  // ★ Phân quyền TỪ SERVER: chế độ khách không được xuất Excel
+  phien = phien || {};
+  let p;
+  try { p = layPhienTuToken_(phien.token); }
+  catch (err) { p = { hopLe: false, vaiTro: 'Khach' }; }
+  const vaiTro = p.hopLe ? String(p.vaiTro || '').trim() : 'Khach';
+  if (vaiTro === 'Khach') {
+    throw new Error('Chế độ khách không được xuất dữ liệu ra Excel.');
+  }
+
   const thoiDiem = Utilities.formatDate(new Date(), 'GMT+7', 'yyyyMMdd_HHmmss');
   const ss = SpreadsheetApp.create('TraCuu_KCN_LongThanh_' + thoiDiem);
   const sheet = ss.getSheets()[0];

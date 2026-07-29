@@ -394,27 +394,30 @@
 
     <div class="ht-than">
 
-      <div class="tieu-de-nhom" style="margin-top:0">Chọn tài liệu gửi khách</div>
+      <div class="tieu-de-nhom" id="bcTieuDeTaiLieu" style="margin-top:0">Chọn tài liệu gửi khách</div>
       <div class="bc-ds" id="bcDanhSach"></div>
 
-      <div class="tieu-de-nhom">Nội dung tin nhắn</div>
-      <textarea id="bcTinNhan" rows="14"></textarea>
-      <p class="bc-goi-y">
-        💡 Có thể chỉnh sửa trực tiếp nội dung trên trước khi gửi.
-        Mẫu tin lấy từ ô <b>MauTinNhanZalo</b> trong sheet <b>DM_CauHinh</b>.
-      </p>
+      <!-- ★ Khối soạn & gửi thông tin chào thuê — ẩn với chế độ khách -->
+      <div id="bcKhoiSoanGui">
+        <div class="tieu-de-nhom">Nội dung tin nhắn</div>
+        <textarea id="bcTinNhan" rows="14"></textarea>
+        <p class="bc-goi-y">
+          💡 Có thể chỉnh sửa trực tiếp nội dung trên trước khi gửi.
+          Mẫu tin lấy từ ô <b>MauTinNhanZalo</b> trong sheet <b>DM_CauHinh</b>.
+        </p>
 
-      <div class="tieu-de-nhom">Gửi cho khách hàng</div>
-      <div class="bc-nut">
-        <button class="nut nut-chinh"    onclick="saoChepTinNhan()">📋 Sao chép</button>
-        <button class="nut nut-zalo"     onclick="chiaSeHeThong()">📱 Chia sẻ</button>
-        <button class="nut nut-zalo"     onclick="moZaloWeb()">💬 Mở Zalo Web</button>
-        <button class="nut nut-brochure" onclick="hienMaQR()">🔳 Tạo mã QR</button>
-      </div>
+        <div class="tieu-de-nhom">Gửi cho khách hàng</div>
+        <div class="bc-nut">
+          <button class="nut nut-chinh"    onclick="saoChepTinNhan()">📋 Sao chép</button>
+          <button class="nut nut-zalo"     onclick="chiaSeHeThong()">📱 Chia sẻ</button>
+          <button class="nut nut-zalo"     onclick="moZaloWeb()">💬 Mở Zalo Web</button>
+          <button class="nut nut-brochure" onclick="hienMaQR()">🔳 Tạo mã QR</button>
+        </div>
 
-      <div class="bc-qr an" id="bcKhungQR">
-        <img id="bcAnhQR" alt="Mã QR tài liệu">
-        <p>Đưa khách quét mã để mở tài liệu đầu tiên trong danh sách.</p>
+        <div class="bc-qr an" id="bcKhungQR">
+          <img id="bcAnhQR" alt="Mã QR tài liệu">
+          <p>Đưa khách quét mã để mở tài liệu đầu tiên trong danh sách.</p>
+        </div>
       </div>
 
       <div class="thong-bao" id="bcThongBao"></div>

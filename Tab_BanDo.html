@@ -286,9 +286,9 @@ function tinhDanhSachCanhBao_() {
  *    (1) Cột NgayThanhLap  — CỘT MỚI, cần bổ sung vào sheet DS_NhaXuong,
  *                            nhập dạng dd/MM/yyyy. Đây là nguồn chính xác nhất.
  *    (2) Ngày ĐẦU TIÊN tìm thấy trong cột GiayCNDN (Giấy CN đăng ký doanh nghiệp)
- *    (3) Ngày ĐẦU TIÊN tìm thấy trong cột GiayCNDT (Giấy CN đầu tư)
- *  Trường hợp (2)(3) chỉ là SUY RA từ văn bản — có thể là ngày đăng ký thay đổi
+ *  Trường hợp (2) chỉ là SUY RA từ văn bản — có thể là ngày đăng ký thay đổi
  *  chứ không phải ngày thành lập gốc -> hiển thị kèm ghi chú "cần đối chiếu".
+ *  KHÔNG dùng Giấy CNĐT (GiayCNDT) làm nguồn kỷ niệm ngày thành lập.
  *
  *  Nhiều lô cùng một khách thuê (VD Framas có 4 nhà xưởng) chỉ tính 1 lần.
  ***********************************************************************/
@@ -300,9 +300,6 @@ function docNgayThanhLap_(nx) {
 
   d = docNgay_(nx.GiayCNDN);
   if (d) return { ngay: d, suyRa: 'suy ra từ Giấy CNĐKDN — cần đối chiếu' };
-
-  d = docNgay_(nx.GiayCNDT);
-  if (d) return { ngay: d, suyRa: 'suy ra từ Giấy CNĐT — cần đối chiếu' };
 
   return null;
 }
@@ -537,8 +534,8 @@ function moModalSinhNhat() {
   noiDung.innerHTML = ds.length === 0
     ? '<p class="rong-canh-bao">Trong 1 tháng tới không có khách thuê nào kỷ niệm ngày thành lập.<br>'
       + '<small>Ngày thành lập lấy từ cột <b>NgayThanhLap</b> (dd/MM/yyyy) của sheet '
-      + 'DS_NhaXuong. Nếu cột này trống, hệ thống tạm suy ra từ <b>GiayCNDN</b> / '
-      + '<b>GiayCNDT</b> và ghi chú "cần đối chiếu".</small></p>'
+      + 'DS_NhaXuong. Nếu cột này trống, hệ thống tạm suy ra từ <b>GiayCNDN</b> '
+      + '(Giấy CN đăng ký doanh nghiệp) và ghi chú "cần đối chiếu".</small></p>'
     : '<table class="bang-canh-bao"><thead><tr>'
       + '<th>Khách thuê</th><th>Ngày thành lập</th><th>Kỷ niệm</th>'
       + '<th>Ngày tổ chức</th><th>Còn lại</th>'
