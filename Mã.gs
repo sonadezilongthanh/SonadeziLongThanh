@@ -95,6 +95,14 @@ const COT_AN_KHACH_RIENG_DAT = [
 
 const COT_AN_KHACH_NHA_XUONG = COT_AN_KHACH_CHUNG.concat(COT_AN_KHACH_RIENG_NHA_XUONG);
 const COT_AN_KHACH_DAT       = COT_AN_KHACH_CHUNG.concat(COT_AN_KHACH_RIENG_DAT);
+/***********************************************************************
+ * ★ LOẠI TÀI LIỆU BỊ ẨN VỚI CHẾ ĐỘ KHÁCH
+ *  Khách (chưa đăng nhập) KHÔNG được xem/tải các loại tài liệu này.
+ *  Server sẽ loại các tài liệu này khỏi DanhSachTaiLieu trước khi gửi
+ *  về trình duyệt → khách không thấy, không có link để mở.
+ *  (Các vai trò đã đăng nhập — kể cả ChiXem — vẫn xem bình thường.)
+ ***********************************************************************/
+const LOAI_TL_AN_KHACH = ['Hợp đồng', 'Khác'];
 
 /***********************************************************************
  * ★★★ CỜ CHẾ ĐỘ THỬ NGHIỆM
@@ -385,6 +393,13 @@ function locDuLieuChoKhach_(ketQua) {
     dsCot.forEach(function (cot) {
       if (cot in nx) nx[cot] = '';
     });
+
+    // ★ Ẩn tài liệu Hợp đồng / Khác với khách (loại khỏi payload gửi về)
+    if (Array.isArray(nx.DanhSachTaiLieu)) {
+      nx.DanhSachTaiLieu = nx.DanhSachTaiLieu.filter(function (tl) {
+        return LOAI_TL_AN_KHACH.indexOf(String(tl.loai).trim()) === -1;
+      });
+    }
   });
   return banSao;
 }
