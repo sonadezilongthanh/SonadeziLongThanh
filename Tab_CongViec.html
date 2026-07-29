@@ -98,13 +98,22 @@
     <button class="cv-lam-moi" id="cvNutLamMoi">🔄 Làm mới</button>
   </div>
 
-  <!-- ★ MỚI — Tiến độ rà soát & nhập liệu (đặt đầu tiên cho dễ theo dõi) -->
+  <!-- Tiến độ nhập liệu (đo mức điền đủ các trường thông tin) -->
   <div class="cv-the">
     <div class="cv-the-dau">
-      <span class="cv-the-ten">📊 Tiến độ rà soát &amp; nhập liệu (theo cán bộ)</span>
+      <span class="cv-the-ten">📊 Tiến độ nhập liệu (theo cán bộ)</span>
       <span class="cv-dem" id="cvDemTienDo">—</span>
     </div>
     <div id="cvBangTienDo"></div>
+  </div>
+
+  <!-- ★ Phương án A — Tiến độ rà soát (đo cột TrangThaiRaSoat = "Đã rà soát") -->
+  <div class="cv-the">
+    <div class="cv-the-dau">
+      <span class="cv-the-ten">🔎 Tiến độ rà soát (theo cán bộ)</span>
+      <span class="cv-dem" id="cvDemRaSoat">—</span>
+    </div>
+    <div id="cvBangRaSoat"></div>
   </div>
 
   <div class="cv-the">
@@ -386,6 +395,90 @@ function _cvVeTienDo(ds) {
   el.innerHTML = html;
 }
 
+/* ★ Phương án A — TIẾN ĐỘ RÀ SOÁT theo cán bộ (đo cột TrangThaiRaSoat).
+   ⚠ Yêu cầu: Sheet DS_NhaXuong phải có cột header "TrangThaiRaSoat".
+   Nếu cột chưa tồn tại, mọi giá trị rỗng → tất cả hiển thị 0% (không gây lỗi). */
+function _cvDaRaSoat(nx) {
+  return String(nx.TrangThaiRaSoat || '').trim().toLowerCase().indexOf('đã rà') > -1;
+}
+
+function _cvRaSoat(locCB) {
+  var nhom = {};
+  (DU_LIEU.nhaXuong || []).forEach(function (nx) {
+    if (_cvDonViBoQua(nx)) return;
+    var email = String(nx.NguoiPhuTrach || '').trim();
+    if (locCB) {
+      var khop = (locCB === '__KHONG__') ? (email === '')
+               : (email.toLowerCase() === locCB.toLowerCase());
+      if (!khop) return;
+    }
+    var khoa = email ? email.toLowerCase() : '__KHONG__';
+    if (!nhom[khoa]) nhom[khoa] = { email: email, dv: [], daRS: 0 };
+    var da = _cvDaRaSoat(nx);
+    nhom[khoa].dv.push({ nx: nx, da: da });
+    if (da) nhom[khoa].daRS++;
+  });
+  var ds = Object.keys(nhom).map(function (k) {
+    var g = nhom[k];
+    g.tong = g.dv.length;
+    g.pct  = g.tong > 0 ? Math.round(g.daRS / g.tong * 100) : 100;
+    g.tenHienThi = g.email ? tenCanBo(g.email) : '(Chưa phân công)';
+    return g;
+  });
+  ds.sort(function (a, b) {
+    var aCP = !a.email, bCP = !b.email;
+    if (aCP !== bCP) return aCP ? 1 : -1;   // "chưa phân công" xuống cuối
+    return a.pct - b.pct;                    // còn lại: % thấp lên trước
+  });
+  return ds;
+}
+
+function _cvVeRaSoat(ds) {
+  var el = document.getElementById('cvBangRaSoat');
+  if (!el) return;
+  if (!ds.length) {
+    var d0 = document.getElementById('cvDemRaSoat');
+    if (d0) d0.textContent = '—';
+    el.innerHTML = '<p class="rong-canh-bao">Chưa có dữ liệu để thống kê.</p>';
+    return;
+  }
+  var daRS = 0, tong = 0;
+  ds.forEach(function (g) { daRS += g.daRS; tong += g.tong; });
+  var pctChung = tong > 0 ? Math.round(daRS / tong * 100) : 100;
+  var dem = document.getElementById('cvDemRaSoat');
+  if (dem) dem.textContent = pctChung + '%';
+
+  var html = '<div class="cvtd-tomtat">'
+    + '<div class="cvtd-o"><div class="so">' + pctChung + '%</div><div class="nhan">Tỷ lệ đã rà soát</div></div>'
+    + '<div class="cvtd-o"><div class="so">' + daRS + '/' + tong + '</div><div class="nhan">Đơn vị đã rà soát</div></div>'
+    + '<div class="cvtd-o"><div class="so">' + ds.length + '</div><div class="nhan">Cán bộ có việc</div></div>'
+    + '</div>';
+
+  ds.forEach(function (g) {
+    var mau = _cvMauPct(g.pct);
+    var chuaDS = g.dv.filter(function (x) { return !x.da; });
+    html += '<div class="cvtd-hang">'
+      + '<div class="cvtd-dau"><span class="cvtd-ten">' + thoat_(g.tenHienThi) + '</span>'
+      + '<span class="cvtd-pct" style="color:' + mau + '">' + g.pct + '%</span></div>'
+      + '<div class="cvtd-phu">' + g.daRS + '/' + g.tong + ' đơn vị đã rà soát'
+      + (chuaDS.length ? ' · còn ' + chuaDS.length + ' đơn vị chưa rà soát' : ' · đã xong ✅') + '</div>'
+      + '<div class="cvtd-bar"><i style="width:' + g.pct + '%;background:' + mau + '"></i></div>';
+    if (chuaDS.length) {
+      html += '<details class="cvtd-chitiet"><summary>Xem đơn vị chưa rà soát (' + chuaDS.length + ') ▾</summary>';
+      chuaDS.forEach(function (x) {
+        var ma  = String(x.nx.MaDonVi || '');
+        var ten = String(x.nx.KhachThue || x.nx.TenNhaXuong || '');
+        html += '<div class="cvtd-dv" onclick="xemTrongBang(\'' + ma.replace(/'/g, "\\'") + '\')">'
+          + '<span class="ma">' + thoat_(ma) + (ten ? ' · ' + thoat_(ten) : '') + '</span>'
+          + '<span class="thieu">chưa rà soát</span></div>';
+      });
+      html += '</details>';
+    }
+    html += '</div>';
+  });
+  el.innerHTML = html;
+}
+
 function _cvNapChonCanBo() {
   if (_CV_DA_NAP_CB) return;
   var sel = document.getElementById('cvChonCanBo');
@@ -418,7 +511,8 @@ function renderCongViec() {
     dsHD  = dsHD.filter(function (d) { return khop(d.nguoiPhuTrach); });
     dsHoa = dsHoa.filter(function (d) { return khop(d.nguoiPhuTrach); });
   }
-  _cvVeTienDo(_cvTienDo(locCB));   // ★ MỚI — tiến độ rà soát & nhập liệu (bỏ qua mốc thời gian)
+  _cvVeTienDo(_cvTienDo(locCB));   // Tiến độ nhập liệu (bỏ qua mốc thời gian)
+  _cvVeRaSoat(_cvRaSoat(locCB));   // ★ Phương án A — Tiến độ rà soát (bỏ qua mốc thời gian)
   _cvVeHopDong(dsHD);
   _cvVeTangHoa(dsHoa);
 }
