@@ -21,6 +21,28 @@
   }
   .khung-bang th:first-child, .khung-bang td[data-nhan="Mã"] { width: 110px; }
 
+  /* ★ V4.1 — Giữ tiêu đề hàng đầu (cuộn dọc) + cột đầu (cuộn ngang) */
+  .khung-bang {
+    overflow: auto;                      /* cuộn cả DỌC và NGANG trong khung */
+    max-height: calc(100vh - 300px);     /* để thanh cuộn ngang luôn trong tầm nhìn — chỉnh số 300 nếu lệch */
+  }
+  .khung-bang thead th {
+    position: sticky; top: 0; z-index: 2;   /* hàng tiêu đề bám khi cuộn dọc */
+  }
+  .khung-bang th:first-child,
+  .khung-bang td:first-child {
+    position: sticky; left: 0; z-index: 1;  /* cột "Mã" bám khi cuộn ngang */
+    background: #fff;
+    box-shadow: 1px 0 0 var(--xam-vien, #e2e8f0);   /* vạch ngăn cột cố định */
+  }
+  .khung-bang thead th:first-child {
+    z-index: 3;                          /* góc giao tiêu đề × cột đầu: trên cùng */
+    background: #eef2f5;
+  }
+  /* Đồng bộ nền cột đầu khi hover / dòng đang sáng */
+  .khung-bang tbody tr:hover td:first-child { background: #f7fafc; }
+  .khung-bang tbody tr.sang  td:first-child { background: #fff7e0 !important; }
+
   /* ★ V3.6 — Thanh bật/tắt nhóm cột */
   .thanh-nhom-cot {
     display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
