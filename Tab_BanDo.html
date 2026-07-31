@@ -358,13 +358,16 @@ function tinhDanhSachSinhNhat_() {
  * CẬP NHẬT BADGE & MỞ / ĐÓNG MODAL
  ***********************************************************************/
 function capNhatBadgeCanhBao() {
+  /* ★ Ẩn hẳn 2 badge cảnh báo với chế độ khách (chưa đăng nhập) */
+  const laKhach = !(NGUOI_DUNG && NGUOI_DUNG.nhanDienDuoc);
+
   /* --- Cảnh báo hợp đồng --- */
   const ds = tinhDanhSachCanhBao_();
   window.__DS_CANH_BAO__ = ds;
 
   const nut = document.getElementById('nutCanhBao');
   if (nut) {
-    nut.classList.remove('an');                    // ★ V2.8: không ẩn nút nữa
+    nut.classList.toggle('an', laKhach);           // ★ khách: ẩn; đăng nhập: hiện
     nut.classList.toggle('rong', ds.length === 0);
     const elSo = document.getElementById('soLuongCanhBao');
     if (elSo) elSo.textContent = ds.length;
@@ -376,7 +379,7 @@ function capNhatBadgeCanhBao() {
 
   const nutSN = document.getElementById('nutSinhNhat');
   if (nutSN) {
-    nutSN.classList.remove('an');
+    nutSN.classList.toggle('an', laKhach);         // ★ khách: ẩn
     nutSN.classList.toggle('rong', dsSN.length === 0);
     const elSoSN = document.getElementById('soLuongSinhNhat');
     if (elSoSN) elSoSN.textContent = dsSN.length;
