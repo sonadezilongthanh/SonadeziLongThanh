@@ -1001,6 +1001,15 @@ function _tenCum(maCum) {
   return (c && c.TenCum) || maCum;
 }
 
+/** Đổi email cán bộ -> Họ tên để hiển thị trong danh sách chọn (dạng thô, chưa escape —
+ *  capNhatOChon() sẽ tự escape). Khác với tenCanBo() vốn trả HTML đã escape sẵn.
+ *  Nếu tài khoản không có DU_LIEU.danhSachCanBo (vd. Khách) thì giữ nguyên email. */
+function _tenCanBoLoc(email) {
+  const ds = (DU_LIEU && DU_LIEU.danhSachCanBo) ? DU_LIEU.danhSachCanBo : [];
+  const cb = ds.filter(function (x) { return x.email === email; })[0];
+  return (cb && cb.hoTen) || email;
+}
+
 /** Diện tích đại diện dùng cho bộ lọc khoảng m² */
 function soM2(nx) {
   const raw = nx.DienTichXuong_m2 || nx['Tong DienTichDatThue (m2)'] || '';
@@ -1026,7 +1035,11 @@ const O_LOC_CHON = [
   { id: 'locThoiHanThue', nhanTatCa: '— Tất cả thời hạn thuê —',
     lay : function (nx) {
             return String(nx.ThoiHanThue || nx.ThoiHanThue_ChiTiet || '').trim();
-          } }
+          } },
+
+  { id: 'locCanBoPhuTrach', nhanTatCa: '— Tất cả cán bộ phụ trách —',
+    lay : function (nx) { return String(nx.NguoiPhuTrach || '').trim(); },
+    hien: _tenCanBoLoc }
 ];
 
 /* Không còn nạp tĩnh danh mục nữa — mọi danh sách đều dựng động theo
