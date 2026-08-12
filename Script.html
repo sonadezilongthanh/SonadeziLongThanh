@@ -1444,13 +1444,8 @@ function moPanelChiTiet(ma) {
     /* ════════ B — CHỈ NHÀ XƯỞNG ════════ */
     if (!laDatCT) {
       html += '<div class="tieu-de-nhom">B. Chi tiết NHÀ XƯỞNG</div>';
-      // Tổng DT thuê xưởng = DT nhà xưởng + DT văn phòng (cơ sở tính đơn giá)
-      var _dtNX = parseFloat(String(nx.DienTichXuong_m2 || '').replace(/,/g, ''));
-      var _dtVP = parseFloat(String(nx.DienTichVanPhong || '').replace(/,/g, ''));
-      var _tongDT = (isNaN(_dtNX) ? 0 : _dtNX) + (isNaN(_dtVP) ? 0 : _dtVP);
       html += dongTT('DT nhà xưởng',         dinhDangSo(nx.DienTichXuong_m2, 'm²'));
       html += dongTT('DT văn phòng',         dinhDangSo(nx.DienTichVanPhong, 'm²'));
-      html += dongTT('DT thuê xưởng (tổng)', _tongDT ? dinhDangSo(_tongDT, 'm²') : '');
       html += dongTT('DT khu đất',           dinhDangSo(nx.DienTichKhuDat_m2, 'm²'));
       html += dongTT('Tiền thuê xưởng',      ghepGiaPT(nx['TienThueXuong - DonGia (USD)'],
                                                        nx['TienThueXuong - PTThanhToan'],
