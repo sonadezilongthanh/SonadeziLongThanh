@@ -508,13 +508,14 @@ function moModalCanhBao() {
       + '<small>Ngày hết hạn được lấy từ cột <b>NgayHetHanHD</b>, hoặc suy ra từ '
       + '<b>ThoiHanThue</b> / <b>NgayHopDong</b> của sheet DS_NhaXuong.</small></p>'
     : '<table class="bang-canh-bao"><thead><tr>'
-      + '<th>Mã lô</th><th>Tên</th><th>Khách thuê</th><th>Hết hạn</th><th>Còn lại</th>'
+      + '<th>Mã lô</th><th>Tên</th><th>Khách thuê</th><th>Người phụ trách</th><th>Hết hạn</th><th>Còn lại</th>'
       + '</tr></thead><tbody>'
       + ds.map(function (d) {
           return '<tr class="' + (d.soNgay <= 30 ? 'khan-cap' : '') + '" '
                + 'onclick="dongModalCanhBao();highlightLoDat(\'' + d.ma + '\');">'
                + '<td>' + thoat_(d.ma) + '</td><td>' + thoat_(d.ten) + '</td>'
                + '<td>' + thoat_(d.khachThue) + '</td>'
+               + '<td>' + thoat_(d.nguoiPhuTrach || '—') + '</td>'
                + '<td>' + dinhDangNgay_(d.ngayHetHan)
                +   (d.suyRa ? '<br><span class="suy-ra">(' + d.suyRa + ')</span>' : '')
                + '</td><td>' + d.soNgay + ' ngày</td></tr>';
@@ -540,7 +541,7 @@ function moModalSinhNhat() {
       + 'DS_NhaXuong. Nếu cột này trống, hệ thống tạm suy ra từ <b>GiayCNDN</b> '
       + '(Giấy CN đăng ký doanh nghiệp) và ghi chú "cần đối chiếu".</small></p>'
     : '<table class="bang-canh-bao"><thead><tr>'
-      + '<th>Khách thuê</th><th>Ngày thành lập</th><th>Kỷ niệm</th>'
+      + '<th>Khách thuê</th><th>Người phụ trách</th><th>Ngày thành lập</th><th>Kỷ niệm</th>'
       + '<th>Ngày tổ chức</th><th>Còn lại</th>'
       + '</tr></thead><tbody>'
       + ds.map(function (d, i) {
@@ -548,6 +549,7 @@ function moModalSinhNhat() {
                + 'onclick="chonMucSinhNhat_(' + i + ')">'
                + '<td>' + thoat_(d.khachThue)
                +   '<br><span class="suy-ra">Lô: ' + thoat_(d.dsMa.join(', ')) + '</span></td>'
+               + '<td>' + thoat_(d.nguoiPhuTrach || '—') + '</td>'
                + '<td>' + dinhDangNgay_(d.ngayThanhLap)
                +   (d.suyRa ? '<br><span class="suy-ra">(' + d.suyRa + ')</span>' : '')
                + '</td>'

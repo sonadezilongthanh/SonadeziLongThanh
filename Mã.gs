@@ -116,6 +116,11 @@ const CHE_DO_THU_NGHIEM = false;
  * ĐIỂM VÀO WEB APP
  ***********************************************************************/
 function doGet(e) {
+  if (e && e.parameter && e.parameter.json) {
+  const cells = docSheet_('DS_NhaXuong', false);   // đã map theo tiêu đề cột sẵn
+  return ContentService.createTextOutput(JSON.stringify(cells))
+    .setMimeType(ContentService.MimeType.JSON);
+}
   return HtmlService.createTemplateFromFile('Index')
     .evaluate()
     .setTitle('KCN Long Thành')

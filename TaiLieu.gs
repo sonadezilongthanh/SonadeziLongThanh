@@ -19,7 +19,7 @@ const TL_ID_THU_MUC = '1C3KqfsBB6yuG7Ok3Es_jk9-NabfRLzCh';
 // --- Bản sao dự phòng (chỉ dùng khi không thấy khai báo trong Mã.gs) ---
 const TL_ID_SHEET_DUPHONG = '1hL3_avZm09wgM3MXrJ4CEjRRHhi-6Q9w_iBHsGVxGwE';
 
-const TL_KICH_THUOC_TOI_DA_MB = 20;
+const TL_KICH_THUOC_TOI_DA_MB = 40;
 const TL_DUOI_CHO_PHEP = [
   'pdf', 'jpg', 'jpeg', 'png', 'webp', 'gif',
   'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'dwg', 'zip'
