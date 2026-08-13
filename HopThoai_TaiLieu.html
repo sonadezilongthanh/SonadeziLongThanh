@@ -76,7 +76,14 @@
           <option>Hợp đồng</option>
           <option>Khác</option>
         </select>
+        <button class="nut nut-nhat" style="white-space:nowrap" type="button"
+                onclick="tlChiaSeThuMuc()">📁 Lấy link thư mục</button>
       </div>
+      <p class="bc-goi-y" style="margin-top:-4px">
+        💡 Bấm "Lấy link thư mục" để lấy 1 liên kết xem toàn bộ tài liệu thuộc loại đang chọn
+        (khách mở/tải trực tiếp trên điện thoại) — dùng thay cho việc nén .zip gửi khách,
+        phù hợp nhất khi gửi nhiều <b>Hình ảnh</b>.
+      </p>
 
       <div id="tlVungTha" class="tl-tha"
            onclick="document.getElementById('tlChonTep').click()"
@@ -179,6 +186,8 @@ function tlNhanTep(dsTep) {
   tb.className = 'thong-bao';
   tb.textContent = '';
 
+  let coZip = false;
+
   Array.prototype.forEach.call(dsTep, function (f) {
     if (f.size > 30 * 1024 * 1024) {
       tb.className = 'thong-bao loi';
@@ -186,6 +195,7 @@ function tlNhanTep(dsTep) {
                      + (f.size / 1048576).toFixed(1) + ' MB, vượt giới hạn 30 MB.';
       return;
     }
+    if (/\.zip$/i.test(f.name)) coZip = true;
     TL_HANG_CHO.push({
       tep       : f,
       ten       : f.name.replace(/\.[^.]+$/, ''),
@@ -194,7 +204,56 @@ function tlNhanTep(dsTep) {
     });
   });
 
+  // ★ Cảnh báo (không chặn tải lên): .zip thường không mở trực tiếp được
+  //   trên điện thoại khách hàng, đặc biệt khi gửi qua Zalo. Chỉ hiện khi
+  //   không có lỗi dung lượng ở trên (tránh ghi đè thông báo lỗi).
+  if (coZip && tb.className === 'thong-bao') {
+    tb.className = 'thong-bao canh-bao';
+    tb.textContent = '⚠ Tệp .zip thường không mở được trực tiếp trên điện thoại khách hàng '
+                    + '(đặc biệt qua Zalo). Nếu là hình ảnh, nên chọn nhiều tệp ảnh riêng lẻ '
+                    + '(dùng "📁 chọn cả thư mục ảnh" phía trên) hoặc chia sẻ liên kết thư mục '
+                    + 'Drive thay vì gửi trực tiếp tệp .zip cho khách.';
+  }
+
   tlVeHangCho();
+}
+
+/** Lấy (tự tạo nếu cần) link chia sẻ cả thư mục theo loại tài liệu —
+ *  dùng thay cho việc nén .zip khi gửi khách. Tự sao chép vào clipboard. */
+function tlChiaSeThuMuc() {
+  if (!TL_MA) return;
+  const loai = document.getElementById('tlLoai').value;
+  const tb   = document.getElementById('tlThongBao');
+  tb.className   = 'thong-bao';
+  tb.textContent = 'Đang lấy liên kết thư mục "' + loai + '"…';
+
+  google.script.run
+    .withSuccessHandler(function (kq) {
+      const baoXong = function () {
+        tb.className = 'thong-bao ok';
+        tb.textContent = '✓ Đã sao chép liên kết thư mục "' + kq.ten + '" ('
+                        + kq.soTep + ' tệp): ' + kq.link
+                        + ' — dán trực tiếp vào Zalo để gửi khách.';
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(kq.link).then(baoXong).catch(function () {
+          tb.className = 'thong-bao ok';
+          tb.textContent = '✓ Liên kết thư mục "' + kq.ten + '" (' + kq.soTep + ' tệp): ' + kq.link;
+        });
+      } else {
+        tb.className = 'thong-bao ok';
+        tb.textContent = '✓ Liên kết thư mục "' + kq.ten + '" (' + kq.soTep + ' tệp): ' + kq.link;
+      }
+    })
+    .withFailureHandler(function (loi) {
+      tb.className = 'thong-bao loi';
+      tb.textContent = '✕ ' + loi.message;
+    })
+    .layLienKetThuMuc({
+      maDonVi : TL_MA,
+      loai    : loai,
+      token   : PHIEN_SUA.token
+    });
 }
 
 /** Vẽ hàng chờ tải lên (tên hiển thị có thể sửa trực tiếp) */

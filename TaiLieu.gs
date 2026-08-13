@@ -298,6 +298,58 @@ function taiLenTaiLieu(tep) {
 
 
 /***********************************************************************
+ * ★ HÀM GỌI TỪ GIAO DIỆN — LẤY / TẠO LIÊN KẾT CHIA SẺ CẢ THƯ MỤC
+ *   Dùng cho PA2: gửi khách nguyên thư mục theo loại tài liệu (vd
+ *   "Hình ảnh") thay vì nén .zip — khách mở thư mục, xem/tải từng
+ *   tệp trực tiếp trên điện thoại, không cần ứng dụng giải nén.
+ *
+ *   ★ Chỉ cấp quyền xem cho ĐÚNG thư mục loại tài liệu (03_Brochure /
+ *     MaCum / MaDonVi / LoaiTaiLieu) — KHÔNG đụng đến thư mục cha
+ *     (MaDonVi, MaCum, gốc 03_Brochure), nên khách không có cách nào
+ *     điều hướng ngược lên để xem đơn vị khác hoặc loại tài liệu khác
+ *     (vd Hợp đồng, Khác) — Drive không cấp quyền lên thư mục cha khi
+ *     chỉ thư mục con được chia sẻ.
+ ***********************************************************************/
+function layLienKetThuMuc(tt) {
+  tt = tt || {};
+
+  // ★ Xác thực bằng token tài khoản, dùng chung cơ chế với taiLenTaiLieu()
+  const p = tlLayPhien_(tt.token, 'chia sẻ thư mục');
+
+  const maDonVi = String(tt.maDonVi || '').trim();
+  if (!maDonVi) throw new Error('Thiếu mã đơn vị.');
+
+  const loai = (TL_LOAI_CHO_PHEP.indexOf(tt.loai) > -1) ? tt.loai : '';
+  if (!loai) throw new Error('Loại tài liệu không hợp lệ.');
+
+  const thuMuc = tlLayThuMucLuu_(maDonVi, loai);
+
+  try {
+    thuMuc.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (e) {
+    throw new Error('Không thể chia sẻ thư mục (tổ chức có thể đã chặn chia sẻ ra ngoài Google Workspace).');
+  }
+
+  const soTep = (function () {
+    let dem = 0;
+    const it = thuMuc.getFiles();
+    while (it.hasNext() && dem < 100) { it.next(); dem++; }
+    return dem;
+  })();
+
+  tlGhiNhatKy_([[new Date(), p.email, maDonVi,
+                 'ChiaSeThuMuc', '', loai + ' — ' + thuMuc.getUrl()]]);
+
+  return {
+    thanhCong : true,
+    ten       : loai,
+    link      : thuMuc.getUrl(),
+    soTep     : soTep
+  };
+}
+
+
+/***********************************************************************
  * ★ HÀM GỌI TỪ GIAO DIỆN — XOÁ 1 TÀI LIỆU
  ***********************************************************************/
 function xoaTaiLieu(tt) {

@@ -14,6 +14,7 @@ let NGUOI_DUNG  = { duocSua: false, laQuanTri: false };
 let MAU_TRANG_THAI = {};   // { "Trống": "#22c55e", ... }
 let KET_QUA_LOC = [];
 let MA_DANG_MO  = null;
+let PANEL_TL_CHON = new Set();   // các FileId đang được tick chọn trong panel chi tiết
 
 const MAU_MAC_DINH = '#94a3b8';
 
@@ -1479,16 +1480,60 @@ function moPanelChiTiet(ma) {
     html += dongTT('Thời gian cập nhật', nx.ThoiGianCapNhat);
   }
 
-  // --- Tài liệu ---
+  // --- Tài liệu — gom theo loại để gọn (chỉ hiện link TỆP LẺ, an toàn) ---
   const dsTL = nx.DanhSachTaiLieu || [];
   if (dsTL.length > 0 || duocPhepSua()) {
     html += '<div class="tieu-de-nhom">Tài liệu đính kèm</div>';
   }
+  const chonDuocTL = duocPhepSua() && dsTL.length > 0;
+  PANEL_TL_CHON = new Set();   // reset lựa chọn mỗi khi mở/đổi đơn vị
+
+  if (chonDuocTL) {
+    html += '<div style="font-size:12px;margin-bottom:6px">'
+          + '<a href="#" onclick="event.preventDefault(); panelChonTatCaTL()">☑️ Chọn tất cả</a>'
+          + ' &nbsp;·&nbsp; '
+          + '<a href="#" onclick="event.preventDefault(); panelBoChonTL()">Bỏ chọn</a>'
+          + '</div>';
+  }
+
+  const nhomTL = {};
+  const thuTuLoaiTL = [];
   dsTL.forEach(function (tl) {
-    html += '<a href="' + tl.link + '" target="_blank" rel="noopener" class="muc-tai-lieu">'
-          + '📄 ' + tl.ten + (tl.loai ? ' <small>(' + tl.loai + ')</small>' : '')
-          + '</a>';
+    const l = tl.loai || 'Khác';
+    if (!nhomTL[l]) { nhomTL[l] = []; thuTuLoaiTL.push(l); }
+    nhomTL[l].push(tl);
   });
+  thuTuLoaiTL.forEach(function (loai, idx) {
+    const idThan = 'panelTLThan_' + idx;
+    html += '<div class="muc-tai-lieu" style="cursor:pointer" '
+          + 'onclick="panelBatMoNhomTL(\'' + idThan + '\', this)">'
+          + '▸ 📁 ' + loai + ' <small>(' + nhomTL[loai].length + ' tệp)</small>'
+          + '</div>';
+    html += '<div id="' + idThan + '" style="display:none;margin-left:14px">';
+    nhomTL[loai].forEach(function (tl) {
+      const id = tlLayId ? tlLayId(tl.link) : '';
+      if (chonDuocTL && id) {
+        html += '<label class="muc-tai-lieu" style="cursor:pointer">'
+              +   '<input type="checkbox" style="margin-right:6px" '
+              +     'onclick="panelChonTL(\'' + id + '\', this.checked)">'
+              +   '<a href="' + tl.link + '" target="_blank" rel="noopener" '
+              +     'onclick="event.stopPropagation()" style="flex:1">📄 ' + tl.ten + '</a>'
+              + '</label>';
+      } else {
+        html += '<a href="' + tl.link + '" target="_blank" rel="noopener" class="muc-tai-lieu">'
+              + '📄 ' + tl.ten + '</a>';
+      }
+    });
+    html += '</div>';
+  });
+  if (chonDuocTL) {
+    html += '<div style="display:flex;align-items:center;gap:10px;margin-top:8px">'
+          + '<span id="panelSoLuongChonTL" style="font-size:12px;color:#64748b">0 tệp đã chọn</span>'
+          + '<button class="nut nut-nhat" id="panelNutGoiTL" disabled '
+          +   'style="margin-left:auto" onclick="panelTaoGoiChonLoc()">'
+          + '📦 Tạo gói &amp; sao chép tin nhắn gửi KH</button>'
+          + '</div>';
+  }
   // ★ V3.3 — nút tải lên / quản lý tài liệu (chỉ hiện với vai trò Quản trị)
   if (duocPhepSua()) {
     html += '<button class="nut nut-nhat" '
@@ -1512,6 +1557,95 @@ function moPanelChiTiet(ma) {
   document.getElementById('panelNoiDung').innerHTML = html;
   document.getElementById('panelChiTiet').classList.remove('an');
   document.getElementById('lopPhu').classList.remove('an');
+}
+
+/** Mở/đóng 1 nhóm loại tài liệu trong panel chi tiết (chỉ đổi hiển thị, không gọi server) */
+function panelBatMoNhomTL(idThan, dongTieuDe) {
+  const than = document.getElementById(idThan);
+  if (!than) return;
+  const dangMo = than.style.display !== 'none';
+  than.style.display = dangMo ? 'none' : 'block';
+  dongTieuDe.textContent = dongTieuDe.textContent.replace(
+    dangMo ? '▾' : '▸', dangMo ? '▸' : '▾');
+}
+
+/** Tick/bỏ tick 1 tệp trong panel chi tiết */
+function panelChonTL(fileId, checked) {
+  if (checked) PANEL_TL_CHON.add(fileId);
+  else PANEL_TL_CHON.delete(fileId);
+  panelCapNhatSoLuongChonTL();
+}
+
+function panelChonTatCaTL() {
+  const nx = timNhaXuong(MA_DANG_MO);
+  const ds = (nx && nx.DanhSachTaiLieu) ? nx.DanhSachTaiLieu : [];
+  PANEL_TL_CHON = new Set();
+  ds.forEach(function (tl) {
+    const id = tlLayId ? tlLayId(tl.link) : '';
+    if (id) PANEL_TL_CHON.add(id);
+  });
+  document.querySelectorAll('#panelNoiDung input[type="checkbox"]').forEach(function (cb) {
+    cb.checked = true;
+  });
+  panelCapNhatSoLuongChonTL();
+}
+
+function panelBoChonTL() {
+  PANEL_TL_CHON = new Set();
+  document.querySelectorAll('#panelNoiDung input[type="checkbox"]').forEach(function (cb) {
+    cb.checked = false;
+  });
+  panelCapNhatSoLuongChonTL();
+}
+
+function panelCapNhatSoLuongChonTL() {
+  const nhan = document.getElementById('panelSoLuongChonTL');
+  const nut  = document.getElementById('panelNutGoiTL');
+  if (nhan) nhan.textContent = PANEL_TL_CHON.size + ' tệp đã chọn';
+  if (nut)  nut.disabled = PANEL_TL_CHON.size === 0;
+}
+
+/** Đóng gói các tệp đã tick thành 1 file ZIP, sau đó sao chép 1 tin nhắn
+ *  trình bày sẵn (tên đơn vị + danh sách tài liệu + link) để dán gửi KH —
+ *  thay vì chỉ có 1 link Drive trơ trọi, nhìn chuyên nghiệp hơn. */
+function panelTaoGoiChonLoc() {
+  if (PANEL_TL_CHON.size === 0) return;
+  const nut = document.getElementById('panelNutGoiTL');
+  const chuGoc = nut.textContent;
+  nut.disabled = true;
+  nut.textContent = 'Đang đóng gói…';
+
+  google.script.run
+    .withSuccessHandler(function (kq) {
+      nut.disabled = false;
+      nut.textContent = chuGoc;
+
+      const tin = '📎 TÀI LIỆU — ' + kq.tenDonVi + ' (Sonadezi Long Thành)\n'
+                + '────────────────────\n'
+                + kq.dsTen.map(function (t) { return '• ' + t; }).join('\n') + '\n'
+                + '────────────────────\n'
+                + '🔗 Xem/tải: ' + kq.link;
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(tin).catch(function () {
+          window.prompt('Sao chép tin nhắn gửi khách hàng:', tin);
+        });
+      } else {
+        window.prompt('Sao chép tin nhắn gửi khách hàng:', tin);
+      }
+      alert('✓ Đã tạo gói (' + kq.soLuong + ' tệp) và sao chép tin nhắn — dán để gửi khách hàng.');
+    })
+    .withFailureHandler(function (loi) {
+      nut.disabled = false;
+      nut.textContent = chuGoc;
+      alert('✕ ' + loi.message);
+    })
+    .taoGoiZipTuyChon({
+      maDonVi  : MA_DANG_MO,
+      dsFileId : Array.from(PANEL_TL_CHON),
+      token    : PHIEN_SUA.token,
+      hoTen    : PHIEN_SUA.hoTen
+    });
 }
 
 function dongPanel() {

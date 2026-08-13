@@ -185,15 +185,20 @@ function chuanHoaAnhDrive_(link) {
   return id ? ('https://drive.google.com/thumbnail?id=' + id + '&sz=w2400') : s;
 }
 
-/** Chuyển link Drive -> URL xem tài liệu */
+/** Chuyển link Drive -> URL xem tài liệu (tự nhận diện THƯ MỤC vs TỆP) */
 function chuanHoaLinkDrive_(link) {
   if (!link) return '';
   const s = String(link).trim();
   const id = layIdDrive_(s);
-  if (s.indexOf('drive.google.com') > -1 && id) {
-    return 'https://drive.google.com/file/d/' + id + '/view';
+  if (!id || s.indexOf('drive.google.com') < 0) return s;
+
+  // ★ Link THƯ MỤC (album ảnh dùng cho PA2 "Hình ảnh") — giữ nguyên dạng
+  //   xem thư mục. Trước đây bị ép về "/file/d/.../view" khiến Drive báo lỗi
+  //   vì ID đó là ID thư mục, không phải ID tệp.
+  if (/\/folders\//.test(s)) {
+    return 'https://drive.google.com/drive/folders/' + id;
   }
-  return s;
+  return 'https://drive.google.com/file/d/' + id + '/view';
 }
 
 /***********************************************************************
