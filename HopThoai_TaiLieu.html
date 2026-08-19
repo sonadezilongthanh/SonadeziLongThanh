@@ -157,7 +157,7 @@ function tlLayId(link) {
   return m ? m[0] : '';
 }
 
-/** Vẽ danh sách tài liệu hiện có của đơn vị */
+/** Vẽ danh sách tài liệu hiện có của đơn vị — gom theo loại, dạng thư mục gấp/mở */
 function tlVeDanhSach() {
   const nx  = timNhaXuong(TL_MA);
   const ds  = (nx && nx.DanhSachTaiLieu) ? nx.DanhSachTaiLieu : [];
@@ -168,16 +168,42 @@ function tlVeDanhSach() {
     return;
   }
 
-  khu.innerHTML = ds.map(function (t) {
-    const id = tlLayId(t.link);
-    return '<div class="tl-muc">'
-         +   '<span class="tl-ten">📄 ' + t.ten + '</span>'
-         +   (t.loai ? '<span class="tl-nhan">' + t.loai + '</span>' : '')
-         +   '<a class="tl-xem" href="' + t.link + '" target="_blank" rel="noopener">Xem ↗</a>'
-         +   (id ? '<button class="tl-xoa" title="Xoá tài liệu" '
-         +          'onclick="tlXoa(\'' + id + '\')">🗑</button>' : '')
-         + '</div>';
+  const nhom = {};
+  const thuTuLoai = [];
+  ds.forEach(function (t) {
+    const l = t.loai || 'Khác';
+    if (!nhom[l]) { nhom[l] = []; thuTuLoai.push(l); }
+    nhom[l].push(t);
+  });
+
+  khu.innerHTML = thuTuLoai.map(function (loai, idx) {
+    const idThan = 'tlThan_' + idx;
+    const than = nhom[loai].map(function (t) {
+      const id = tlLayId(t.link);
+      return '<div class="tl-muc">'
+           +   '<span class="tl-ten">📄 ' + t.ten + '</span>'
+           +   '<a class="tl-xem" href="' + t.link + '" target="_blank" rel="noopener">Xem ↗</a>'
+           +   (id ? '<button class="tl-xoa" title="Xoá tài liệu" '
+           +          'onclick="tlXoa(\'' + id + '\')">🗑</button>' : '')
+           + '</div>';
+    }).join('');
+
+    return '<div class="tl-muc" style="cursor:pointer" onclick="tlBatMoNhom(\'' + idThan + '\', this)">'
+         +   '▸ 📁 ' + loai + ' (' + nhom[loai].length + ' tệp)'
+         + '</div>'
+         + '<div id="' + idThan + '" style="display:none;margin-left:14px;margin-bottom:6px">'
+         + than + '</div>';
   }).join('');
+}
+
+/** Mở/đóng 1 nhóm loại tài liệu trong danh sách "Tài liệu hiện có" */
+function tlBatMoNhom(idThan, dongTieuDe) {
+  const than = document.getElementById(idThan);
+  if (!than) return;
+  const dangMo = than.style.display !== 'none';
+  than.style.display = dangMo ? 'none' : 'block';
+  dongTieuDe.textContent = dongTieuDe.textContent.replace(
+    dangMo ? '▾' : '▸', dangMo ? '▸' : '▾');
 }
 
 /** Nhận tệp từ hộp chọn hoặc kéo – thả */

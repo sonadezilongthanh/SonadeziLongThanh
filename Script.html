@@ -1531,7 +1531,7 @@ function moPanelChiTiet(ma) {
           + '<span id="panelSoLuongChonTL" style="font-size:12px;color:#64748b">0 tệp đã chọn</span>'
           + '<button class="nut nut-nhat" id="panelNutGoiTL" disabled '
           +   'style="margin-left:auto" onclick="panelTaoGoiChonLoc()">'
-          + '📦 Tạo gói &amp; sao chép tin nhắn gửi KH</button>'
+          + '📋 Sao chép tin nhắn gửi KH</button>'
           + '</div>';
   }
   // ★ V3.3 — nút tải lên / quản lý tài liệu (chỉ hiện với vai trò Quản trị)
@@ -1605,47 +1605,36 @@ function panelCapNhatSoLuongChonTL() {
   if (nut)  nut.disabled = PANEL_TL_CHON.size === 0;
 }
 
-/** Đóng gói các tệp đã tick thành 1 file ZIP, sau đó sao chép 1 tin nhắn
- *  trình bày sẵn (tên đơn vị + danh sách tài liệu + link) để dán gửi KH —
- *  thay vì chỉ có 1 link Drive trơ trọi, nhìn chuyên nghiệp hơn. */
+/** Soạn tin nhắn liệt kê các tệp đã tick trong panel chi tiết (tên + link
+ *  xem trực tiếp từng tệp) rồi sao chép để dán gửi khách qua Zalo.
+ *  ★ KHÔNG nén ZIP — các tệp đã có sẵn link xem/tải riêng (đã setSharing
+ *  khi tải lên), khách mở trực tiếp trên điện thoại, không cần giải nén. */
 function panelTaoGoiChonLoc() {
   if (PANEL_TL_CHON.size === 0) return;
-  const nut = document.getElementById('panelNutGoiTL');
-  const chuGoc = nut.textContent;
-  nut.disabled = true;
-  nut.textContent = 'Đang đóng gói…';
+  const nx = timNhaXuong(MA_DANG_MO);
+  if (!nx) return;
 
-  google.script.run
-    .withSuccessHandler(function (kq) {
-      nut.disabled = false;
-      nut.textContent = chuGoc;
+  const dsChon = (nx.DanhSachTaiLieu || []).filter(function (tl) {
+    return PANEL_TL_CHON.has(tlLayId(tl.link));
+  });
+  if (dsChon.length === 0) return;
 
-      const tin = '📎 TÀI LIỆU — ' + kq.tenDonVi + ' (Sonadezi Long Thành)\n'
-                + '────────────────────\n'
-                + kq.dsTen.map(function (t) { return '• ' + t; }).join('\n') + '\n'
-                + '────────────────────\n'
-                + '🔗 Xem/tải: ' + kq.link;
+  const tin = '📎 TÀI LIỆU — ' + (nx.TenNhaXuong || MA_DANG_MO) + ' (Sonadezi Long Thành)\n'
+            + '────────────────────\n'
+            + dsChon.map(function (t) { return '• ' + t.ten + ':\n' + t.link; }).join('\n')
+            + '\n────────────────────';
 
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(tin).catch(function () {
-          window.prompt('Sao chép tin nhắn gửi khách hàng:', tin);
-        });
-      } else {
-        window.prompt('Sao chép tin nhắn gửi khách hàng:', tin);
-      }
-      alert('✓ Đã tạo gói (' + kq.soLuong + ' tệp) và sao chép tin nhắn — dán để gửi khách hàng.');
-    })
-    .withFailureHandler(function (loi) {
-      nut.disabled = false;
-      nut.textContent = chuGoc;
-      alert('✕ ' + loi.message);
-    })
-    .taoGoiZipTuyChon({
-      maDonVi  : MA_DANG_MO,
-      dsFileId : Array.from(PANEL_TL_CHON),
-      token    : PHIEN_SUA.token,
-      hoTen    : PHIEN_SUA.hoTen
+  const baoXong = function () {
+    alert('✓ Đã sao chép tin nhắn (' + dsChon.length + ' tệp) — dán để gửi khách hàng qua Zalo.');
+  };
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(tin).then(baoXong).catch(function () {
+      window.prompt('Sao chép tin nhắn gửi khách hàng:', tin);
     });
+  } else {
+    window.prompt('Sao chép tin nhắn gửi khách hàng:', tin);
+  }
 }
 
 function dongPanel() {
@@ -2008,14 +1997,36 @@ function moBrochure(ma) {
       '<div class="canh-bao">⚠ Đơn vị này chưa có tài liệu nào. '
       + 'Bổ sung tại sheet <b>DS_TaiLieu</b> hoặc cột <b>LinkBrochure</b>.</div>';
   } else {
-    document.getElementById('bcDanhSach').innerHTML = ds.map(function (t, i) {
-      return '<label class="bc-muc">'
-           + '<input type="checkbox" class="bc-chon" data-i="' + i + '" checked '
-           +   'onchange="soanTinNhan()">'
-           + '<span class="bc-ten">📄 ' + t.ten + '</span>'
-           + (t.loai ? '<span class="bc-loai">' + t.loai + '</span>' : '')
-           + '<a href="' + t.link + '" target="_blank" rel="noopener" class="bc-xem">Xem ↗</a>'
-           + '</label>';
+    // ★ Gom theo loại, hiển thị dạng thư mục gấp/mở (đồng bộ kiểu với panel chi tiết)
+    //   — tránh danh sách dài khi có nhiều Hình ảnh. Chỉ số "data-i" vẫn trỏ đúng
+    //   vào mảng ds gốc nên soanTinNhan() không cần đổi gì.
+    const nhom = {};
+    const thuTuLoai = [];
+    ds.forEach(function (t, i) {
+      const l = t.loai || 'Khác';
+      if (!nhom[l]) { nhom[l] = []; thuTuLoai.push(l); }
+      nhom[l].push(i);
+    });
+
+    document.getElementById('bcDanhSach').innerHTML = thuTuLoai.map(function (loai, idxNhom) {
+      const idThan = 'bcThan_' + idxNhom;
+      const than = nhom[loai].map(function (i) {
+        const t = ds[i];
+        return '<label class="bc-muc">'
+             + '<input type="checkbox" class="bc-chon" data-i="' + i + '" checked '
+             +   'onchange="soanTinNhan()">'
+             + '<span class="bc-ten">📄 ' + t.ten + '</span>'
+             + '<a href="' + t.link + '" target="_blank" rel="noopener" class="bc-xem" '
+             +   'onclick="event.stopPropagation()">Xem ↗</a>'
+             + '</label>';
+      }).join('');
+
+      return '<div class="muc-tai-lieu" style="cursor:pointer;margin-bottom:4px" '
+           +   'onclick="bcBatMoNhom(\'' + idThan + '\', this)">'
+           + '▸ 📁 ' + loai + ' (' + nhom[loai].length + ' tệp)'
+           + '</div>'
+           + '<div id="' + idThan + '" style="display:none;margin-left:14px;margin-bottom:8px">'
+           + than + '</div>';
     }).join('');
   }
 
@@ -2036,6 +2047,16 @@ function moBrochure(ma) {
 
 function dongBrochure() {
   document.getElementById('hopThoaiBrochure').classList.add('an');
+}
+
+/** Mở/đóng 1 nhóm loại tài liệu trong hộp thoại Brochure & Chia sẻ */
+function bcBatMoNhom(idThan, dongTieuDe) {
+  const than = document.getElementById(idThan);
+  if (!than) return;
+  const dangMo = than.style.display !== 'none';
+  than.style.display = dangMo ? 'none' : 'block';
+  dongTieuDe.textContent = dongTieuDe.textContent.replace(
+    dangMo ? '▾' : '▸', dangMo ? '▸' : '▾');
 }
 
 /** Gom tài liệu từ DS_TaiLieu + LinkBrochure + brochure chung của KCN */
