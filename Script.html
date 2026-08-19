@@ -156,6 +156,9 @@ function khoiTaoApp(dl) {
   capNhatChipVaiTro();
   capNhatHienThiTabCongViec();   // ★ hiện/ẩn tab Công việc theo vai trò
 
+  // ★ Mặc định luôn mở tab BẢN ĐỒ mỗi khi vào ứng dụng (kể cả sau khi đăng nhập lại)
+  chuyenTab('banDo');
+
   // Chỉ nạp bộ lọc + gắn sự kiện 1 lần duy nhất
   if (!DA_GAN_GIAO_DIEN) {
     napBoLoc();
@@ -1988,7 +1991,6 @@ function moBrochure(ma) {
 
   document.getElementById('bcTenDonVi').textContent = nx.TenNhaXuong || ma;
   document.getElementById('bcThongBao').textContent = '';
-  document.getElementById('bcKhungQR').classList.add('an');
 
   const ds = layDanhSachTaiLieu(nx);
 
@@ -2223,21 +2225,6 @@ function moZaloWeb() {
   saoChepTinNhan();
   window.open('https://chat.zalo.me', '_blank', 'noopener');
   baoBrochure('✓ Đã sao chép nội dung và mở Zalo Web. Chọn khách hàng rồi dán (Ctrl+V).', 'ok');
-}
-
-/* ---------- Mã QR ---------- */
-function hienMaQR() {
-  if (!BC_DON_VI) return;
-  const ds = layDanhSachTaiLieu(BC_DON_VI);
-  if (ds.length === 0) {
-    baoBrochure('⚠ Chưa có tài liệu để tạo mã QR.', 'loi');
-    return;
-  }
-  const link = ds[0].link;
-  document.getElementById('bcAnhQR').src =
-    'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(link);
-  document.getElementById('bcKhungQR').classList.remove('an');
-  baoBrochure('', '');
 }
 
 function baoBrochure(msg, loai) {

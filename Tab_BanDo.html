@@ -1,57 +1,8 @@
 <div class="khung-ban-do">
 
-  <!-- ★ V2.8: HAI NÚT CẢNH BÁO
-       (1) Hợp đồng sắp hết hạn  (2) Kỷ niệm ngày thành lập khách thuê
-       Luôn hiển thị (không tự ẩn) để người dùng biết chức năng vẫn hoạt động -->
-  <div class="hang-canh-bao">
-    <button type="button" class="nut-canh-bao-hopdong rong" id="nutCanhBao" onclick="moModalCanhBao()">
-      🔔 <span id="soLuongCanhBao">0</span> <span class="nhan-chu">hợp đồng sắp hết hạn</span>
-    </button>
-    <button type="button" class="nut-canh-bao-hopdong nut-sinh-nhat rong" id="nutSinhNhat" onclick="moModalSinhNhat()">
-      💐 <span id="soLuongSinhNhat">0</span> <span class="nhan-chu">kỷ niệm thành lập</span>
-    </button>
-    <button type="button" class="nut-canh-bao-hopdong nut-cua-toi rong an" id="nutCuaToi" onclick="moModalCuaToi()">
-      👤 <span id="soLuongCuaToi">0</span> <span class="nhan-chu">việc của tôi</span>
-    </button>
-  </div>
-
-  <!-- MODAL 1: HỢP ĐỒNG SẮP HẾT HẠN -->
-  <div class="modal-canh-bao an" id="modalCanhBao" onclick="if(event.target===this) dongModalCanhBao()">
-    <div class="hop-modal">
-      <div class="dau-modal">
-        <h3>⏰ Hợp đồng sắp hết hạn (trong 6 tháng tới)</h3>
-        <button type="button" class="nut-dong" onclick="dongModalCanhBao()">✕</button>
-      </div>
-      <div class="than-modal" id="noiDungModalCanhBao"></div>
-    </div>
-  </div>
-
-  <!-- ★ V2.8 — MODAL 2: KỶ NIỆM NGÀY THÀNH LẬP KHÁCH THUÊ -->
-  <div class="modal-canh-bao an" id="modalSinhNhat" onclick="if(event.target===this) dongModalSinhNhat()">
-    <div class="hop-modal">
-      <div class="dau-modal dau-hong">
-        <h3>💐 Kỷ niệm ngày thành lập (trong 1 tháng tới)</h3>
-        <button type="button" class="nut-dong" onclick="dongModalSinhNhat()">✕</button>
-      </div>
-      <div class="than-modal" id="noiDungModalSinhNhat"></div>
-      <div class="chan-modal">
-        <button type="button" class="nut-sao-chep" onclick="saoChepDanhSachSinhNhat()">
-          📋 Sao chép danh sách (gửi bộ phận đặt hoa)
-        </button>
-        <span class="bao-sao-chep" id="baoSaoChepSinhNhat"></span>
-      </div>
-    </div>
-  </div>
-  <!-- ★ GĐ2 — MODAL 3: THÔNG BÁO CỦA TÔI (theo cán bộ phụ trách) -->
-  <div class="modal-canh-bao an" id="modalCuaToi" onclick="if(event.target===this) dongModalCuaToi()">
-    <div class="hop-modal">
-      <div class="dau-modal">
-        <h3>👤 Việc cần xử lý của tôi</h3>
-        <button type="button" class="nut-dong" onclick="dongModalCuaToi()">✕</button>
-      </div>
-      <div class="than-modal" id="noiDungModalCuaToi"></div>
-    </div>
-  </div>
+  <!-- ★ V4.2: Cụm nút cảnh báo + 3 modal đã CHUYỂN sang Index.html
+       (nút nằm trên thanh tab, modal nằm ở cấp gốc) để dùng chung cho mọi tab.
+       Phần CSS và JS xử lý vẫn giữ nguyên tại file này. -->
 
   <!-- ĐƯỜNG DẪN -->
   <nav class="duong-dan">
@@ -76,7 +27,9 @@
   /* ★ V2.7: khoá gốc toạ độ cho mọi phần tử absolute bên trong khung bản đồ */
   .khung-ban-do{position:relative}
 
-  .hang-canh-bao{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin:0 0 8px}
+  /* ★ V4.2: cụm nút nằm bên phải THANH TAB (Index.html) */
+  .thanh-tab{align-items:center;flex-wrap:wrap}
+  .hang-canh-bao{display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 6px auto}
   .nut-canh-bao-hopdong{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid #f59e0b;color:#b45309;padding:8px 14px;border-radius:999px;font-weight:600;font-size:13px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12)}
   .nut-canh-bao-hopdong:hover{background:#fffbeb}
   .nut-canh-bao-hopdong.an{display:none !important}

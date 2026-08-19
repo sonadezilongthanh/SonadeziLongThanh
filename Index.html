@@ -90,18 +90,18 @@
 
   <!-- ---------- THANH TAB ---------- -->
   <nav class="thanh-tab">
-    <button class="tab dang-chon" data-tab="traCuu">📋 Tra cứu</button>
-    <button class="tab"           data-tab="banDo">🗺️ Bản đồ</button>
+    <button class="tab"           data-tab="traCuu">📋 Tra cứu</button>
+    <button class="tab dang-chon" data-tab="banDo">🗺️ Bản đồ</button>
     <button class="tab" id="nutTabCongViec" data-tab="congViec" style="display:none">📌 Công việc</button>
   </nav>
 
   <!-- ---------- NỘI DUNG TAB 1: TRA CỨU ---------- -->
-  <section class="noi-dung-tab hien" id="tab-traCuu">
+  <section class="noi-dung-tab an" id="tab-traCuu">
     <?!= include('Tab_TraCuu'); ?>
   </section>
 
   <!-- ---------- NỘI DUNG TAB 2: BẢN ĐỒ ---------- -->
-  <section class="noi-dung-tab an" id="tab-banDo">
+  <section class="noi-dung-tab hien" id="tab-banDo">
     <?!= include('Tab_BanDo'); ?>
   </section>
   
@@ -431,12 +431,6 @@
           <button class="nut nut-chinh"    onclick="saoChepTinNhan()">📋 Sao chép</button>
           <button class="nut nut-zalo"     onclick="chiaSeHeThong()">📱 Chia sẻ</button>
           <button class="nut nut-zalo"     onclick="moZaloWeb()">💬 Mở Zalo Web</button>
-          <button class="nut nut-brochure" onclick="hienMaQR()">🔳 Tạo mã QR</button>
-        </div>
-
-        <div class="bc-qr an" id="bcKhungQR">
-          <img id="bcAnhQR" alt="Mã QR tài liệu">
-          <p>Đưa khách quét mã để mở tài liệu đầu tiên trong danh sách.</p>
         </div>
       </div>
 
