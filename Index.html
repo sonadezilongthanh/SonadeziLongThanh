@@ -67,10 +67,6 @@
       <option value="">— Tất cả quốc tịch —</option>
     </select>
 
-    <select id="locThoiHanThue">
-      <option value="">— Tất cả thời hạn thuê —</option>
-    </select>
-
     <select id="locCanBoPhuTrach">
       <option value="">— Tất cả cán bộ phụ trách —</option>
       <!-- Các option còn lại nạp động theo dữ liệu đang khớp -->
@@ -93,6 +89,21 @@
     <button class="tab"           data-tab="traCuu">📋 Tra cứu</button>
     <button class="tab dang-chon" data-tab="banDo">🗺️ Bản đồ</button>
     <button class="tab" id="nutTabCongViec" data-tab="congViec" style="display:none">📌 Công việc</button>
+
+    <!-- ★ V4.2: CỤM 3 NÚT THÔNG BÁO (nằm bên phải thanh tab, dùng chung mọi tab)
+         (1) Hợp đồng sắp hết hạn  (2) Kỷ niệm thành lập  (3) Việc của tôi
+         CSS + JS xử lý đặt tại Tab_BanDo.html -->
+    <div class="hang-canh-bao">
+      <button type="button" class="nut-canh-bao-hopdong rong" id="nutCanhBao" onclick="moModalCanhBao()">
+        🔔 <span id="soLuongCanhBao">0</span> <span class="nhan-chu">hợp đồng sắp hết hạn</span>
+      </button>
+      <button type="button" class="nut-canh-bao-hopdong nut-sinh-nhat rong" id="nutSinhNhat" onclick="moModalSinhNhat()">
+        💐 <span id="soLuongSinhNhat">0</span> <span class="nhan-chu">kỷ niệm thành lập</span>
+      </button>
+      <button type="button" class="nut-canh-bao-hopdong nut-cua-toi rong an" id="nutCuaToi" onclick="moModalCuaToi()">
+        👤 <span id="soLuongCuaToi">0</span> <span class="nhan-chu">việc của tôi</span>
+      </button>
+    </div>
   </nav>
 
   <!-- ---------- NỘI DUNG TAB 1: TRA CỨU ---------- -->
@@ -110,6 +121,51 @@
     <?!= include('Tab_CongViec'); ?>
   </section>
 
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     ★ V4.2: 3 MODAL THÔNG BÁO — đặt ở CẤP GỐC để không bị ẩn
+     theo thẻ (tab) đang mở.
+     ══════════════════════════════════════════════════════════ -->
+
+<!-- MODAL 1: HỢP ĐỒNG SẮP HẾT HẠN -->
+<div class="modal-canh-bao an" id="modalCanhBao" onclick="if(event.target===this) dongModalCanhBao()">
+  <div class="hop-modal">
+    <div class="dau-modal">
+      <h3>⏰ Hợp đồng sắp hết hạn (trong 6 tháng tới)</h3>
+      <button type="button" class="nut-dong" onclick="dongModalCanhBao()">✕</button>
+    </div>
+    <div class="than-modal" id="noiDungModalCanhBao"></div>
+  </div>
+</div>
+
+<!-- MODAL 2: KỶ NIỆM NGÀY THÀNH LẬP KHÁCH THUÊ -->
+<div class="modal-canh-bao an" id="modalSinhNhat" onclick="if(event.target===this) dongModalSinhNhat()">
+  <div class="hop-modal">
+    <div class="dau-modal dau-hong">
+      <h3>💐 Kỷ niệm ngày thành lập (trong 1 tháng tới)</h3>
+      <button type="button" class="nut-dong" onclick="dongModalSinhNhat()">✕</button>
+    </div>
+    <div class="than-modal" id="noiDungModalSinhNhat"></div>
+    <div class="chan-modal">
+      <button type="button" class="nut-sao-chep" onclick="saoChepDanhSachSinhNhat()">
+        📋 Sao chép danh sách (gửi bộ phận đặt hoa)
+      </button>
+      <span class="bao-sao-chep" id="baoSaoChepSinhNhat"></span>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL 3: THÔNG BÁO CỦA TÔI (theo cán bộ phụ trách) -->
+<div class="modal-canh-bao an" id="modalCuaToi" onclick="if(event.target===this) dongModalCuaToi()">
+  <div class="hop-modal">
+    <div class="dau-modal">
+      <h3>👤 Việc cần xử lý của tôi</h3>
+      <button type="button" class="nut-dong" onclick="dongModalCuaToi()">✕</button>
+    </div>
+    <div class="than-modal" id="noiDungModalCuaToi"></div>
+  </div>
 </div>
 
 

@@ -1036,10 +1036,9 @@ const O_LOC_CHON = [
   { id: 'locQuocTich',    nhanTatCa: '— Tất cả quốc tịch —',
     lay : function (nx) { return String(nx.QuocTich || '').trim(); } },
 
-  { id: 'locThoiHanThue', nhanTatCa: '— Tất cả thời hạn thuê —',
-    lay : function (nx) {
-            return String(nx.ThoiHanThue || nx.ThoiHanThue_ChiTiet || '').trim();
-          } },
+  /* ★ V4.3: ĐÃ BỎ bộ lọc "Thời hạn thuê" (locThoiHanThue) — dữ liệu cột này
+     có quá nhiều biến thể chuỗi nên danh sách chọn không có giá trị sử dụng.
+     Trường ThoiHanThue vẫn được hiển thị và chỉnh sửa bình thường. */
 
   { id: 'locCanBoPhuTrach', nhanTatCa: '— Tất cả cán bộ phụ trách —',
     lay : function (nx) { return String(nx.NguoiPhuTrach || '').trim(); },
