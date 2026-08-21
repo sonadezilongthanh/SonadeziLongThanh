@@ -24,6 +24,11 @@
                      background: var(--xanh-dam, #0B4696); color: #fff; font-size: 13px;
                      font-weight: 600; cursor: pointer; }
   .cv-lam-moi:hover{ opacity: .9; }
+  .cv-lam-moi:disabled { opacity: .55; cursor: progress; }
+  .cv-goiy         { font-size: 11px; color: #94a3b8; font-weight: 500; margin-top: 2px; }
+  .cv-trangthai    { font-size: 11.5px; color: #64748b; margin: -6px 0 14px; min-height: 16px; }
+  .cv-trangthai b  { color: #0B4696; }
+  .cv-pham-vi      { font-size: 11.5px; font-weight: 600; color: #64748b; margin-left: 6px; }
   .cv-the          { background: #fff; border: 1px solid #e4e8ef; border-radius: 14px;
                      padding: 14px 16px 18px; margin-bottom: 18px;
                      box-shadow: 0 2px 10px rgba(15,40,90,.05); }
@@ -89,14 +94,19 @@
         <option value="60">Trong 60 ngày tới</option>
         <option value="90" selected>Trong 90 ngày tới</option>
         <option value="180">Trong 180 ngày tới</option>
+        <option value="365">Trong 365 ngày tới</option>
       </select>
+      <div class="cv-goiy">Chỉ áp dụng cho mục ⏰ Hợp đồng và 💐 Tặng hoa</div>
     </div>
     <div class="o">
       <label for="cvChonCanBo">Cán bộ phụ trách</label>
       <select id="cvChonCanBo"><option value="">— Tất cả cán bộ —</option></select>
+      <div class="cv-goiy">Áp dụng cho cả 4 mục bên dưới</div>
     </div>
     <button class="cv-lam-moi" id="cvNutLamMoi">🔄 Làm mới</button>
   </div>
+
+  <div class="cv-trangthai" id="cvTrangThai"></div>
 
   <!-- Tiến độ nhập liệu (đo mức điền đủ các trường thông tin) -->
   <div class="cv-the">
@@ -118,7 +128,7 @@
 
   <div class="cv-the">
     <div class="cv-the-dau">
-      <span class="cv-the-ten">⏰ Hợp đồng sắp hết hạn</span>
+      <span class="cv-the-ten">⏰ Hợp đồng sắp hết hạn<span class="cv-pham-vi" id="cvPhamViHD"></span></span>
       <span class="cv-dem" id="cvDemHopDong">0</span>
     </div>
     <div id="cvBangHopDong"></div>
@@ -126,7 +136,7 @@
 
   <div class="cv-the">
     <div class="cv-the-dau">
-      <span class="cv-the-ten">💐 Khách hàng cần tặng hoa (kỷ niệm thành lập)</span>
+      <span class="cv-the-ten">💐 Khách hàng cần tặng hoa (kỷ niệm thành lập)<span class="cv-pham-vi" id="cvPhamViHoa"></span></span>
       <span class="cv-dem" id="cvDemTangHoa">0</span>
     </div>
     <div id="cvBangTangHoa"></div>
@@ -493,28 +503,82 @@ function _cvNapChonCanBo() {
   _CV_DA_NAP_CB = true;
 }
 
+/* Dòng trạng thái nhỏ dưới thanh lọc — cho biết bộ lọc đang áp dụng
+   và thời điểm dữ liệu được nạp gần nhất. */
+function _cvTrangThai(soNgay, locCB, thongBao) {
+  var el = document.getElementById('cvTrangThai');
+  if (!el) return;
+  if (thongBao) { el.innerHTML = thongBao; return; }
+  var tenCB = '<b>tất cả cán bộ</b>';
+  if (locCB === '__KHONG__') tenCB = '<b>(Chưa phân công)</b>';
+  else if (locCB) tenCB = '<b>' + tenCanBo(locCB) + '</b>';
+  var gio = new Date();
+  var hh = ('0' + gio.getHours()).slice(-2) + ':' + ('0' + gio.getMinutes()).slice(-2);
+  el.innerHTML = 'Đang lọc: ' + tenCB + ' · mốc <b>' + soNgay + ' ngày</b> · '
+               + (DU_LIEU.nhaXuong || []).length + ' đơn vị · cập nhật lúc ' + hh;
+}
+
 function renderCongViec() {
   if (typeof xemCongViec === 'function' && !xemCongViec()) return;
   if (!DU_LIEU || !DU_LIEU.nhaXuong) return;
-  _cvNapChonCanBo();
-  var elMoc = document.getElementById('cvChonMoc');
-  var elCB  = document.getElementById('cvChonCanBo');
-  var soNgay = parseInt((elMoc && elMoc.value) || '90', 10);
-  var locCB  = (elCB && elCB.value) || '';
-  var dsHD  = _cvHopDong(soNgay);
-  var dsHoa = _cvTangHoa(soNgay);
-  if (locCB) {
-    var khop = function (email) {
-      var e = String(email || '').trim().toLowerCase();
-      return (locCB === '__KHONG__') ? (e === '') : (e === locCB.toLowerCase());
-    };
-    dsHD  = dsHD.filter(function (d) { return khop(d.nguoiPhuTrach); });
-    dsHoa = dsHoa.filter(function (d) { return khop(d.nguoiPhuTrach); });
+  try {
+    _cvNapChonCanBo();
+    var elMoc = document.getElementById('cvChonMoc');
+    var elCB  = document.getElementById('cvChonCanBo');
+    var soNgay = parseInt((elMoc && elMoc.value) || '90', 10);
+    if (isNaN(soNgay)) soNgay = 90;
+    var locCB  = (elCB && elCB.value) || '';
+
+    // Nhãn phạm vi trên tiêu đề 2 thẻ chịu ảnh hưởng của mốc thời gian
+    var nhan = '· trong ' + soNgay + ' ngày tới';
+    var pHD = document.getElementById('cvPhamViHD');
+    var pHoa = document.getElementById('cvPhamViHoa');
+    if (pHD)  pHD.textContent  = nhan;
+    if (pHoa) pHoa.textContent = nhan;
+
+    var dsHD  = _cvHopDong(soNgay);
+    var dsHoa = _cvTangHoa(soNgay);
+    if (locCB) {
+      var khop = function (email) {
+        var e = String(email || '').trim().toLowerCase();
+        return (locCB === '__KHONG__') ? (e === '') : (e === locCB.toLowerCase());
+      };
+      dsHD  = dsHD.filter(function (d) { return khop(d.nguoiPhuTrach); });
+      dsHoa = dsHoa.filter(function (d) { return khop(d.nguoiPhuTrach); });
+    }
+    _cvVeTienDo(_cvTienDo(locCB));   // Tiến độ nhập liệu (bỏ qua mốc thời gian)
+    _cvVeRaSoat(_cvRaSoat(locCB));   // ★ Phương án A — Tiến độ rà soát (bỏ qua mốc thời gian)
+    _cvVeHopDong(dsHD);
+    _cvVeTangHoa(dsHoa);
+    _cvTrangThai(soNgay, locCB, '');
+  } catch (loi) {
+    console.error('renderCongViec lỗi:', loi);
+    _cvTrangThai(0, '', '<span style="color:#b91c1c">Lỗi khi dựng bảng công việc: '
+      + _escHTML(loi && loi.message ? loi.message : loi) + '</span>');
   }
-  _cvVeTienDo(_cvTienDo(locCB));   // Tiến độ nhập liệu (bỏ qua mốc thời gian)
-  _cvVeRaSoat(_cvRaSoat(locCB));   // ★ Phương án A — Tiến độ rà soát (bỏ qua mốc thời gian)
-  _cvVeHopDong(dsHD);
-  _cvVeTangHoa(dsHoa);
+}
+
+/* ★ SỬA — Nút "Làm mới" nay TẢI LẠI dữ liệu từ Sheet (xoá cache máy chủ),
+   thay vì chỉ vẽ lại từ dữ liệu đã nằm sẵn trong trình duyệt. */
+function cvLamMoiDuLieu() {
+  var nut = document.getElementById('cvNutLamMoi');
+  var chuGoc = nut ? nut.textContent : '';
+  if (nut) { nut.disabled = true; nut.textContent = '⏳ Đang tải…'; }
+  _cvTrangThai(0, '', 'Đang tải lại dữ liệu mới nhất từ Google Sheets…');
+
+  google.script.run
+    .withSuccessHandler(function (dl) {
+      if (nut) { nut.disabled = false; nut.textContent = chuGoc; }
+      if (dl && dl.nhaXuong) DU_LIEU = dl;
+      renderCongViec();
+      if (typeof apDungBoLoc === 'function') apDungBoLoc();
+    })
+    .withFailureHandler(function (loi) {
+      if (nut) { nut.disabled = false; nut.textContent = chuGoc; }
+      _cvTrangThai(0, '', '<span style="color:#b91c1c">Không tải lại được dữ liệu: '
+        + _escHTML(loi && loi.message ? loi.message : loi) + '</span>');
+    })
+    .lamMoiDuLieuTongHop({ token: PHIEN_SUA.token });
 }
 
 (function _cvGanSuKien() {
@@ -522,11 +586,14 @@ function renderCongViec() {
     var m = document.getElementById('cvChonMoc');
     var c = document.getElementById('cvChonCanBo');
     var b = document.getElementById('cvNutLamMoi');
-    if (m) m.onchange = renderCongViec;
-    if (c) c.onchange = renderCongViec;
-    if (b) b.onclick  = renderCongViec;
+    if (m) { m.onchange = renderCongViec; m.oninput = renderCongViec; }
+    if (c) { c.onchange = renderCongViec; c.oninput = renderCongViec; }
+    if (b) b.onclick = cvLamMoiDuLieu;
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', gan);
   else gan();
+  // Gắn lại lần nữa sau khi toàn bộ trang tải xong (phòng trường hợp
+  // phần tử chưa sẵn sàng ở thời điểm parse trên Safari/iPad).
+  window.addEventListener('load', gan);
 })();
 </script>

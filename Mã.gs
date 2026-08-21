@@ -269,7 +269,12 @@ function layNguoiDungTuPhien_(p) {
  *     đọc cache, theo từng lượt gọi.
  *   - Chế độ khách: các cột nội bộ bị XOÁ TRẮNG trước khi trả về.
  ***********************************************************************/
-function layDuLieuTongHop(phien) {
+ function lamMoiDuLieuTongHop(phien) {
+  try { CacheService.getScriptCache().remove('DU_LIEU_TONG_HOP'); } catch (e) {}
+  return layDuLieuTongHop(phien);
+}
+
+ function layDuLieuTongHop(phien) {
   phien = phien || {};
 
   let p;
