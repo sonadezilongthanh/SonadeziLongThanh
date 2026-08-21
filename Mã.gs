@@ -402,7 +402,9 @@ function layDanhSachCanBoPhuTrach() {
 function locDuLieuChoKhach_(ketQua) {
   const banSao = JSON.parse(JSON.stringify(ketQua));
   (banSao.nhaXuong || []).forEach(function (nx) {
-    const dsCot = (String(nx.LoaiHinh).trim() === 'Đất cho thuê')
+    const lh = String(nx.LoaiHinh).trim();
+    // ★ V4.7: "Đất ở KDC" dùng chung bộ cột nội bộ với "Đất cho thuê"
+    const dsCot = (lh === 'Đất cho thuê' || lh === 'Đất ở KDC')
       ? COT_AN_KHACH_DAT
       : COT_AN_KHACH_NHA_XUONG;
     dsCot.forEach(function (cot) {
@@ -594,6 +596,7 @@ function tenCotTuChiSo_(i) {
  ***********************************************************************/
 function xoaCache() {
   CacheService.getScriptCache().remove('DU_LIEU_TONG_HOP');
+  try { CacheService.getScriptCache().remove(CACHE_TT_KCN); } catch (e) {}
   SpreadsheetApp.getUi().alert('✓ Đã làm mới. Tải lại trang App để thấy dữ liệu mới nhất.');
 }
 
@@ -747,6 +750,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('⚙ Hệ thống KCN')
     .addItem('🔄 Làm mới dữ liệu App', 'xoaCache')
+    .addItem('🏭 Tạo/cập nhật sheet Giới thiệu KCN', 'taoSheetThongTinKCN')
     .addSeparator()
     .addItem('🔧 Khởi tạo sheet phân quyền', 'khoiTaoSheetPhanQuyen')
     .addItem('👤 Tạo tài khoản quản trị đầu tiên', 'taoTaiKhoanQuanTriDauTien')

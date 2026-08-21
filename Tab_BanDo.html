@@ -6,7 +6,7 @@
 
   <!-- ĐƯỜNG DẪN -->
   <nav class="duong-dan">
-    <a href="#" onclick="veBanDoTong();return false;">🏭 Toàn cảnh KCN Long Thành</a>
+    <a href="#" onclick="quayLaiBanDoTong();return false;">🏭 Toàn cảnh KCN Long Thành</a>
     <span id="ddPhanCach" class="an"> › </span>
     <span id="ddTenCum" class="an"></span>
   </nav>
@@ -18,6 +18,12 @@
   <div class="vung-ban-do" id="vungBanDo">
     <img id="anhNenBanDo" alt="Mặt bằng">
     <svg id="svgBanDo" xmlns="http://www.w3.org/2000/svg"></svg>
+
+    <!-- ★ V4.6: nút quay ra toàn cảnh, nổi ngay trên bản đồ -->
+    <button type="button" id="nutQuayLaiTong" class="nut-quay-lai an"
+            onclick="quayLaiBanDoTong()" title="Quay ra bản đồ toàn cảnh (phím Esc)">
+      ← Toàn cảnh KCN
+    </button>
   </div>
 
   <p id="ghiChuBanDo" class="ghi-chu-bd"></p>
@@ -627,6 +633,9 @@ function veBanDoTong() {
   document.getElementById('ddPhanCach').classList.add('an');
   document.getElementById('ddTenCum').classList.add('an');
 
+  const nutQL = document.getElementById('nutQuayLaiTong');   // ★ V4.6
+  if (nutQL) nutQL.classList.add('an');
+
   const ch = DU_LIEU.cauHinh || {};
   const maKhopLoc = KET_QUA_LOC.map(function (n) { return n.MaDonVi; });
 
@@ -645,7 +654,10 @@ function veBanDoTong() {
       mau     : conKhopLoc ? mauTheoTyLeTrong(tk) : '#cbd5e1',
       mo      : !conKhopLoc,
       nhan    : c.TenCum || c.MaCum,
-      nhanPhu : tk.tong > 0 ? (tk.trong + '/' + tk.tong + ' trống') : 'Chưa có dữ liệu',
+      // ★ V4.7: cụm chỉ dùng để xem mặt bằng (chưa khai báo lô) → nhãn thân thiện
+      nhanPhu : tk.tong > 0
+                  ? (tk.trong + '/' + tk.tong + ' trống')
+                  : (c.AnhMatBang ? 'Xem mặt bằng' : 'Chưa có dữ liệu'),
       tip     : (c.TenCum || c.MaCum) + ' — ' + tk.tong + ' đơn vị, '
                 + tk.trong + ' còn trống, ' + tk.khopLoc + ' khớp bộ lọc hiện tại'
                 + '  (bấm để xem mặt bằng)'
@@ -717,7 +729,75 @@ function mauTheoTyLeTrong(tk) {
 /***********************************************************************
  * CẤP 2 — MẶT BẰNG CỤM
  ***********************************************************************/
+/***********************************************************************
+ * ★ V4.5 — HIỆU ỨNG CHUYỂN CẤP BẢN ĐỒ
+ *  huong = 'vao'  : từ toàn cảnh đi sâu vào mặt bằng cụm
+ *  huong = 'ra'   : từ mặt bằng cụm quay ra toàn cảnh
+ *  veLai          : hàm vẽ lại bản đồ, chạy đúng lúc màn hình đang mờ
+ *  Toàn bộ chuyển động đặt trên MỘT khung bao, không lặp qua từng vùng SVG.
+ ***********************************************************************/
+let BD_DANG_CHUYEN = false;
+
+function hieuUngChuyenCapBanDo_(huong, veLai) {
+  const khung = document.getElementById('vungBanDo');
+
+  // Không có khung, đang chuyển dở, hoặc người dùng tắt hiệu ứng hệ thống
+  let giamChuyenDong = false;
+  try {
+    giamChuyenDong = window.matchMedia &&
+                     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  } catch (e) {}
+
+  if (!khung || BD_DANG_CHUYEN || giamChuyenDong) { veLai(); return; }
+
+  BD_DANG_CHUYEN = true;
+  const lopRa  = (huong === 'vao') ? 'bd-ra-truoc'  : 'bd-ra-sau';
+  const lopVao = (huong === 'vao') ? 'bd-vao-truoc' : 'bd-vao-sau';
+
+  khung.classList.remove('bd-vao-truoc', 'bd-vao-sau');
+  khung.classList.add(lopRa);
+
+  setTimeout(function () {
+    veLai();                                  // vẽ lại khi màn hình đang mờ
+    khung.classList.remove(lopRa);
+
+    const chayVao = function () {
+      khung.classList.add(lopVao);
+      setTimeout(function () {
+        khung.classList.remove(lopVao);
+        BD_DANG_CHUYEN = false;
+      }, 320);
+    };
+
+    // Chờ ảnh nền mặt bằng tải xong để tránh nháy trắng (tối đa 700ms)
+    const anh = document.getElementById('anhNenBanDo');
+    if (anh && anh.style.display !== 'none' && anh.getAttribute('src') && !anh.complete) {
+      let daChay = false;
+      const moTa = function () { if (daChay) return; daChay = true; chayVao(); };
+      anh.addEventListener('load',  moTa, { once: true });
+      anh.addEventListener('error', moTa, { once: true });
+      setTimeout(moTa, 700);
+    } else {
+      chayVao();
+    }
+  }, 170);
+}
+
+/** Bấm vào một cụm trên bản đồ tổng → đi sâu vào mặt bằng cụm (có hiệu ứng) */
 function moCum(maCum) {
+  const c = (DU_LIEU.cum || []).filter(function (x) { return x.MaCum === maCum; })[0];
+  if (!c) return;
+  hieuUngChuyenCapBanDo_('vao', function () { moCumNgay_(maCum); });
+}
+
+/** Bấm đường dẫn "Toàn cảnh KCN" → quay ra bản đồ tổng (có hiệu ứng) */
+function quayLaiBanDoTong() {
+  if (CAP_HIEN_TAI === 'tong') { veBanDoTong(); return; }
+  hieuUngChuyenCapBanDo_('ra', function () { veBanDoTong(); });
+}
+
+/** Vẽ mặt bằng cụm ngay lập tức, không kèm hiệu ứng (dùng nội bộ) */
+function moCumNgay_(maCum) {
   const c = (DU_LIEU.cum || []).filter(function (x) { return x.MaCum === maCum; })[0];
   if (!c) return;
 
@@ -728,6 +808,9 @@ function moCum(maCum) {
   const el = document.getElementById('ddTenCum');
   el.classList.remove('an');
   el.textContent = c.TenCum || maCum;
+
+  const nutQL = document.getElementById('nutQuayLaiTong');   // ★ V4.6
+  if (nutQL) nutQL.classList.remove('an');
 
   veChuGiai();
   veChiTietCum();
@@ -751,10 +834,16 @@ function veChiTietCum() {
     elAnh.style.display = c.AnhMatBang ? 'block' : 'none';
     elSvg.innerHTML = '';
     if (c.ViewBox) elSvg.setAttribute('viewBox', c.ViewBox);
-    document.getElementById('ghiChuBanDo').innerHTML =
-      '<span class="canh-bao">⚠ Cụm <b>' + maCum + '</b> chưa có vùng bấm. '
-      + 'Dùng <b>Công cụ vẽ vùng</b> khoanh từng nhà xưởng, '
-      + 'rồi dán vào cột <b>ToaDoSVG</b> của sheet <b>DS_NhaXuong</b>.</span>';
+    // ★ V4.7: cụm chỉ để xem mặt bằng quy hoạch (chưa khai báo lô).
+    //   - Khách và người chỉ xem: hiện ghi chú trung tính.
+    //   - Người có quyền sửa: hiện hướng dẫn kỹ thuật như trước.
+    const duocSuaBD = (typeof duocPhepSua === 'function') && duocPhepSua();
+    document.getElementById('ghiChuBanDo').innerHTML = duocSuaBD
+      ? '<span class="canh-bao">⚠ Cụm <b>' + maCum + '</b> chưa có vùng bấm. '
+        + 'Dùng <b>Công cụ vẽ vùng</b> khoanh từng lô, '
+        + 'rồi dán vào cột <b>ToaDoSVG</b> của sheet <b>DS_NhaXuong</b>.</span>'
+      : '🗺️ Mặt bằng quy hoạch <b>' + (c.TenCum || maCum) + '</b>. '
+        + 'Liên hệ Bộ phận Kinh doanh – Tổng hợp để biết thông tin chi tiết từng lô.';
     return;
   }
 
@@ -801,7 +890,9 @@ function highlightLoDat(ma) {
   if (nx.MaCum === MA_CUM_KCN) {
     if (CAP_HIEN_TAI !== 'tong') veBanDoTong();
   } else if (CUM_DANG_XEM !== nx.MaCum) {
-    moCum(nx.MaCum);
+    // ★ V4.5: nhảy từ bảng Tra cứu sang → vẽ NGAY, không chạy hiệu ứng,
+    //          để kịp tìm thấy vùng cần làm nổi bật sau 90ms.
+    moCumNgay_(nx.MaCum);
   }
 
   setTimeout(function () {
@@ -847,4 +938,74 @@ function veChuGiai() {
     + '<span><i class="o-mau" style="background:#cbd5e1"></i>Ngoài bộ lọc</span>';
   }
 }
+
+/***********************************************************************
+ * ★ V4.6 — CÁC CÁCH THOÁT KHỎI MẶT BẰNG CỤM
+ *  (1) Nút "← Toàn cảnh KCN" nổi trên bản đồ
+ *  (2) Phím Esc trên máy tính
+ *  (3) Vuốt sang phải trên máy tính bảng / điện thoại
+ ***********************************************************************/
+
+/** Panel chi tiết đang mở hay không */
+function panelDangMo_() {
+  const pn = document.getElementById('panelChiTiet');
+  return !!(pn && !pn.classList.contains('an'));
+}
+
+/** Có hộp thoại nào đang mở hay không (không được cướp phím Esc của chúng) */
+function coHopThoaiDangMo_() {
+  const ds = ['modalCanhBao', 'modalSinhNhat', 'modalCuaToi', 'hopThoaiSua', 'hopThoaiTaiLieu', 'hopThoaiBrochure'];
+  for (let i = 0; i < ds.length; i++) {
+    const el = document.getElementById(ds[i]);
+    if (el && !el.classList.contains('an')) return true;
+  }
+  return false;
+}
+
+/** Thẻ Bản đồ có đang hiển thị hay không */
+function dangOTabBanDo_() {
+  const sec = document.getElementById('tab-banDo');
+  return !!(sec && !sec.classList.contains('an'));
+}
+
+/* --- (2) Phím Esc: ưu tiên đóng panel, sau đó mới quay ra toàn cảnh --- */
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Escape' && e.key !== 'Esc') return;
+  if (coHopThoaiDangMo_()) return;
+
+  if (panelDangMo_()) {
+    if (typeof dongPanel === 'function') dongPanel();
+    return;
+  }
+  if (dangOTabBanDo_() && CAP_HIEN_TAI === 'cum') quayLaiBanDoTong();
+});
+
+/* --- (3) Vuốt sang phải để quay ra toàn cảnh --- */
+(function () {
+  const khung = document.getElementById('vungBanDo');
+  if (!khung) return;
+
+  let x0 = 0, y0 = 0, t0 = 0, dangTheoDoi = false;
+
+  khung.addEventListener('touchstart', function (e) {
+    if (e.touches.length !== 1) { dangTheoDoi = false; return; }
+    dangTheoDoi = true;
+    x0 = e.touches[0].clientX;
+    y0 = e.touches[0].clientY;
+    t0 = Date.now();
+  }, { passive: true });
+
+  khung.addEventListener('touchend', function (e) {
+    if (!dangTheoDoi) return;
+    dangTheoDoi = false;
+    if (CAP_HIEN_TAI !== 'cum' || panelDangMo_()) return;
+
+    const t = e.changedTouches[0];
+    const dx = t.clientX - x0;
+    const dy = t.clientY - y0;
+
+    // Vuốt sang phải: đủ dài, không lệch dọc quá nhiều, trong vòng 600ms
+    if (dx > 80 && Math.abs(dy) < 60 && (Date.now() - t0) < 600) quayLaiBanDoTong();
+  }, { passive: true });
+})();
 </script>

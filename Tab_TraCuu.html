@@ -172,6 +172,7 @@ const O_DINH_DANH = {
 function cotDinhDanhTheoLoaiHinh(loaiHinh) {
   if (loaiHinh === 'Nhà xưởng')    return ['Mã', 'Tên nhà xưởng', 'Trạng thái'];
   if (loaiHinh === 'Đất cho thuê') return ['Mã', 'Trạng thái'];
+  if (loaiHinh === 'Đất ở KDC')    return ['Mã', 'Tên nhà xưởng', 'Trạng thái'];   // ★ V4.7
   return ['Mã', 'Tên nhà xưởng', 'Khu vực', 'Loại hình', 'Trạng thái'];
 }
 
@@ -250,6 +251,7 @@ function renderTieuDeBang(loaiHinh) {
   let cotRieng = [];
   if (loaiHinh === 'Nhà xưởng')         cotRieng = COT_NHA_XUONG;
   else if (loaiHinh === 'Đất cho thuê') cotRieng = COT_DAT_CHO_THUE;
+  else if (loaiHinh === 'Đất ở KDC')    cotRieng = COT_DAT_CHO_THUE;   // ★ V4.7: dùng chung bộ cột đất
   // "Tất cả" hoặc loại hình khác → chỉ hiện cột định danh cho gọn
 
   COT_RIENG_DAY_DU    = cotRieng;

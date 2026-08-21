@@ -44,7 +44,7 @@
   </header>
 
   <!-- ---------- BỘ LỌC (tác động đồng thời lên cả 2 tab) ---------- -->
-  <div class="bo-loc">
+  <div class="bo-loc" id="thanhBoLoc">
     <input type="text" id="oTimKiem"
            placeholder="🔍 Tìm theo mã, tên nhà xưởng, khách thuê, ghi chú…">
 
@@ -62,6 +62,7 @@
       <option value="">— Tất cả loại hình —</option>
       <option value="Nhà xưởng">Nhà xưởng</option>
       <option value="Đất cho thuê">Đất cho thuê</option>
+      <option value="Đất ở KDC">Đất ở KDC</option>
     </select>
 <select id="locQuocTich">
       <option value="">— Tất cả quốc tịch —</option>
@@ -86,8 +87,9 @@
 
   <!-- ---------- THANH TAB ---------- -->
   <nav class="thanh-tab">
-    <button class="tab"           data-tab="traCuu">📋 Tra cứu</button>
+    <button class="tab"           data-tab="gioiThieu">🏭 Giới thiệu KCN</button>
     <button class="tab dang-chon" data-tab="banDo">🗺️ Bản đồ</button>
+    <button class="tab"           data-tab="traCuu">📋 Tra cứu</button>
     <button class="tab" id="nutTabCongViec" data-tab="congViec" style="display:none">📌 Công việc</button>
 
     <!-- ★ V4.2: CỤM 3 NÚT THÔNG BÁO (nằm bên phải thanh tab, dùng chung mọi tab)
@@ -105,6 +107,11 @@
       </button>
     </div>
   </nav>
+
+  <!-- ---------- NỘI DUNG TAB 0: GIỚI THIỆU KCN ---------- -->
+  <section class="noi-dung-tab an" id="tab-gioiThieu">
+    <?!= include('Tab_GioiThieu'); ?>
+  </section>
 
   <!-- ---------- NỘI DUNG TAB 1: TRA CỨU ---------- -->
   <section class="noi-dung-tab an" id="tab-traCuu">
@@ -197,6 +204,7 @@
   }
   .chip-loai-hinh.nx  { background:#e3edfb; color:#0B4696; }
   .chip-loai-hinh.dat { background:#e6f4ea; color:#1e6b3a; }
+  .chip-loai-hinh.kdc { background:#fdf2f8; color:#9d174d; }   /* ★ V4.7 */
 </style>
 
 <div id="hopThoaiSua" class="an">

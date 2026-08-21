@@ -1265,7 +1265,12 @@ function chuyenTab(tenTab) {
   });
   document.querySelector('[data-tab="' + tenTab + '"]').classList.add('dang-chon');
 
-  if (tenTab === 'congViec' && typeof renderCongViec === 'function') renderCongViec();
+  // ★ Thẻ "Giới thiệu KCN" không dùng bộ lọc → ẩn thanh lọc cho gọn màn hình
+  const thanhLoc = document.getElementById('thanhBoLoc');
+  if (thanhLoc) thanhLoc.classList.toggle('an', tenTab === 'gioiThieu');
+
+  if (tenTab === 'congViec'  && typeof renderCongViec === 'function') renderCongViec();
+  if (tenTab === 'gioiThieu' && typeof renderGioiThieu === 'function') renderGioiThieu();
 }
 
 
@@ -1313,16 +1318,35 @@ function timNhaXuong(ma) {
  *    Ngành nghề   : NganhNghe_SanPham (Nhà xưởng) | NganhNghe (Đất)
  *    Thời hạn thuê: ThoiHanThue       (Nhà xưởng) | ThoiHanThue_ChiTiet (Đất)
  ***********************************************************************/
+/***********************************************************************
+ * ★ V4.7 — LOẠI HÌNH "ĐẤT Ở KDC" (Khu dân cư)
+ *  Nhóm đất ở dùng CHUNG bộ cột với "Đất cho thuê" (diện tích đất, đơn giá,
+ *  thời hạn…) nên mọi nhánh xử lý cột đất đều gọi qua laLoaiDat().
+ *  Khi cần tách riêng số liệu KCN và KDC, dùng laDatOKDC().
+ ***********************************************************************/
+const LOAI_DAT_CHO_THUE = 'Đất cho thuê';
+const LOAI_DAT_O_KDC    = 'Đất ở KDC';
+
+function loaiHinhCua(nx) { return String((nx && nx.LoaiHinh) || '').trim(); }
+function laLoaiDat(nx)   { const l = loaiHinhCua(nx); return l === LOAI_DAT_CHO_THUE || l === LOAI_DAT_O_KDC; }
+function laDatOKDC(nx)   { return loaiHinhCua(nx) === LOAI_DAT_O_KDC; }
+
+/** Nhãn hiển thị trên chip loại hình */
+function nhanLoaiHinh(nx) {
+  if (laDatOKDC(nx)) return 'ĐẤT Ở KDC';
+  return laLoaiDat(nx) ? 'ĐẤT CHO THUÊ' : 'NHÀ XƯỞNG';
+}
+
 function docNganhNghe(nx) {
   if (!nx) return '';
-  return (String(nx.LoaiHinh || '').trim() === 'Đất cho thuê')
+  return laLoaiDat(nx)
     ? (nx.NganhNghe || nx.NganhNghe_SanPham || '')
     : (nx.NganhNghe_SanPham || nx.NganhNghe || '');
 }
 
 function docThoiHanThue(nx) {
   if (!nx) return '';
-  return (String(nx.LoaiHinh || '').trim() === 'Đất cho thuê')
+  return laLoaiDat(nx)
     ? (nx.ThoiHanThue_ChiTiet || nx.ThoiHanThue || '')
     : (nx.ThoiHanThue || nx.ThoiHanThue_ChiTiet || '');
 }
@@ -1332,7 +1356,7 @@ function docThoiHanThue(nx) {
  */
 function giaChaoThue_(nx) {
   if (!nx) return '';
-  const laDat = String(nx.LoaiHinh || '').trim() === 'Đất cho thuê';
+  const laDat = laLoaiDat(nx);
 
   if (!laDat) {
     return nx['TienThueXuong - DonGia (USD)']
@@ -1353,7 +1377,7 @@ function giaChaoThue_(nx) {
 /** Diện tích đại diện của đơn vị — dùng cho tin nhắn giới thiệu */
 function dienTichChinh_(nx) {
   if (!nx) return '';
-  return (String(nx.LoaiHinh || '').trim() === 'Đất cho thuê')
+  return laLoaiDat(nx)
     ? (nx.DienTichDat || nx['Tong DienTichDatThue (m2)'] || '')
     : (nx.DienTichDat || nx.DienTichKhuDat_m2 || '');
 }
@@ -1371,12 +1395,12 @@ function moPanelChiTiet(ma) {
   let html = '';
 
   // --- Trạng thái + nhãn Loại hình ---
-  const laDatChip = (String(nx.LoaiHinh || '').trim() === 'Đất cho thuê');
+  const laDatChip = laLoaiDat(nx);
   html += '<div style="margin-bottom:14px">'
         + '<span class="chip" style="background:' + mau + '">'
         + (nx.TrangThai || 'Chưa xác định') + '</span>'
-        + '<span class="chip-loai-hinh ' + (laDatChip ? 'dat' : 'nx') + '">'
-        + (laDatChip ? 'ĐẤT CHO THUÊ' : 'NHÀ XƯỞNG') + '</span>'
+        + '<span class="chip-loai-hinh ' + (laDatOKDC(nx) ? 'kdc' : (laDatChip ? 'dat' : 'nx')) + '">'
+        + nhanLoaiHinh(nx) + '</span>'
         + '</div>';
 
   // --- THANH THAO TÁC NHANH — luôn nằm đầu panel, không cần cuộn ---
@@ -1419,7 +1443,7 @@ function moPanelChiTiet(ma) {
   // nên khối này không được hiển thị (xemDayDu = false).
   if (NGUOI_DUNG.xemDayDu || duocPhepSua()) {
 
-    const laDatCT = (String(nx.LoaiHinh || '').trim() === 'Đất cho thuê');
+    const laDatCT = laLoaiDat(nx);
 
     /* ════════ A — THÔNG TIN DÙNG CHUNG ════════ */
     html += '<div class="tieu-de-nhom">A. Nhà đầu tư <small>(dùng chung)</small></div>';
@@ -1557,6 +1581,12 @@ function moPanelChiTiet(ma) {
   }
 
   document.getElementById('panelNoiDung').innerHTML = html;
+
+  // ★ V4.4: đưa panel về đầu nội dung trước khi trượt ra (tránh giữ vị trí
+  //          cuộn của đơn vị mở trước đó, do panel nay luôn nằm trong DOM)
+  const thanPanel = document.querySelector('#panelChiTiet .panel-than');
+  if (thanPanel) thanPanel.scrollTop = 0;
+
   document.getElementById('panelChiTiet').classList.remove('an');
   document.getElementById('lopPhu').classList.remove('an');
 }
@@ -1758,15 +1788,15 @@ function moHopThoaiSua(ma) {
   const nx = timNhaXuong(ma);
   if (!nx) return;
 
-  const laDat = (String(nx.LoaiHinh || '').trim() === 'Đất cho thuê');
+  const laDat = laLoaiDat(nx);
 
   document.getElementById('suaMaDonVi').textContent = ma;
 
   // Nhãn Loại hình ngay tiêu đề để tránh nhập nhầm biểu mẫu
   const chip = _o('suaChipLoaiHinh');
   if (chip) {
-    chip.textContent = laDat ? 'ĐẤT CHO THUÊ' : 'NHÀ XƯỞNG';
-    chip.className   = 'chip-loai-hinh ' + (laDat ? 'dat' : 'nx');
+    chip.textContent = nhanLoaiHinh(nx);
+    chip.className   = 'chip-loai-hinh ' + (laDatOKDC(nx) ? 'kdc' : (laDat ? 'dat' : 'nx'));
   }
 
   const sel = document.getElementById('suaTrangThai');
@@ -1860,8 +1890,7 @@ function luuThayDoi() {
   const tb  = document.getElementById('thongBaoSua');
 
   const nxHienTai = timNhaXuong(ma);
-  const laDat = nxHienTai
-    && String(nxHienTai.LoaiHinh || '').trim() === 'Đất cho thuê';
+  const laDat = !!nxHienTai && laLoaiDat(nxHienTai);
 
   const duLieuMoi = {};
 
@@ -2111,7 +2140,7 @@ function soanTinNhan() {
     return c.MaCum === nx.MaCum;
   })[0];
 
-  const laDat = (nx.LoaiHinh === 'Đất cho thuê');
+  const laDat = laLoaiDat(nx);
 
   // ★ Giá chào thuê theo đúng LoaiHinh
   // (Chế độ khách: các trường này đã bị server xoá trắng → tự về "Liên hệ")
@@ -2134,9 +2163,13 @@ function soanTinNhan() {
     : 'Liên hệ';
 
   // ★ Chọn mẫu riêng cho Đất cho thuê nếu DM_CauHinh có khai báo
-  const mau = (laDat && ch.MauTinNhanZalo_Dat)
-    ? ch.MauTinNhanZalo_Dat
-    : (ch.MauTinNhanZalo || MAU_TIN_MAC_DINH);
+  // ★ V4.7: ưu tiên mẫu riêng cho Đất ở KDC (khoá MauTinNhanZalo_KDC),
+  //         sau đó mới đến mẫu Đất cho thuê, cuối cùng là mẫu chung.
+  const mau = (laDatOKDC(nx) && ch.MauTinNhanZalo_KDC)
+    ? ch.MauTinNhanZalo_KDC
+    : ((laDat && ch.MauTinNhanZalo_Dat)
+        ? ch.MauTinNhanZalo_Dat
+        : (ch.MauTinNhanZalo || MAU_TIN_MAC_DINH));
 // ★ PA-B — Người liên hệ: ưu tiên thông tin cá nhân người đăng nhập;
   //   khách/chưa đăng nhập → dùng thông tin chung trong DM_CauHinh
   const nguoiKy = (NGUOI_DUNG && NGUOI_DUNG.nhanDienDuoc)

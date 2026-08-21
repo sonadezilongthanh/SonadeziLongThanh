@@ -1,0 +1,333 @@
+<!-- ══════════════════════════════════════════════════════════════════
+     THẺ "GIỚI THIỆU KCN" — THÔNG TIN TỔNG QUAN 3 NGÔN NGỮ (VI/EN/ZH)
+     Nguồn dữ liệu: sheet DM_ThongTinKCN (module ThongTinKCN.gs)
+     Phòng Kinh doanh Tổng hợp — Sonadezi Long Thành
+     ══════════════════════════════════════════════════════════════════ -->
+
+<style>
+.gt-boc { padding: 16px; max-width: 1180px; margin: 0 auto; }
+
+/* ----- Đầu trang ----- */
+.gt-dau {
+  background: linear-gradient(135deg, var(--xanh-dam), var(--xanh-nhat));
+  color: #fff; border-radius: 12px; padding: 18px 20px;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px;
+  box-shadow: var(--bong);
+}
+.gt-dau h2 { font-size: 20px; font-weight: 700; letter-spacing: .3px; }
+.gt-dau p  { font-size: 13px; opacity: .85; margin-top: 4px; }
+
+.gt-ngonngu { display: flex; gap: 6px; flex-wrap: wrap; }
+.gt-ngonngu button {
+  border: 1px solid rgba(255,255,255,.45); background: rgba(255,255,255,.12);
+  color: #fff; padding: 7px 12px; border-radius: 20px;
+  font-size: 13px; cursor: pointer; white-space: nowrap;
+}
+.gt-ngonngu button:hover      { background: rgba(255,255,255,.25); }
+.gt-ngonngu button.dang-chon  { background: #fff; color: var(--xanh-dam); font-weight: 600; }
+
+/* ----- Dải số liệu nổi bật ----- */
+.gt-noibat {
+  display: grid; gap: 12px; margin-top: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+.gt-the-so {
+  background: var(--trang); border: 1px solid var(--xam-vien);
+  border-left: 4px solid var(--xanh-nhat);
+  border-radius: 10px; padding: 12px 14px; box-shadow: var(--bong);
+}
+.gt-the-so .gt-so  { font-size: 19px; font-weight: 700; color: var(--xanh-dam); line-height: 1.25; }
+.gt-the-so .gt-nhan{ font-size: 12px; color: var(--xam-chu); margin-top: 3px; }
+
+/* ----- Lưới các nhóm thông tin ----- */
+.gt-luoi {
+  display: grid; gap: 14px; margin-top: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+  align-items: start;
+}
+.gt-nhom {
+  background: var(--trang); border: 1px solid var(--xam-vien);
+  border-radius: 10px; box-shadow: var(--bong); overflow: hidden;
+}
+.gt-nhom-dau {
+  background: #eef3f8; padding: 10px 14px;
+  font-weight: 600; color: var(--xanh-dam); font-size: 14px;
+  border-bottom: 1px solid var(--xam-vien);
+}
+.gt-dong {
+  display: flex; gap: 10px; padding: 9px 14px;
+  border-bottom: 1px dashed #e8edf2; font-size: 13px;
+}
+.gt-dong:last-child { border-bottom: 0; }
+.gt-dong .gt-muc {
+  flex: 0 0 42%; color: var(--xam-chu);
+}
+.gt-dong .gt-gt   { flex: 1; color: #1c2b36; font-weight: 500; }
+
+/* ----- Thanh nút thao tác ----- */
+.gt-thanh-nut {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--xam-vien);
+}
+.gt-ghichu { margin-top: 10px; font-size: 12px; color: var(--xam-chu); font-style: italic; }
+.gt-trong  { padding: 30px; text-align: center; color: var(--xam-chu); }
+
+@media (max-width: 640px) {
+  .gt-boc { padding: 10px; }
+  .gt-dong { flex-direction: column; gap: 2px; }
+  .gt-dong .gt-muc { flex: none; }
+}
+</style>
+
+
+<div class="gt-boc">
+
+  <div class="gt-dau">
+    <div>
+      <h2 id="gtTieuDe">KHU CÔNG NGHIỆP LONG THÀNH</h2>
+      <p id="gtPhuDe">Thông tin tổng quan phục vụ giới thiệu khách hàng</p>
+    </div>
+    <div class="gt-ngonngu" id="gtNgonNgu">
+      <button type="button" data-nn="vi" class="dang-chon">🇻🇳 Tiếng Việt</button>
+      <button type="button" data-nn="en">🇬🇧 English</button>
+      <button type="button" data-nn="zh">🇨🇳 中文</button>
+    </div>
+  </div>
+
+  <div class="gt-noibat" id="gtNoiBat"></div>
+
+  <div class="gt-luoi" id="gtLuoi">
+    <div class="gt-trong">Đang tải thông tin…</div>
+  </div>
+
+  <div class="gt-thanh-nut">
+    <button type="button" class="nut nut-chinh" id="gtNutPDF" style="display:none">📄 Hồ sơ KCN (PDF)</button>
+    <button type="button" class="nut nut-nhat" id="gtNutSaoChep">📋 Sao chép nội dung</button>
+    <button type="button" class="nut nut-nhat" id="gtNutChiaSe">📤 Chia sẻ</button>
+  </div>
+
+  <p class="gt-ghichu" id="gtGhiChu"></p>
+</div>
+
+
+<script>
+/***********************************************************************
+ * THẺ GIỚI THIỆU KCN — TẢI DỮ LIỆU & KẾT XUẤT 3 NGÔN NGỮ
+ ***********************************************************************/
+var TT_KCN      = null;    // dữ liệu đã tải từ server
+var TT_DANG_TAI = false;
+var NN_KCN      = 'vi';    // ngôn ngữ đang hiển thị: vi | en | zh
+
+/** Nhãn giao diện theo ngôn ngữ */
+var NHAN_KCN = {
+  vi: { tieuDe: 'KHU CÔNG NGHIỆP LONG THÀNH',
+        phuDe : 'Thông tin tổng quan phục vụ giới thiệu khách hàng',
+        pdf   : '📄 Hồ sơ KCN (PDF)',
+        sao   : '📋 Sao chép nội dung',
+        chiaSe: '📤 Chia sẻ',
+        tai   : 'Đang tải thông tin…',
+        trong : 'Chưa có dữ liệu. Vui lòng chạy chức năng “Tạo/cập nhật sheet Giới thiệu KCN” trong bảng chọn ⚙ Hệ thống KCN.',
+        ghiChu: 'Nguồn: hồ sơ giới thiệu Khu công nghiệp Long Thành. Giá và phí chưa bao gồm thuế GTGT, có thể thay đổi theo quy định hiện hành.',
+        daSao : '✓ Đã sao chép nội dung giới thiệu.' },
+  en: { tieuDe: 'LONG THANH INDUSTRIAL ZONE',
+        phuDe : 'Key features for customer presentation',
+        pdf   : '📄 IZ Profile (PDF)',
+        sao   : '📋 Copy content',
+        chiaSe: '📤 Share',
+        tai   : 'Loading…',
+        trong : 'No data available. Please run “Create/update Long Thanh IZ info sheet” from the ⚙ menu.',
+        ghiChu: 'Source: Long Thanh Industrial Zone profile. All charges exclude VAT and are subject to change under current regulations.',
+        daSao : '✓ Content copied.' },
+  zh: { tieuDe: '隆城工业区',
+        phuDe : '客户介绍用综合信息',
+        pdf   : '📄 工业区简介（PDF）',
+        sao   : '📋 复制内容',
+        chiaSe: '📤 分享',
+        tai   : '正在加载…',
+        trong : '暂无数据。请在 ⚙ 菜单中运行“创建/更新工业区介绍数据表”。',
+        ghiChu: '资料来源：隆城工业区简介。以上价格及费用均不含增值税，并可能依现行规定调整。',
+        daSao : '✓ 已复制内容。' }
+};
+
+/** Gọi khi mở thẻ Giới thiệu (từ chuyenTab) */
+function renderGioiThieu() {
+  if (TT_KCN) { veGioiThieu(); return; }
+  if (TT_DANG_TAI) return;
+
+  TT_DANG_TAI = true;
+  document.getElementById('gtLuoi').innerHTML =
+    '<div class="gt-trong">' + NHAN_KCN[NN_KCN].tai + '</div>';
+
+  google.script.run
+    .withSuccessHandler(function (kq) {
+      TT_DANG_TAI = false;
+      TT_KCN = kq || { dong: [], capNhat: '' };
+      veGioiThieu();
+    })
+    .withFailureHandler(function (loi) {
+      TT_DANG_TAI = false;
+      document.getElementById('gtLuoi').innerHTML =
+        '<div class="gt-trong">⚠ Lỗi tải thông tin: ' + (loi && loi.message ? loi.message : '') + '</div>';
+    })
+    .layThongTinKCN({ token: (typeof PHIEN_SUA !== 'undefined' ? PHIEN_SUA.token : '') });
+}
+
+/** Đổi ngôn ngữ hiển thị */
+function doiNgonNguKCN(nn) {
+  if (!NHAN_KCN[nn]) return;
+  NN_KCN = nn;
+  Array.prototype.forEach.call(
+    document.querySelectorAll('#gtNgonNgu button'),
+    function (b) { b.classList.toggle('dang-chon', b.dataset.nn === nn); }
+  );
+  veGioiThieu();
+}
+
+/** Lấy giá trị theo ngôn ngữ, thiếu thì lùi về tiếng Việt rồi tiếng Anh */
+function layTheoNN_(o) {
+  if (!o) return '';
+  return String(o[NN_KCN] || o.vi || o.en || '').trim();
+}
+
+/** Kết xuất toàn bộ nội dung thẻ */
+function veGioiThieu() {
+  var nhan = NHAN_KCN[NN_KCN];
+  document.getElementById('gtTieuDe').textContent = nhan.tieuDe;
+  document.getElementById('gtPhuDe').textContent  = nhan.phuDe;
+  document.getElementById('gtNutSaoChep').textContent = nhan.sao;
+  document.getElementById('gtNutChiaSe').textContent  = nhan.chiaSe;
+  document.getElementById('gtGhiChu').textContent     = nhan.ghiChu;
+
+  var ds = (TT_KCN && TT_KCN.dong) ? TT_KCN.dong : [];
+
+  // ----- Dải số liệu nổi bật -----
+  var elNB = document.getElementById('gtNoiBat');
+  elNB.innerHTML = ds.filter(function (d) { return d.noiBat; }).map(function (d) {
+    return '<div class="gt-the-so">' +
+             '<div class="gt-so">' + (d.icon ? d.icon + ' ' : '') + gtThoat_(layTheoNN_(d.giaTri)) + '</div>' +
+             '<div class="gt-nhan">' + gtThoat_(layTheoNN_(d.muc)) + '</div>' +
+           '</div>';
+  }).join('');
+
+  // ----- Lưới nhóm thông tin -----
+  var elLuoi = document.getElementById('gtLuoi');
+  if (!ds.length) {
+    elLuoi.innerHTML = '<div class="gt-trong">' + nhan.trong + '</div>';
+    return;
+  }
+
+  var thuTuNhom = [], theoNhom = {};
+  ds.forEach(function (d) {
+    var ma = d.maNhom || 'KHAC';
+    if (!theoNhom[ma]) { theoNhom[ma] = { ten: layTheoNN_(d.nhom), dong: [] }; thuTuNhom.push(ma); }
+    theoNhom[ma].dong.push(d);
+  });
+
+  elLuoi.innerHTML = thuTuNhom.map(function (ma) {
+    var n = theoNhom[ma];
+    return '<div class="gt-nhom">' +
+             '<div class="gt-nhom-dau">' + gtThoat_(n.ten) + '</div>' +
+             n.dong.map(function (d) {
+               return '<div class="gt-dong">' +
+                        '<div class="gt-muc">' + (d.icon ? d.icon + ' ' : '') + gtThoat_(layTheoNN_(d.muc)) + '</div>' +
+                        '<div class="gt-gt">'  + gtThoat_(layTheoNN_(d.giaTri)) + '</div>' +
+                      '</div>';
+             }).join('') +
+           '</div>';
+  }).join('');
+
+  // ----- Nút hồ sơ PDF (lấy từ DM_CauHinh) -----
+  var nut  = document.getElementById('gtNutPDF');
+  var link = layLinkHoSoKCN_();
+  if (link) {
+    nut.style.display = '';
+    nut.textContent   = nhan.pdf;
+    nut.onclick = function () { window.open(link, '_blank'); };
+  } else {
+    nut.style.display = 'none';
+  }
+}
+
+/**
+ * Link hồ sơ PDF theo ngôn ngữ, cấu hình trong sheet DM_CauHinh:
+ *   LinkHoSoKCN_VI | LinkHoSoKCN_EN | LinkHoSoKCN_ZH  (ưu tiên)
+ *   LinkHoSoKCN                                        (dùng chung)
+ */
+function layLinkHoSoKCN_() {
+  var ch = (typeof DU_LIEU !== 'undefined' && DU_LIEU && DU_LIEU.cauHinh) ? DU_LIEU.cauHinh : {};
+  return String(ch['LinkHoSoKCN_' + NN_KCN.toUpperCase()] || ch.LinkHoSoKCN || '').trim();
+}
+
+/** Dựng nội dung dạng văn bản thuần để gửi khách hàng */
+function noiDungGioiThieuVanBan_() {
+  var ds = (TT_KCN && TT_KCN.dong) ? TT_KCN.dong : [];
+  var out = [NHAN_KCN[NN_KCN].tieuDe, ''];
+  var nhomHienTai = '';
+
+  ds.forEach(function (d) {
+    var ten = layTheoNN_(d.nhom);
+    if (ten && ten !== nhomHienTai) { nhomHienTai = ten; out.push('— ' + ten.toUpperCase() + ' —'); }
+    out.push('• ' + layTheoNN_(d.muc) + ': ' + layTheoNN_(d.giaTri));
+  });
+
+  var link = layLinkHoSoKCN_();
+  if (link) out.push('', '📄 ' + link);
+  out.push('', 'Sonadezi Long Thanh Shareholding Company', '☎ 84-251-3514494 | ✉ longthanhiz@szl.com.vn');
+  return out.join('\n');
+}
+
+/** Sao chép nội dung giới thiệu */
+function saoChepGioiThieu() {
+  var vb = noiDungGioiThieuVanBan_();
+  var xong = function () { alert(NHAN_KCN[NN_KCN].daSao); };
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(vb).then(xong, function () { saoChepDuPhong_(vb, xong); });
+  } else {
+    saoChepDuPhong_(vb, xong);
+  }
+}
+
+/** Sao chép dự phòng cho Safari/iPad khi clipboard API bị chặn */
+function saoChepDuPhong_(vb, xong) {
+  var o = document.createElement('textarea');
+  o.value = vb;
+  o.style.position = 'fixed'; o.style.opacity = '0';
+  document.body.appendChild(o);
+  o.select();
+  try { document.execCommand('copy'); xong(); } catch (e) { alert(vb); }
+  document.body.removeChild(o);
+}
+
+/** Chia sẻ qua ứng dụng sẵn có trên thiết bị (Zalo, thư điện tử…) */
+function chiaSeGioiThieu() {
+  var vb = noiDungGioiThieuVanBan_();
+  if (navigator.share) {
+    navigator.share({ title: NHAN_KCN[NN_KCN].tieuDe, text: vb })
+             .catch(function () {});
+  } else {
+    saoChepGioiThieu();
+  }
+}
+
+/** Thoát ký tự HTML */
+function gtThoat_(s) {
+  return String(s === undefined || s === null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/* ----- Gắn sự kiện ----- */
+(function () {
+  var oNN = document.getElementById('gtNgonNgu');
+  if (oNN) {
+    Array.prototype.forEach.call(oNN.querySelectorAll('button'), function (b) {
+      b.addEventListener('click', function () { doiNgonNguKCN(b.dataset.nn); });
+    });
+  }
+  var bSao = document.getElementById('gtNutSaoChep');
+  if (bSao) bSao.addEventListener('click', saoChepGioiThieu);
+  var bChiaSe = document.getElementById('gtNutChiaSe');
+  if (bChiaSe) bChiaSe.addEventListener('click', chiaSeGioiThieu);
+})();
+</script>

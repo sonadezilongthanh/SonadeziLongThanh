@@ -666,4 +666,106 @@ body{
   color: #444; cursor: pointer; user-select: none;
 }
 .ghi-nho-row input { width: 16px; height: 16px; accent-color: #0B4696; cursor: pointer; }
+
+/* ================================================================
+   ★ V4.4 — HIỆU ỨNG TRƯỢT PANEL CHI TIẾT (BẢN ĐỒ / TRA CỨU)
+   Nguyên tắc: CHỈ dùng transform + opacity → trình duyệt xử lý bằng
+   GPU, không kích hoạt tính lại bố cục (reflow) nên không gây lag,
+   kể cả trên máy tính bảng.
+   Lưu ý: thẻ .an mặc định là display:none (không chạy được hiệu ứng)
+   nên phải ghi đè riêng cho panel bằng visibility + pointer-events.
+================================================================ */
+#panelChiTiet{
+  transform: translate3d(0, 0, 0);
+  opacity: 1;
+  visibility: visible;
+  will-change: transform;
+  backface-visibility: hidden;
+  transition: transform .30s cubic-bezier(.22, .61, .36, 1),
+              opacity   .22s ease-out,
+              visibility 0s;
+}
+#panelChiTiet.an{
+  display: flex !important;          /* ghi đè .an{display:none} */
+  visibility: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate3d(104%, 0, 0);
+  transition: transform .26s cubic-bezier(.55, .06, .68, .19),
+              opacity   .20s ease-in,
+              visibility 0s linear .26s;
+}
+
+/* Lớp phủ mờ dần đồng bộ với panel */
+#lopPhu{
+  opacity: 1;
+  visibility: visible;
+  transition: opacity .26s ease-out, visibility 0s;
+}
+#lopPhu.an{
+  display: block !important;
+  visibility: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .20s ease-in, visibility 0s linear .20s;
+}
+
+/* Nội dung bên trong panel hiện trễ một nhịp cho cảm giác mượt */
+#panelChiTiet:not(.an) .panel-than{
+  animation: panelHienNoiDung .34s ease-out both;
+}
+@keyframes panelHienNoiDung{
+  from { opacity: 0; transform: translate3d(12px, 0, 0); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Tôn trọng thiết lập "giảm chuyển động" của hệ điều hành */
+@media (prefers-reduced-motion: reduce){
+  #panelChiTiet, #panelChiTiet.an, #lopPhu, #lopPhu.an { transition: none; }
+  #panelChiTiet:not(.an) .panel-than { animation: none; }
+}
+
+/* ================================================================
+   ★ V4.5 — HIỆU ỨNG CHUYỂN CẤP BẢN ĐỒ (toàn cảnh ⇄ mặt bằng cụm)
+   Cùng nguyên tắc với panel chi tiết: chỉ dùng transform + opacity
+   trên MỘT khung bao duy nhất (#vungBanDo), không tạo hiệu ứng cho
+   từng vùng SVG → số lượng lô đất nhiều vẫn không giật.
+================================================================ */
+#vungBanDo{ transform-origin: 50% 45%; }
+
+.bd-ra-truoc  { animation: bdRaTruoc  .17s ease-in both;                    will-change: transform, opacity; }
+.bd-vao-truoc { animation: bdVaoTruoc .30s cubic-bezier(.22,.61,.36,1) both; will-change: transform, opacity; }
+.bd-ra-sau    { animation: bdRaSau    .17s ease-in both;                    will-change: transform, opacity; }
+.bd-vao-sau   { animation: bdVaoSau   .30s cubic-bezier(.22,.61,.36,1) both; will-change: transform, opacity; }
+
+/* Đi SÂU vào cụm: ảnh hiện tại phóng nhẹ rồi mờ đi, mặt bằng cụm nở ra */
+@keyframes bdRaTruoc  { from { opacity: 1; transform: scale(1);    } to { opacity: 0; transform: scale(1.06); } }
+@keyframes bdVaoTruoc { from { opacity: 0; transform: scale(.94);  } to { opacity: 1; transform: scale(1);    } }
+/* QUAY RA toàn cảnh: chuyển động ngược lại */
+@keyframes bdRaSau    { from { opacity: 1; transform: scale(1);    } to { opacity: 0; transform: scale(.94);  } }
+@keyframes bdVaoSau   { from { opacity: 0; transform: scale(1.06); } to { opacity: 1; transform: scale(1);    } }
+
+@media (prefers-reduced-motion: reduce){
+  .bd-ra-truoc, .bd-vao-truoc, .bd-ra-sau, .bd-vao-sau { animation: none; }
+}
+\n
+/* ================================================================
+   ★ V4.6 — NÚT QUAY RA TOÀN CẢNH (nổi trên mặt bằng cụm)
+================================================================ */
+.nut-quay-lai{
+  position: absolute; top: 12px; left: 12px; z-index: 5;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 15px; border: 0; border-radius: 999px;
+  background: rgba(15, 61, 92, .92); color: #fff;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .28);
+  transition: background .18s ease, transform .18s ease;
+}
+.nut-quay-lai:hover  { background: rgba(11, 70, 150, .96); transform: translateX(-2px); }
+.nut-quay-lai:active { transform: scale(.96); }
+.nut-quay-lai.an     { display: none !important; }
+
+@media (max-width: 640px){
+  .nut-quay-lai{ top: 8px; left: 8px; padding: 8px 13px; font-size: 12px; }
+}
 </style>
