@@ -1,34 +1,49 @@
 <!-- ══════════════════════════════════════════════════════════════════
-     THẺ "GIỚI THIỆU KCN" — BỐ CỤC TRÌNH CHIẾU, 3 NGÔN NGỮ (VI/EN/ZH)
+     THẺ "GIỚI THIỆU KCN" — BỐ CỤC HỒ SƠ NĂNG LỰC, 3 NGÔN NGỮ (VI/EN/ZH)
      Nguồn dữ liệu : sheet DM_ThongTinKCN  (module ThongTinKCN.gs)
-     Kiểu hiển thị : cột KieuHienThi quyết định cách kết xuất từng dòng
-        soLieu    → số liệu cỡ lớn
-        bieuTuong → biểu tượng + trị số (khoảng cách, công suất)
-        theGia    → thẻ đơn giá
-        bieuDo    → thanh ngang (quốc tịch nhà đầu tư, có cờ)
+     Bố cục        : dải tiêu đề → dải số liệu nổi bật → thanh điều hướng
+                     → lưới thẻ thông tin theo nhóm
+     Kiểu hiển thị (cột KieuHienThi) quyết định cách kết xuất từng dòng:
+        soLieu    → đưa lên dải số liệu nổi bật đầu trang
+        chip      → viên thuốc nhỏ trong thẻ
+        bieuTuong → dòng có biểu tượng, trị số in đậm
+        theGia    → dòng đơn giá nổi bật
+        bieuDo    → thanh ngang có cờ quốc gia
+        phuDe     → dòng dẫn nhỏ
         ghiChu    → dòng ghi chú in nghiêng
-        dong      → dòng "mục – giá trị" (mặc định)
+        dong      → dòng "mục – giá trị", thu gọn trong "Xem chi tiết"
      Phòng Kinh doanh Tổng hợp — Sonadezi Long Thành
      ══════════════════════════════════════════════════════════════════ -->
 
 <style>
-.gt-boc { max-width: 980px; margin: 0 auto; padding-bottom: 24px; }
+.gt-boc { max-width: 1180px; margin: 0 auto; padding-bottom: 26px; }
 
 /* ---------- Dải tiêu đề ---------- */
 .gt-hero {
   background: linear-gradient(135deg, var(--xanh-dam), var(--xanh-nhat));
-  color: #fff; text-align: center; padding: 34px 20px 28px;
+  color: #fff; padding: 20px 22px 18px;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px;
 }
-.gt-hero .gt-nhan-tren { font-size: 11px; letter-spacing: 2.4px; opacity: .8; }
-.gt-hero h2 { font-size: 30px; font-weight: 700; line-height: 1.25; margin-top: 8px; }
-.gt-hero .gt-phu { font-size: 14px; opacity: .85; margin-top: 10px; }
+.gt-hero .gt-nhan-tren { font-size: 10.5px; letter-spacing: 2px; opacity: .8; }
+.gt-hero h2  { font-size: 22px; font-weight: 700; margin-top: 5px; line-height: 1.25; }
+.gt-hero .gt-phu { font-size: 13px; opacity: .85; margin-top: 5px; }
 
-.gt-ngonngu { display: flex; gap: 8px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }
+.gt-ngonngu { display: flex; gap: 6px; flex-wrap: wrap; }
 .gt-ngonngu button {
   border: 1px solid rgba(255,255,255,.45); background: rgba(255,255,255,.12);
-  color: #fff; padding: 8px 18px; border-radius: 20px; font-size: 13px; cursor: pointer;
+  color: #fff; padding: 7px 14px; border-radius: 20px; font-size: 12.5px;
+  cursor: pointer; white-space: nowrap;
 }
 .gt-ngonngu button.dang-chon { background: #fff; color: var(--xanh-dam); font-weight: 600; }
+
+/* ---------- Dải số liệu nổi bật ---------- */
+.gt-noi-bat {
+  background: #f5f8fc; border-bottom: 1px solid var(--xam-vien);
+  padding: 16px 22px; display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+.gt-noi-bat .so   { font-size: 25px; font-weight: 700; color: var(--xanh-dam); line-height: 1.1; }
+.gt-noi-bat .nhan { font-size: 12px; color: var(--xam-chu); margin-top: 3px; }
 
 /* ---------- Thanh điều hướng dính ---------- */
 .gt-dieu-huong {
@@ -40,95 +55,96 @@
 .gt-dieu-huong::-webkit-scrollbar { display: none; }
 .gt-dieu-huong button {
   border: 1px solid var(--xam-vien); background: var(--trang); color: var(--xam-chu);
-  border-radius: 20px; padding: 6px 14px; font-size: 13px; white-space: nowrap; cursor: pointer;
+  border-radius: 20px; padding: 6px 14px; font-size: 12.5px; white-space: nowrap; cursor: pointer;
 }
 .gt-dieu-huong button.dang-chon { background: var(--xanh-dam); border-color: var(--xanh-dam); color: #fff; }
 
-/* ---------- Khối nội dung ---------- */
-.gt-phan { padding: 30px 20px; border-bottom: 1px solid var(--xam-vien); scroll-margin-top: 56px; }
-.gt-phan:nth-child(odd)  { background: var(--trang); }
-.gt-phan:nth-child(even) { background: #f7f9fc; }
-.gt-phan-ten {
-  text-align: center; font-size: 11px; letter-spacing: 2.2px;
-  color: var(--xam-chu); text-transform: uppercase; margin-bottom: 20px;
+/* ---------- Lưới thẻ thông tin ---------- */
+.gt-luoi {
+  display: grid; gap: 14px; padding: 18px 22px;
+  grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+  align-items: start;
 }
-
-/* Số liệu lớn */
-.gt-so-lon { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); text-align: center; }
-.gt-so-lon .so   { font-size: 34px; font-weight: 700; color: var(--xanh-dam); line-height: 1; }
-.gt-so-lon .nhan { font-size: 13px; color: var(--xam-chu); margin-top: 6px; }
-
-/* Biểu tượng + trị số */
-.gt-bieu-tuong { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); text-align: center; }
-.gt-bieu-tuong .ic   { font-size: 26px; line-height: 1; }
-.gt-bieu-tuong .tri  { font-size: 20px; font-weight: 700; color: #1c2b36; margin-top: 8px; }
-.gt-bieu-tuong .nhan { font-size: 12px; color: var(--xam-chu); margin-top: 2px; }
-
-/* Thẻ đơn giá */
-.gt-the-gia { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
-.gt-the-gia .the {
-  border: 1px solid var(--xam-vien); border-radius: 12px; background: var(--trang);
-  padding: 18px 16px; text-align: center; box-shadow: var(--bong);
+.gt-the {
+  background: var(--trang); border: 1px solid var(--xam-vien);
+  border-radius: 12px; box-shadow: var(--bong); overflow: hidden;
+  scroll-margin-top: 58px;
 }
-.gt-the-gia .ic   { font-size: 24px; }
-.gt-the-gia .ten  { font-size: 14px; font-weight: 600; color: #1c2b36; margin-top: 8px; }
-.gt-the-gia .gia  { font-size: 25px; font-weight: 700; color: var(--xanh-dam); margin-top: 10px; line-height: 1.15; }
+.gt-the-dau {
+  background: #eef3f8; padding: 11px 15px; border-bottom: 1px solid var(--xam-vien);
+  font-size: 14px; font-weight: 600; color: var(--xanh-dam);
+  display: flex; align-items: center; gap: 9px;
+}
+.gt-the-dau .ic { font-size: 17px; }
+.gt-the-than { padding: 6px 15px 13px; }
 
-/* Biểu đồ quốc tịch */
-.gt-bieu-do { display: flex; flex-direction: column; gap: 9px; max-width: 620px; margin: 0 auto; }
-.gt-bd-dong { display: flex; align-items: center; gap: 10px; }
-.gt-bd-ten  { flex: 0 0 132px; display: flex; align-items: center; gap: 7px; justify-content: flex-end;
-              font-size: 12.5px; color: var(--xam-chu); text-align: right; }
-.gt-bd-co   { width: 20px; height: 15px; border-radius: 2px; object-fit: cover; flex: none; border: 1px solid rgba(0,0,0,.12); }
-.gt-bd-rai  { flex: 1; background: #e9eef4; border-radius: 4px; overflow: hidden; height: 17px; }
-.gt-bd-thanh{ height: 100%; background: var(--xanh-dam); border-radius: 4px; }
-.gt-bd-so   { flex: 0 0 26px; font-size: 12.5px; font-weight: 600; color: #1c2b36; }
-
-/* Dòng mục – giá trị */
-.gt-luoi-dong { display: grid; gap: 0 26px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); max-width: 820px; margin: 0 auto; }
-.gt-dong { display: flex; gap: 12px; padding: 9px 0; border-bottom: 1px dashed #e2e8ef; font-size: 13.5px; }
-.gt-dong .muc { flex: 0 0 45%; color: var(--xam-chu); }
+/* Dòng thường trong thẻ */
+.gt-dong { display: flex; gap: 12px; padding: 8px 0; border-bottom: 1px dashed #e8edf2; font-size: 13px; }
+.gt-dong:last-child { border-bottom: 0; }
+.gt-dong .muc { flex: 0 0 46%; color: var(--xam-chu); }
 .gt-dong .gt  { flex: 1; color: #1c2b36; font-weight: 500; }
 
-/* Chip phụ dưới số liệu */
-.gt-chip { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 18px; }
-.gt-chip span { background: #eef2f7; border-radius: 20px; padding: 6px 14px; font-size: 12.5px; color: var(--xam-chu); }
+/* Dòng biểu tượng */
+.gt-bt { display: flex; align-items: flex-start; gap: 11px; padding: 9px 0; border-bottom: 1px dashed #e8edf2; }
+.gt-bt:last-child { border-bottom: 0; }
+.gt-bt .ic   { font-size: 19px; line-height: 1.2; flex: none; }
+.gt-bt .tri  { font-size: 16px; font-weight: 700; color: #1c2b36; line-height: 1.2; }
+.gt-bt .nhan { font-size: 12.5px; color: var(--xam-chu); margin-top: 2px; }
+.gt-bt .phu  { font-size: 11.5px; color: var(--xam-chu); margin-top: 2px; }
 
-/* Dòng phụ đề nhỏ giữa phần */
-.gt-phu-de { text-align: center; font-size: 12.5px; color: var(--xam-chu); margin-top: 16px; line-height: 1.6; }
-.gt-phu-de.tren { margin: -8px 0 18px; }
+/* Dòng đơn giá */
+.gt-gia {
+  background: #f7fafd; border: 1px solid #e3ebf3; border-radius: 10px;
+  padding: 11px 13px; margin: 9px 0;
+}
+.gt-gia .ten { font-size: 13px; font-weight: 600; color: #1c2b36; }
+.gt-gia .so  { font-size: 21px; font-weight: 700; color: var(--xanh-dam); margin-top: 4px; line-height: 1.15; }
+.gt-gia .dv  { font-size: 12px; color: var(--xam-chu); margin-top: 2px; }
+.gt-gia .phu { font-size: 11.5px; color: var(--xam-chu); margin-top: 7px; line-height: 1.55; }
 
-/* Phụ chú dưới biểu tượng và trong thẻ giá */
-.gt-bieu-tuong .phu { font-size: 11.5px; color: var(--xam-chu); margin-top: 4px; line-height: 1.5; }
-.gt-the-gia .dv  { font-size: 12px; color: var(--xam-chu); margin-top: 4px; }
-.gt-the-gia .phu { font-size: 12px; color: var(--xam-chu); margin-top: 10px; line-height: 1.55; }
+/* Chip nhỏ */
+.gt-chip { display: flex; gap: 7px; flex-wrap: wrap; margin: 10px 0 4px; }
+.gt-chip span { background: #eef2f7; border-radius: 20px; padding: 5px 12px; font-size: 12px; color: var(--xam-chu); }
+
+/* Biểu đồ quốc tịch */
+.gt-bieu-do { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 4px; }
+.gt-bd-dong { display: flex; align-items: center; gap: 9px; }
+.gt-bd-ten  { flex: 0 0 104px; display: flex; align-items: center; gap: 6px; justify-content: flex-end;
+              font-size: 12px; color: var(--xam-chu); text-align: right; }
+.gt-bd-co   { width: 18px; height: 13px; border-radius: 2px; object-fit: cover; flex: none; border: 1px solid rgba(0,0,0,.12); }
+.gt-bd-rai  { flex: 1; background: #e9eef4; border-radius: 4px; overflow: hidden; height: 15px; }
+.gt-bd-thanh{ height: 100%; background: var(--xanh-dam); border-radius: 4px; }
+.gt-bd-so   { flex: 0 0 24px; font-size: 12px; font-weight: 600; color: #1c2b36; }
+
+/* Dòng dẫn và ghi chú */
+.gt-phu-de { font-size: 12.5px; color: var(--xam-chu); line-height: 1.6; margin: 8px 0 4px; }
+.gt-ghi-chu { font-size: 11.5px; color: var(--xam-chu); font-style: italic; line-height: 1.55; margin-top: 9px; }
 
 /* Khối chi tiết thu gọn */
-.gt-chi-tiet { max-width: 820px; margin: 18px auto 0; }
+.gt-chi-tiet { margin-top: 8px; }
 .gt-chi-tiet summary {
-  list-style: none; cursor: pointer; text-align: center;
-  font-size: 12.5px; color: var(--xanh-dam); padding: 7px 0;
+  list-style: none; cursor: pointer; font-size: 12.5px;
+  color: var(--xanh-dam); padding: 7px 0;
 }
 .gt-chi-tiet summary::-webkit-details-marker { display: none; }
 .gt-chi-tiet summary::after { content: ' ▾'; }
 .gt-chi-tiet[open] summary::after { content: ' ▴'; }
 
-.gt-ghi-chu { text-align: center; font-size: 12.5px; color: var(--xam-chu); font-style: italic; margin-top: 14px; }
-.gt-cach    { height: 18px; }
-
 /* Chân trang */
-.gt-chan { padding: 24px 20px; text-align: center; background: var(--trang); }
-.gt-thanh-nut { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
-.gt-lien-he { font-size: 12.5px; color: var(--xam-chu); margin-top: 14px; }
+.gt-chan { padding: 18px 22px 6px; text-align: center; }
+.gt-thanh-nut { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.gt-lien-he { font-size: 12.5px; color: var(--xam-chu); margin-top: 13px; }
+.gt-chan .gt-ghi-chu { text-align: center; }
 .gt-trong { padding: 40px 20px; text-align: center; color: var(--xam-chu); }
 
 @media (max-width: 640px) {
-  .gt-hero h2 { font-size: 24px; }
-  .gt-so-lon .so { font-size: 28px; }
-  .gt-phan { padding: 24px 14px; }
+  .gt-hero { padding: 16px 14px; }
+  .gt-hero h2 { font-size: 19px; }
+  .gt-noi-bat { padding: 14px; }
+  .gt-luoi { padding: 14px; }
   .gt-dong { flex-direction: column; gap: 2px; }
   .gt-dong .muc { flex: none; }
-  .gt-bd-ten { flex: 0 0 108px; font-size: 12px; }
+  .gt-bd-ten { flex: 0 0 92px; }
 }
 </style>
 
@@ -136,9 +152,11 @@
 <div class="gt-boc">
 
   <div class="gt-hero">
-    <div class="gt-nhan-tren">SONADEZI LONG THÀNH</div>
-    <h2 id="gtTieuDe">KHU CÔNG NGHIỆP LONG THÀNH</h2>
-    <div class="gt-phu" id="gtPhuDe">Thông tin tổng quan phục vụ giới thiệu khách hàng</div>
+    <div>
+      <div class="gt-nhan-tren">SONADEZI LONG THÀNH</div>
+      <h2 id="gtTieuDe">KHU CÔNG NGHIỆP LONG THÀNH</h2>
+      <div class="gt-phu" id="gtPhuDe">Thông tin tổng quan phục vụ giới thiệu khách hàng</div>
+    </div>
     <div class="gt-ngonngu" id="gtNgonNgu">
       <button type="button" data-nn="vi" class="dang-chon">🇻🇳 Tiếng Việt</button>
       <button type="button" data-nn="en">🇬🇧 English</button>
@@ -146,6 +164,7 @@
     </div>
   </div>
 
+  <div class="gt-noi-bat an" id="gtNoiBat"></div>
   <div class="gt-dieu-huong an" id="gtDieuHuong"></div>
 
   <div id="gtThan">
@@ -158,9 +177,7 @@
       <button type="button" class="nut nut-nhat" id="gtNutSaoChep">📋 Sao chép nội dung</button>
       <button type="button" class="nut nut-nhat" id="gtNutChiaSe">📤 Chia sẻ</button>
     </div>
-    <div class="gt-lien-he" id="gtLienHe">
-      Sonadezi Long Thành · 84-251-3514494 · longthanhiz@szl.com.vn
-    </div>
+    <div class="gt-lien-he">Sonadezi Long Thành · 84-251-3514494 · longthanhiz@szl.com.vn</div>
     <div class="gt-ghi-chu" id="gtGhiChu"></div>
   </div>
 </div>
@@ -168,11 +185,19 @@
 
 <script>
 /***********************************************************************
- * THẺ GIỚI THIỆU KCN — BỐ CỤC TRÌNH CHIẾU
+ * THẺ GIỚI THIỆU KCN — BỐ CỤC HỒ SƠ NĂNG LỰC
  ***********************************************************************/
 var TT_KCN      = null;
 var TT_DANG_TAI = false;
 var NN_KCN      = 'vi';
+var SO_NOI_BAT  = 4;      // số ô tối đa trên dải số liệu đầu trang
+
+/** Biểu tượng đầu mỗi thẻ, theo mã nhóm trong sheet */
+var ICON_NHOM = {
+  QUYMO   : '📐', VITRI : '📍', GIATHUE : '💵',
+  HATANG  : '⚡', DAUTU : '🌏', KHAC    : 'ℹ️',
+  CHUDAUTU: '🏢', QUYHOACH: '📐', NHAXUONG: '🏭', DATTHUE: '🗺️'
+};
 
 var NHAN_KCN = {
   vi: { tieuDe: 'KHU CÔNG NGHIỆP LONG THÀNH',
@@ -180,6 +205,7 @@ var NHAN_KCN = {
         pdf   : '📄 Hồ sơ KCN (PDF)',
         sao   : '📋 Sao chép nội dung',
         chiaSe: '📤 Chia sẻ',
+        chiTiet: 'Xem chi tiết',
         tai   : 'Đang tải thông tin…',
         trong : 'Chưa có dữ liệu. Vui lòng chạy “Tạo/cập nhật sheet Giới thiệu KCN” trong bảng chọn ⚙ Hệ thống KCN.',
         ghiChu: 'Giá và phí chưa bao gồm thuế GTGT, có thể thay đổi theo quy định hiện hành.',
@@ -189,6 +215,7 @@ var NHAN_KCN = {
         pdf   : '📄 IZ Profile (PDF)',
         sao   : '📋 Copy content',
         chiaSe: '📤 Share',
+        chiTiet: 'View details',
         tai   : 'Loading…',
         trong : 'No data available. Please run “Create/update Long Thanh IZ info sheet” from the ⚙ menu.',
         ghiChu: 'All charges exclude VAT and are subject to change under current regulations.',
@@ -198,6 +225,7 @@ var NHAN_KCN = {
         pdf   : '📄 工业区简介（PDF）',
         sao   : '📋 复制内容',
         chiaSe: '📤 分享',
+        chiTiet: '查看详情',
         tai   : '正在加载…',
         trong : '暂无数据。请在 ⚙ 菜单中运行“创建/更新工业区介绍数据表”。',
         ghiChu: '以上价格及费用均不含增值税，并可能依现行规定调整。',
@@ -248,26 +276,41 @@ function gtThoat_(s) {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+
 /***********************************************************************
  * KẾT XUẤT
  ***********************************************************************/
 function veGioiThieu() {
   var nhan = NHAN_KCN[NN_KCN];
-  document.getElementById('gtTieuDe').textContent      = nhan.tieuDe;
-  document.getElementById('gtPhuDe').textContent       = nhan.phuDe;
-  document.getElementById('gtNutSaoChep').textContent  = nhan.sao;
-  document.getElementById('gtNutChiaSe').textContent   = nhan.chiaSe;
-  document.getElementById('gtGhiChu').textContent      = nhan.ghiChu;
+  document.getElementById('gtTieuDe').textContent     = nhan.tieuDe;
+  document.getElementById('gtPhuDe').textContent      = nhan.phuDe;
+  document.getElementById('gtNutSaoChep').textContent = nhan.sao;
+  document.getElementById('gtNutChiaSe').textContent  = nhan.chiaSe;
+  document.getElementById('gtGhiChu').textContent     = nhan.ghiChu;
   capNhatNutPDF_();
 
-  var ds = (TT_KCN && TT_KCN.dong) ? TT_KCN.dong : [];
+  var ds     = (TT_KCN && TT_KCN.dong) ? TT_KCN.dong : [];
   var elThan = document.getElementById('gtThan');
   var elNav  = document.getElementById('gtDieuHuong');
+  var elNB   = document.getElementById('gtNoiBat');
 
   if (!ds.length) {
     elNav.classList.add('an');
+    elNB.classList.add('an');
     elThan.innerHTML = '<div class="gt-trong">' + nhan.trong + '</div>';
     return;
+  }
+
+  /* --- Dải số liệu nổi bật --- */
+  var noiBat = ds.filter(function (d) { return d.noiBat; }).slice(0, SO_NOI_BAT);
+  if (noiBat.length) {
+    elNB.classList.remove('an');
+    elNB.innerHTML = noiBat.map(function (d) {
+      return '<div><div class="so">' + gtThoat_(layTheoNN_(d.giaTri)) + '</div>'
+           + '<div class="nhan">' + gtThoat_(layTheoNN_(d.muc)) + '</div></div>';
+    }).join('');
+  } else {
+    elNB.classList.add('an');
   }
 
   /* --- Gom theo nhóm, giữ nguyên thứ tự xuất hiện --- */
@@ -281,50 +324,45 @@ function veGioiThieu() {
   /* --- Thanh điều hướng --- */
   elNav.classList.remove('an');
   elNav.innerHTML = thuTu.map(function (ma, i) {
-    return '<button type="button" data-phan="gtPhan-' + ma + '"' + (i === 0 ? ' class="dang-chon"' : '') + '>'
+    return '<button type="button" data-the="gtThe-' + ma + '"' + (i === 0 ? ' class="dang-chon"' : '') + '>'
          + gtThoat_(nhomMap[ma].ten) + '</button>';
   }).join('');
   Array.prototype.forEach.call(elNav.querySelectorAll('button'), function (b) {
-    b.addEventListener('click', function () { nhayToiPhan_(b); });
+    b.addEventListener('click', function () { nhayToiThe_(b); });
   });
 
-  /* --- Thân trang --- */
-  elThan.innerHTML = thuTu.map(function (ma) {
-    var n = nhomMap[ma];
-    return '<div class="gt-phan" id="gtPhan-' + ma + '">'
-         + '<div class="gt-phan-ten">' + gtThoat_(n.ten) + '</div>'
-         + veNhom_(n.dong)
-         + '</div>';
-  }).join('');
+  /* --- Lưới thẻ --- */
+  elThan.innerHTML = '<div class="gt-luoi">' + thuTu.map(function (ma) {
+    var n    = nhomMap[ma];
+    var than = veThanThe_(n.dong);
+    if (!than) return '';
+    return '<div class="gt-the" id="gtThe-' + ma + '">'
+         + '<div class="gt-the-dau"><span class="ic">' + (ICON_NHOM[ma] || 'ℹ️') + '</span>'
+         + gtThoat_(n.ten) + '</div>'
+         + '<div class="gt-the-than">' + than + '</div></div>';
+  }).join('') + '</div>';
 }
 
-/** Kết xuất một nhóm: gom các dòng liền nhau cùng kiểu thành từng khối */
-function veNhom_(dong) {
+/** Thân một thẻ: gom các dòng liền nhau cùng kiểu thành từng khối */
+function veThanThe_(dong) {
   var khoi = [], hienTai = null;
   dong.forEach(function (d) {
-    var k = d.kieu || 'dong';
+    // Dòng đã lên dải số liệu đầu trang thì không lặp lại trong thẻ
+    if (d.kieu === 'soLieu' && d.noiBat) return;
+    var k = (d.kieu === 'soLieu') ? 'dong' : (d.kieu || 'dong');
     if (!hienTai || hienTai.kieu !== k) { hienTai = { kieu: k, ds: [] }; khoi.push(hienTai); }
     hienTai.ds.push(d);
   });
 
-  return khoi.map(function (k, i) {
-    var cach = i > 0 ? '<div class="gt-cach"></div>' : '';
-    if (k.kieu === 'soLieu')    return cach + veSoLon_(k.ds);
+  return khoi.map(function (k) {
     if (k.kieu === 'chip')      return veChip_(k.ds);
-    if (k.kieu === 'bieuTuong') return cach + veBieuTuong_(k.ds);
-    if (k.kieu === 'theGia')    return cach + veTheGia_(k.ds);
-    if (k.kieu === 'bieuDo')    return cach + veBieuDo_(k.ds);
-    if (k.kieu === 'phuDe')     return vePhuDe_(k.ds, i === 0);
+    if (k.kieu === 'bieuTuong') return veBieuTuong_(k.ds);
+    if (k.kieu === 'theGia')    return veTheGia_(k.ds);
+    if (k.kieu === 'bieuDo')    return veBieuDo_(k.ds);
+    if (k.kieu === 'phuDe')     return vePhuDe_(k.ds);
     if (k.kieu === 'ghiChu')    return veGhiChu_(k.ds);
-    return veChiTiet_(k.ds);            // dòng chi tiết → thu gọn trong "Xem chi tiết"
+    return veChiTiet_(k.ds);
   }).join('');
-}
-
-function veSoLon_(ds) {
-  return '<div class="gt-so-lon">' + ds.map(function (d) {
-    return '<div><div class="so">' + gtThoat_(layTheoNN_(d.giaTri)) + '</div>'
-         + '<div class="nhan">' + gtThoat_(layTheoNN_(d.muc)) + '</div></div>';
-  }).join('') + '</div>';
 }
 
 function veChip_(ds) {
@@ -333,40 +371,33 @@ function veChip_(ds) {
   }).join('') + '</div>';
 }
 
-function vePhuDe_(ds, oDau) {
+function veBieuTuong_(ds) {
   return ds.map(function (d) {
-    return '<div class="gt-phu-de' + (oDau ? ' tren' : '') + '">'
-         + gtThoat_(layTheoNN_(d.giaTri)) + '</div>';
+    var nhan = layTheoNN_(d.muc);
+    var phu  = layTheoNN_(d.phu);
+    return '<div class="gt-bt">'
+         + (d.icon ? '<span class="ic">' + gtThoat_(d.icon) + '</span>' : '')
+         + '<div><div class="tri">' + gtThoat_(layTheoNN_(d.giaTri)) + '</div>'
+         + (nhan ? '<div class="nhan">' + gtThoat_(nhan) + '</div>' : '')
+         + (phu  ? '<div class="phu">'  + gtThoat_(phu)  + '</div>' : '')
+         + '</div></div>';
   }).join('');
 }
 
-function veBieuTuong_(ds) {
-  return '<div class="gt-bieu-tuong">' + ds.map(function (d) {
-    var nhan = layTheoNN_(d.muc);
-    var phu  = layTheoNN_(d.phu);
-    return '<div>'
-         + (d.icon ? '<div class="ic">' + gtThoat_(d.icon) + '</div>' : '')
-         + '<div class="tri">' + gtThoat_(layTheoNN_(d.giaTri)) + '</div>'
-         + (nhan ? '<div class="nhan">' + gtThoat_(nhan) + '</div>' : '')
-         + (phu  ? '<div class="phu">'  + gtThoat_(phu)  + '</div>' : '')
-         + '</div>';
-  }).join('') + '</div>';
-}
-
-/** Thẻ giá: phần phụ chú tách 2 dòng bằng dấu || (đơn vị || ghi chú) */
+/** Dòng đơn giá: phụ chú tách hai phần bằng dấu || (đơn vị || ghi chú) */
 function veTheGia_(ds) {
-  return '<div class="gt-the-gia">' + ds.map(function (d) {
+  return ds.map(function (d) {
     var phu = layTheoNN_(d.phu).split('||');
-    return '<div class="the">'
-         + '<div class="ten">' + gtThoat_(layTheoNN_(d.muc)) + '</div>'
-         + '<div class="gia">' + gtThoat_(layTheoNN_(d.giaTri)) + '</div>'
+    return '<div class="gt-gia">'
+         + '<div class="ten">' + (d.icon ? gtThoat_(d.icon) + ' ' : '') + gtThoat_(layTheoNN_(d.muc)) + '</div>'
+         + '<div class="so">' + gtThoat_(layTheoNN_(d.giaTri)) + '</div>'
          + (phu[0] ? '<div class="dv">'  + gtThoat_(phu[0].trim()) + '</div>' : '')
          + (phu[1] ? '<div class="phu">' + gtThoat_(phu[1].trim()) + '</div>' : '')
          + '</div>';
-  }).join('') + '</div>';
+  }).join('');
 }
 
-/** Biểu đồ thanh ngang, có cờ quốc gia lấy từ cột MaCo */
+/** Biểu đồ thanh ngang, cờ quốc gia lấy theo cột MaCo */
 function veBieuDo_(ds) {
   var soCua = function (d) {
     var n = parseFloat(String(layTheoNN_(d.giaTri)).replace(/[^0-9.,]/g, '').replace(',', '.'));
@@ -377,8 +408,7 @@ function veBieuDo_(ds) {
   if (!lonNhat) lonNhat = 1;
 
   return '<div class="gt-bieu-do">' + ds.map(function (d) {
-    var n  = soCua(d);
-    var pt = Math.max(3, Math.round(n / lonNhat * 100));
+    var pt = Math.max(3, Math.round(soCua(d) / lonNhat * 100));
     var co = d.maCo
       ? '<img class="gt-bd-co" alt="" loading="lazy" src="https://flagcdn.com/40x30/' + gtThoat_(d.maCo) + '.png" '
         + 'onerror="this.style.display=\'none\'">'
@@ -391,30 +421,32 @@ function veBieuDo_(ds) {
   }).join('') + '</div>';
 }
 
+function vePhuDe_(ds) {
+  return ds.map(function (d) {
+    return '<div class="gt-phu-de">' + gtThoat_(layTheoNN_(d.giaTri)) + '</div>';
+  }).join('');
+}
+
 function veGhiChu_(ds) {
   return ds.map(function (d) {
     return '<div class="gt-ghi-chu">' + gtThoat_(layTheoNN_(d.giaTri)) + '</div>';
   }).join('');
 }
 
-/** Các dòng chi tiết — mặc định thu gọn để màn hình trình bày không bị rối chữ */
+/** Dòng chi tiết — thu gọn để thẻ không bị dày chữ */
 function veChiTiet_(ds) {
-  var nhanMo = { vi: 'Xem chi tiết', en: 'View details', zh: '查看详情' }[NN_KCN] || 'Xem chi tiết';
-  return '<details class="gt-chi-tiet"><summary>' + nhanMo + '</summary>'
-       + veDong_(ds) + '</details>';
+  return '<details class="gt-chi-tiet"><summary>' + NHAN_KCN[NN_KCN].chiTiet + '</summary>'
+       + ds.map(function (d) {
+           return '<div class="gt-dong">'
+                + '<div class="muc">' + (d.icon ? gtThoat_(d.icon) + ' ' : '') + gtThoat_(layTheoNN_(d.muc)) + '</div>'
+                + '<div class="gt">' + gtThoat_(layTheoNN_(d.giaTri)) + '</div></div>';
+         }).join('')
+       + '</details>';
 }
 
-function veDong_(ds) {
-  return '<div class="gt-luoi-dong">' + ds.map(function (d) {
-    return '<div class="gt-dong">'
-         + '<div class="muc">' + (d.icon ? gtThoat_(d.icon) + ' ' : '') + gtThoat_(layTheoNN_(d.muc)) + '</div>'
-         + '<div class="gt">' + gtThoat_(layTheoNN_(d.giaTri)) + '</div></div>';
-  }).join('') + '</div>';
-}
-
-/** Cuộn tới phần tương ứng và làm nổi bật nút trên thanh điều hướng */
-function nhayToiPhan_(nut) {
-  var el = document.getElementById(nut.dataset.phan);
+/** Cuộn tới thẻ tương ứng và làm nổi bật nút trên thanh điều hướng */
+function nhayToiThe_(nut) {
+  var el = document.getElementById(nut.dataset.the);
   if (!el) return;
   Array.prototype.forEach.call(
     document.querySelectorAll('#gtDieuHuong button'),
@@ -423,6 +455,7 @@ function nhayToiPhan_(nut) {
   try { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   catch (e) { el.scrollIntoView(); }
 }
+
 
 /***********************************************************************
  * HỒ SƠ PDF · SAO CHÉP · CHIA SẺ
@@ -446,15 +479,16 @@ function capNhatNutPDF_() {
 }
 
 function noiDungGioiThieuVanBan_() {
-  var ds = (TT_KCN && TT_KCN.dong) ? TT_KCN.dong : [];
+  var ds  = (TT_KCN && TT_KCN.dong) ? TT_KCN.dong : [];
   var out = [NHAN_KCN[NN_KCN].tieuDe, ''];
   var nhomHienTai = '';
 
   ds.forEach(function (d) {
-    if (d.kieu === 'bieuDo') return;              // bỏ danh sách quốc tịch cho gọn tin nhắn
+    if (d.kieu === 'bieuDo') return;                 // bỏ danh sách quốc tịch cho gọn tin nhắn
     var ten = layTheoNN_(d.nhom);
     if (ten && ten !== nhomHienTai) { nhomHienTai = ten; out.push('— ' + ten.toUpperCase() + ' —'); }
-    out.push('• ' + layTheoNN_(d.muc) + ': ' + layTheoNN_(d.giaTri));
+    var muc = layTheoNN_(d.muc);
+    out.push('• ' + (muc ? muc + ': ' : '') + layTheoNN_(d.giaTri));
   });
 
   var link = layLinkHoSoKCN_();
