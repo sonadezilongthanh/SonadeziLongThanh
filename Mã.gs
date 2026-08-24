@@ -58,6 +58,7 @@ const COT_AN_KHACH_CHUNG = [
   'BanThoaThuan - NgayHetHan',
   'PhiQuanLy (USD)',
   'PhiQuanLy',
+  'PhiQuanLy - PTThanhToan',
   'ThoiHanThue',
   'ThoiHanThue_ChiTiet',
   'TinhTrangHoatDong',

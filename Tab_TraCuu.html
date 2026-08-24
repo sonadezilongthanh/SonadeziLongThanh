@@ -126,7 +126,7 @@ const COT_CHUNG_TRUOC = [
 
 /** D — Phí quản lý, tình trạng, ghi chú (dùng chung 2 loại hình) */
 const COT_CHUNG_SAU = [
-  ['Phí QL (USD)',           function (nx) { return nx['PhiQuanLy (USD)'] || ''; },    'khac'],
+  ['Phí QL (USD)',           function (nx) { return ghepGiaPT(nx['PhiQuanLy (USD)'], nx['PhiQuanLy - PTThanhToan']); }, 'khac'],
   ['Tình trạng hoạt động',   function (nx) { return nx.TinhTrangHoatDong || ''; },     'khac'],
   ['Ghi chú',                function (nx) { return nx.GhiChu || nx['Ghi chú'] || ''; },'khac']
 ];
