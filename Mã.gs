@@ -103,7 +103,11 @@ const COT_AN_KHACH_DAT       = COT_AN_KHACH_CHUNG.concat(COT_AN_KHACH_RIENG_DAT)
  *  về trình duyệt → khách không thấy, không có link để mở.
  *  (Các vai trò đã đăng nhập — kể cả ChiXem — vẫn xem bình thường.)
  ***********************************************************************/
-const LOAI_TL_AN_KHACH = ['Hợp đồng', 'Khác'];
+// ★ MỚI: đồng bộ với TL_LOAI_CHO_PHEP (TaiLieu.gs) — 3 loại hợp đồng cụ thể
+//   thay cho "Hợp đồng" chung chung, vẫn ẩn với khách như trước.
+const LOAI_TL_AN_KHACH = [
+  'Hợp đồng thuê đất, xưởng', 'Hợp đồng nước cấp', 'Hợp đồng nước thải', 'Khác'
+];
 
 /***********************************************************************
  * ★★★ CỜ CHẾ ĐỘ THỬ NGHIỆM

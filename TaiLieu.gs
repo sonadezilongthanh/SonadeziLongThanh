@@ -24,7 +24,13 @@ const TL_DUOI_CHO_PHEP = [
   'pdf', 'jpg', 'jpeg', 'png', 'webp', 'gif',
   'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'dwg', 'zip'
 ];
-const TL_LOAI_CHO_PHEP = ['Brochure', 'Bản vẽ', 'Hình ảnh', 'Hợp đồng', 'Khác'];
+// ★ MỚI: tách "Hợp đồng" thành 3 loại cụ thể để buộc nhập đủ 3 loại
+//   (dùng để tính "Tiến độ nhập liệu" và gác nút "Đã rà soát" — xem Tab_CongViec.html).
+const TL_LOAI_CHO_PHEP = [
+  'Brochure', 'Bản vẽ', 'Hình ảnh',
+  'Hợp đồng thuê đất, xưởng', 'Hợp đồng nước cấp', 'Hợp đồng nước thải',
+  'Khác'
+];
 
 // Vai trò được phép thao tác tài liệu
 const TL_VAI_TRO_DUOC_TAI = ['QuanTri', 'QuanLy', 'NhapLieu'];

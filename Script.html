@@ -1831,6 +1831,24 @@ function moHopThoaiSua(ma) {
   //   giá trị lạ (không có trong danh sách option) sẽ tự về "— Chưa rà soát —".
   const selRaSoat = _o('suaTrangThaiRaSoat');
   if (selRaSoat) selRaSoat.value = String(nx.TrangThaiRaSoat || '').trim();
+
+  // ★ MỚI — chỉ cho chọn "Đã rà soát" khi đơn vị đã đủ thông tin bắt buộc
+  //   (đủ trường dữ liệu + đủ 3 loại hợp đồng đính kèm). Xem _cvGacRaSoat()
+  //   trong Tab_CongViec.html (dùng chung công thức với thẻ "Tiến độ nhập liệu").
+  const goiYRaSoat = _o('suaGoiYRaSoat');
+  if (selRaSoat && typeof _cvGacRaSoat === 'function') {
+    const kqRaSoat = _cvGacRaSoat(selRaSoat, nx);
+    if (goiYRaSoat) {
+      if (kqRaSoat.hoanTat) {
+        goiYRaSoat.style.display = 'none';
+        goiYRaSoat.textContent = '';
+      } else {
+        goiYRaSoat.style.display = 'block';
+        goiYRaSoat.textContent = '⚠ Chưa đủ điều kiện rà soát — còn thiếu: '
+          + kqRaSoat.thieu.join(', ') + '.';
+      }
+    }
+  }
   _ganO('suaTangHoa',        nx.TangHoa);
   _ganO('suaGhiChuTangHoa',  nx.GhiChuTangHoa);
   _ganO('suaBTTSo',         nx['BanThoaThuan - So']);
@@ -1947,6 +1965,21 @@ function luuThayDoi() {
     _layO(duLieuMoi, 'TienThueMatBang - PTThanhToan',  'suaPTThanhToanMB');
     _layO(duLieuMoi, 'TienDatTho - DonGia (USD)',      'suaDonGiaDatTho');
     _layO(duLieuMoi, 'TienDatTho - PTThanhToan',       'suaPTThanhToanDatTho');
+  }
+
+  // ★ MỚI — chặn lưu (không gọi server) nếu chọn "Đã rà soát" nhưng đơn vị
+  //   chưa đủ thông tin bắt buộc (đủ trường dữ liệu + đủ 3 loại hợp đồng
+  //   đính kèm). Kiểm tra trên dữ liệu VỪA NHẬP (duLieuMoi) để không chặn
+  //   oan khi người dùng vừa điền đủ ngay trong lần sửa này.
+  if (String(duLieuMoi.TrangThaiRaSoat || '').trim() === 'Đã rà soát'
+      && typeof _cvGacRaSoat === 'function') {
+    const kqRaSoat = _cvGacRaSoat(null, nxHienTai, duLieuMoi);
+    if (!kqRaSoat.hoanTat) {
+      tb.className = 'thong-bao loi';
+      tb.textContent = '✕ Chưa thể đặt "Đã rà soát" — đơn vị còn thiếu: '
+        + kqRaSoat.thieu.join(', ') + '.';
+      return;
+    }
   }
 
   nut.disabled = true;
