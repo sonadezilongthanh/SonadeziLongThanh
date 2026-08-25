@@ -199,6 +199,9 @@ var ICON_NHOM = {
   CHUDAUTU: '🏢', QUYHOACH: '📐', NHAXUONG: '🏭', DATTHUE: '🗺️'
 };
 
+/** ★ Nhóm được xổ sẵn phần "Xem chi tiết" khi mở tab (không cần bấm) */
+var NHOM_MO_SAN = ['CHUDAUTU', 'VITRI', 'QUYHOACH'];
+
 var NHAN_KCN = {
   vi: { tieuDe: 'KHU CÔNG NGHIỆP LONG THÀNH',
         phuDe : 'Thông tin tổng quan phục vụ giới thiệu khách hàng',
@@ -334,7 +337,7 @@ function veGioiThieu() {
   /* --- Lưới thẻ --- */
   elThan.innerHTML = '<div class="gt-luoi">' + thuTu.map(function (ma) {
     var n    = nhomMap[ma];
-    var than = veThanThe_(n.dong);
+    var than = veThanThe_(n.dong, ma);
     if (!than) return '';
     return '<div class="gt-the" id="gtThe-' + ma + '">'
          + '<div class="gt-the-dau"><span class="ic">' + (ICON_NHOM[ma] || 'ℹ️') + '</span>'
@@ -344,7 +347,7 @@ function veGioiThieu() {
 }
 
 /** Thân một thẻ: gom các dòng liền nhau cùng kiểu thành từng khối */
-function veThanThe_(dong) {
+function veThanThe_(dong, maNhom) {
   var khoi = [], hienTai = null;
   dong.forEach(function (d) {
     // Dòng đã lên dải số liệu đầu trang thì không lặp lại trong thẻ
@@ -361,7 +364,7 @@ function veThanThe_(dong) {
     if (k.kieu === 'bieuDo')    return veBieuDo_(k.ds);
     if (k.kieu === 'phuDe')     return vePhuDe_(k.ds);
     if (k.kieu === 'ghiChu')    return veGhiChu_(k.ds);
-    return veChiTiet_(k.ds);
+    return veChiTiet_(k.ds, maNhom);
   }).join('');
 }
 
@@ -434,8 +437,9 @@ function veGhiChu_(ds) {
 }
 
 /** Dòng chi tiết — thu gọn để thẻ không bị dày chữ */
-function veChiTiet_(ds) {
-  return '<details class="gt-chi-tiet"><summary>' + NHAN_KCN[NN_KCN].chiTiet + '</summary>'
+function veChiTiet_(ds, maNhom) {
+  var moSan = (NHOM_MO_SAN.indexOf(maNhom) >= 0) ? ' open' : '';
+  return '<details class="gt-chi-tiet"' + moSan + '><summary>' + NHAN_KCN[NN_KCN].chiTiet + '</summary>'
        + ds.map(function (d) {
            return '<div class="gt-dong">'
                 + '<div class="muc">' + (d.icon ? gtThoat_(d.icon) + ' ' : '') + gtThoat_(layTheoNN_(d.muc)) + '</div>'
