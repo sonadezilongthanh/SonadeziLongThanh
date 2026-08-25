@@ -1465,7 +1465,6 @@ function moPanelChiTiet(ma) {
     html += dongTT('Bản thỏa thuận — Hết hạn',   nx['BanThoaThuan - NgayHetHan']);
     html += dongTT('Hợp đồng — Số',              nx.SoHopDong);
     html += dongTT('Hợp đồng — Ngày',            nx.NgayHopDong);
-    html += dongTT('Thời hạn thuê',              docThoiHanThue(nx));
     html += dongTT('Ngày hết hạn hợp đồng',      nx.NgayHetHanHD);
 
     /* ════════ B — CHỈ NHÀ XƯỞNG ════════ */
@@ -1759,7 +1758,6 @@ function ghepGiaPT(donGia, pt, donVi) {
  *  suaBTTSo                 BanThoaThuan - So        BanThoaThuan - So
  *  suaBTTNgay               BanThoaThuan - Ngay      BanThoaThuan - Ngay
  *  suaBTTNgayHetHan         BanThoaThuan - NgayHetHan (cả 2 loại hình)
- *  suaThoiHanThue           ThoiHanThue              ThoiHanThue
  *  suaTinhTrangHoatDong     TinhTrangHoatDong        TinhTrangHoatDong
  *  suaPhiQuanLy             PhiQuanLy (USD)          PhiQuanLy (USD)
  *  suaPTThanhToanPQL        PhiQuanLy - PTThanhToan   PhiQuanLy - PTThanhToan
@@ -1840,7 +1838,6 @@ function moHopThoaiSua(ma) {
   _ganO('suaBTTNgayHetHan', nx['BanThoaThuan - NgayHetHan']);
   _ganO('suaSoHopDong',     nx.SoHopDong);
   _ganO('suaNgayHopDong',   nx.NgayHopDong);
-  _ganO('suaThoiHanThue',   docThoiHanThue(nx));
   _ganO('suaNgayHetHan',    nx.NgayHetHanHD);
 
   /* ════════ PHẦN B — RIÊNG NHÀ XƯỞNG ════════ */
@@ -1931,7 +1928,6 @@ function luuThayDoi() {
   /* Sheet đã gộp về 1 cột duy nhất cho cả 2 loại hình:
      "NganhNghe_SanPham" (cột H) và "ThoiHanThue" (cột S). */
   _layO(duLieuMoi, 'NganhNghe_SanPham',         'suaNganhNghe');
-  _layO(duLieuMoi, 'ThoiHanThue',               'suaThoiHanThue');
 
   /* ════════ PHẦN B — CHỈ GHI KHI LÀ NHÀ XƯỞNG ════════ */
   if (!laDat) {
