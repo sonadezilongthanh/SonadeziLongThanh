@@ -254,7 +254,8 @@
 
       <div class="dong-form">
         <label>Ngành nghề, sản phẩm</label>
-        <input type="text" id="suaNganhNghe">
+        <textarea id="suaNganhNghe" rows="2" class="o-tu-gian"
+                  placeholder="Mỗi ngành nghề / sản phẩm ghi 1 dòng"></textarea>
       </div>
 
       <div class="dong-form">
@@ -267,15 +268,17 @@
         <input type="text" id="suaNguoiDaiDien">
       </div>
 
+      <!-- ★ V4.2: cho phep nhap NHIEU DONG (moi lan cap/thay doi 1 dong) -->
       <div class="dong-form">
         <label>Giấy chứng nhận đầu tư</label>
-        <input type="text" id="suaGiayCNDT" placeholder="Số / ngày cấp">
+        <textarea id="suaGiayCNDT" rows="2" class="o-tu-gian"
+                  placeholder="Số / ngày cấp — mỗi lần cấp ghi 1 dòng (Shift+Enter hoặc Enter để xuống dòng)"></textarea>
       </div>
 
       <div class="dong-form">
         <label>Giấy chứng nhận doanh nghiệp</label>
-        <input type="text" id="suaGiayCNDN"
-               placeholder="Số / lần thay đổi / ngày cấp">
+        <textarea id="suaGiayCNDN" rows="2" class="o-tu-gian"
+                  placeholder="Số / lần thay đổi / ngày cấp — mỗi lần thay đổi ghi 1 dòng"></textarea>
       </div>
 
       <!-- ★ V2.8: Ngày thành lập — dùng cho cảnh báo kỷ niệm (đặt lẵng hoa) -->
@@ -504,6 +507,32 @@
   </div>
 </div>
 
+
+<!-- ★ V4.2 — Tu gian chieu cao cac o nhap nhieu dong (.o-tu-gian) -->
+<script>
+(function () {
+  function _gian(el) {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = (el.scrollHeight + 2) + 'px';
+  }
+  function _gianTatCa(goc) {
+    (goc || document).querySelectorAll('textarea.o-tu-gian').forEach(_gian);
+  }
+  // 1) Khi go phim
+  document.addEventListener('input', function (e) {
+    if (e.target && e.target.matches && e.target.matches('textarea.o-tu-gian')) _gian(e.target);
+  });
+  // 2) Khi hop thoai Sua duoc mo (bo class "an") -> gian theo du lieu vua nap
+  document.addEventListener('DOMContentLoaded', function () {
+    var ht = document.getElementById('hopThoaiSua');
+    if (!ht) return;
+    new MutationObserver(function () {
+      if (!ht.classList.contains('an')) setTimeout(function(){ _gianTatCa(ht); }, 30);
+    }).observe(ht, { attributes: true, attributeFilter: ['class'] });
+  });
+})();
+</script>
 
 <?!= include('HopThoai_TaiLieu'); ?>
 <?!= include('Script'); ?>

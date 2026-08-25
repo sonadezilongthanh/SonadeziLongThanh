@@ -180,8 +180,19 @@ svg .nhan-phu {
   display: flex; justify-content: space-between;
   padding: 9px 0; border-bottom: 1px solid #eef1f4;
 }
-.dong-tt .nhan-tt { color: var(--xam-chu); font-size: 13px; }
-.dong-tt .gia-tri { font-weight: 600; text-align: right; }
+.dong-tt .nhan-tt {
+  color: var(--xam-chu); font-size: 13px;
+  flex: 0 0 auto; padding-right: 14px;
+}
+/* ★ V4.2 — giu nguyen xuong dong tu Sheet + tu ngat dong khi qua dai */
+.dong-tt .gia-tri {
+  font-weight: 600; text-align: right;
+  flex: 1 1 auto;
+  white-space: pre-line;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
 
 .nhom-nut-ban-do { display: flex; gap: 8px; margin: 16px 0; }
 .nhom-nut-ban-do .nut { flex: 1; justify-content: center; }
@@ -224,6 +235,14 @@ svg .nhan-phu {
   width: 100%; padding: 8px 10px;
   border: 1px solid var(--xam-vien); border-radius: 6px;
   font-size: 13px; font-family: inherit;
+}
+/* ★ V4.2 — o nhap nhieu dong */
+.dong-form textarea {
+  resize: vertical; min-height: 38px; line-height: 1.5;
+}
+.dong-form textarea.o-tu-gian {
+  overflow-y: hidden;          /* tu gian chieu cao, khong hien thanh cuon */
+  resize: vertical;
 }
 .nhom-nut { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
 .thong-bao { margin-top: 10px; font-size: 12px; }
