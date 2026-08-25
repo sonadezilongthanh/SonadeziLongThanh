@@ -1359,9 +1359,9 @@ function giaChaoThue_(nx) {
   const laDat = laLoaiDat(nx);
 
   if (!laDat) {
-    return nx['TienThueXuong - DonGia (USD)']
-      ? nx['TienThueXuong - DonGia (USD)'] + ' USD/m²/tháng'
-      : '';
+    // ★ SỬA — bỏ đơn vị cố định "USD/m²/tháng": mỗi khách thuê một đơn vị
+    //   khác nhau, cán bộ tự gõ kèm đơn vị ngay trong ô "Đơn giá" khi cần.
+    return nx['TienThueXuong - DonGia (USD)'] || '';
   }
 
   const phan = [];
@@ -1474,8 +1474,7 @@ function moPanelChiTiet(ma) {
       html += dongTT('DT văn phòng',         dinhDangSo(nx.DienTichVanPhong, 'm²'));
       html += dongTT('DT khu đất',           dinhDangSo(nx.DienTichKhuDat_m2, 'm²'));
       html += dongTT('Tiền thuê xưởng',      ghepGiaPT(nx['TienThueXuong - DonGia (USD)'],
-                                                       nx['TienThueXuong - PTThanhToan'],
-                                                       'USD/m²/tháng'));
+                                                       nx['TienThueXuong - PTThanhToan']));
     }
 
     /* ════════ C — CHỈ ĐẤT CHO THUÊ ════════ */
@@ -1495,9 +1494,10 @@ function moPanelChiTiet(ma) {
     html += '<div class="tieu-de-nhom">D. Phí quản lý &amp; Ghi chú <small>(dùng chung)</small></div>';
     html += dongTT('Phí quản lý',
       ghepGiaPT(
+        // ★ SỬA — bỏ đơn vị cố định "USD/m²/năm|tháng", giữ lại ghi chú
+        //   "(trên DT khu đất)" vì đây là CƠ SỞ TÍNH, không phải đơn vị tiền.
         nx['PhiQuanLy (USD)']
-          ? (nx['PhiQuanLy (USD)'] + (laDatCT ? ' USD/m²/năm' : ' USD/m²/tháng')
-             + (laDatCT ? '' : ' (trên DT khu đất)'))
+          ? (nx['PhiQuanLy (USD)'] + (laDatCT ? '' : ' (trên DT khu đất)'))
           : '',
         nx['PhiQuanLy - PTThanhToan']
       ));
@@ -1833,7 +1833,7 @@ function moHopThoaiSua(ma) {
   if (selRaSoat) selRaSoat.value = String(nx.TrangThaiRaSoat || '').trim();
 
   // ★ MỚI — chỉ cho chọn "Đã rà soát" khi đơn vị đã đủ thông tin bắt buộc
-  //   (đủ trường dữ liệu + đủ 3 loại hợp đồng đính kèm). Xem _cvGacRaSoat()
+  //   (đủ trường dữ liệu + có tài liệu hợp đồng đính kèm). Xem _cvGacRaSoat()
   //   trong Tab_CongViec.html (dùng chung công thức với thẻ "Tiến độ nhập liệu").
   const goiYRaSoat = _o('suaGoiYRaSoat');
   if (selRaSoat && typeof _cvGacRaSoat === 'function') {
@@ -1886,13 +1886,10 @@ function moHopThoaiSua(ma) {
   const khoiNX = _o('nhomSuaNhaXuong');
   if (khoiNX) khoiNX.style.display = laDat ? 'none' : 'block';
 
-  // Nhãn phí quản lý theo đơn vị tính của từng loại hình
+  // ★ SỬA — bỏ đơn vị cố định trong nhãn (mỗi khách một đơn vị khác nhau,
+  //   cán bộ tự gõ kèm đơn vị ngay trong ô nhập khi cần).
   const nhanPQL = _o('nhanPhiQuanLy');
-  if (nhanPQL) {
-    nhanPQL.textContent = laDat
-      ? 'Phí quản lý (USD/m²/năm)'
-      : 'Phí quản lý (USD/m²/tháng)';
-  }
+  if (nhanPQL) nhanPQL.textContent = 'Phí quản lý';
 
   document.getElementById('thongBaoSua').textContent = '';
   document.getElementById('thongBaoSua').className   = 'thong-bao';
@@ -1967,20 +1964,9 @@ function luuThayDoi() {
     _layO(duLieuMoi, 'TienDatTho - PTThanhToan',       'suaPTThanhToanDatTho');
   }
 
-  // ★ MỚI — chặn lưu (không gọi server) nếu chọn "Đã rà soát" nhưng đơn vị
-  //   chưa đủ thông tin bắt buộc (đủ trường dữ liệu + đủ 3 loại hợp đồng
-  //   đính kèm). Kiểm tra trên dữ liệu VỪA NHẬP (duLieuMoi) để không chặn
-  //   oan khi người dùng vừa điền đủ ngay trong lần sửa này.
-  if (String(duLieuMoi.TrangThaiRaSoat || '').trim() === 'Đã rà soát'
-      && typeof _cvGacRaSoat === 'function') {
-    const kqRaSoat = _cvGacRaSoat(null, nxHienTai, duLieuMoi);
-    if (!kqRaSoat.hoanTat) {
-      tb.className = 'thong-bao loi';
-      tb.textContent = '✕ Chưa thể đặt "Đã rà soát" — đơn vị còn thiếu: '
-        + kqRaSoat.thieu.join(', ') + '.';
-      return;
-    }
-  }
+  // ★ SỬA — bỏ chặn nút Lưu: chỉ cần gác ngay tại ô chọn "Đã rà soát"
+  //   (đã disable option khi mở form — xem moHopThoaiSua/_cvGacRaSoat)
+  //   là đủ; các trường khác trong form vẫn lưu bình thường không bị chặn.
 
   nut.disabled = true;
   nut.textContent = 'Đang lưu…';
@@ -2182,9 +2168,8 @@ function soanTinNhan() {
   // (Chế độ khách: các trường này đã bị server xoá trắng → tự về "Liên hệ")
   let giaChaoThue = 'Liên hệ';
   if (!laDat) {
-    giaChaoThue = nx['TienThueXuong - DonGia (USD)']
-      ? nx['TienThueXuong - DonGia (USD)'] + ' USD/m²/tháng'
-      : 'Liên hệ';
+    // ★ SỬA — bỏ đơn vị cố định, gõ kèm đơn vị ngay trong ô "Đơn giá" khi cần.
+    giaChaoThue = nx['TienThueXuong - DonGia (USD)'] || 'Liên hệ';
   } else {
     const giaMB  = nx['TienThueMatBang - DonGia (USD)'];
     const giaTho = nx['TienDatTho - DonGia (USD)'];
@@ -2195,8 +2180,9 @@ function soanTinNhan() {
   }
 
   const ptttPQL   = nx['PhiQuanLy - PTThanhToan'] || '';
+  // ★ SỬA — bỏ đơn vị cố định "USD/m²/năm".
   const phiQuanLy = nx['PhiQuanLy (USD)']
-    ? ghepGiaPT(nx['PhiQuanLy (USD)'] + ' USD/m²/năm', ptttPQL)
+    ? ghepGiaPT(nx['PhiQuanLy (USD)'], ptttPQL)
     : 'Liên hệ';
 
   // ★ Chọn mẫu riêng cho Đất cho thuê nếu DM_CauHinh có khai báo

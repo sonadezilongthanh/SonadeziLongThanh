@@ -299,14 +299,14 @@ var CV_TRUONG_DAT = [
   { nhan: 'Người đại diện',  ten: ['NguoiDaiDien'] }
 ];
 
-/* ★ MỚI — 3 loại hợp đồng BẮT BUỘC phải có tài liệu đính kèm (tab "Tài liệu
-   đính kèm") thì đơn vị mới được tính "đủ thông tin". Tên phải khớp Y HỆT
-   giá trị "Loại tài liệu" trong HopThoai_TaiLieu.html và TL_LOAI_CHO_PHEP
-   (TaiLieu.gs) — đổi ở đâu phải đổi đồng bộ cả 3 nơi. */
+/* ★ SỬA — Không bắt đủ CẢ 3 loại riêng biệt nữa. Chỉ cần đơn vị có ÍT NHẤT
+   1 tài liệu thuộc nhóm "Hợp đồng" (1 trong 3 loại mới, hoặc nhãn "Hợp đồng"
+   cũ trước khi tách loại) là coi như đạt phần tài liệu hợp đồng. */
 var CV_LOAI_HD_BAT_BUOC = [
   'Hợp đồng thuê đất, xưởng',
   'Hợp đồng nước cấp',
-  'Hợp đồng nước thải'
+  'Hợp đồng nước thải',
+  'Hợp đồng'   // nhãn cũ trước khi tách loại — vẫn tính là hợp lệ
 ];
 
 function _cvCoGiaTri(v) {
@@ -318,12 +318,13 @@ function _cvLayTruong(nx, dsTen) {
   return false;
 }
 
-/* ★ MỚI — Đơn vị đã có ít nhất 1 tài liệu thuộc đúng loại (so khớp cột
-   "loai" trong DanhSachTaiLieu, đã gán từ DS_TaiLieu.LoaiTaiLieu). */
-function _cvCoTaiLieuLoai(nx, loai) {
+/* ★ SỬA — Đơn vị đã có ÍT NHẤT 1 tài liệu thuộc nhóm Hợp đồng (bất kỳ loại
+   nào trong CV_LOAI_HD_BAT_BUOC) — so khớp cột "loai" trong DanhSachTaiLieu. */
+function _cvCoTaiLieuHopDong(nx) {
   var ds = (nx && nx.DanhSachTaiLieu) || [];
   for (var i = 0; i < ds.length; i++) {
-    if (String(ds[i].loai || '').trim() === loai) return true;
+    var loaiTL = String(ds[i].loai || '').trim();
+    if (CV_LOAI_HD_BAT_BUOC.indexOf(loaiTL) > -1) return true;
   }
   return false;
 }
@@ -347,19 +348,17 @@ function _cvTinhDonVi(nx) {
   });
   var soCan = truong.length;
 
-  // ★ MỚI — cộng thêm điều kiện: phải có đủ 3 loại hợp đồng đính kèm
-  //   (thuê đất/xưởng, nước cấp, nước thải). Thiếu loại nào, liệt kê loại đó
-  //   vào "thieu" (có tiền tố 📎 để phân biệt với trường dữ liệu thường).
-  CV_LOAI_HD_BAT_BUOC.forEach(function (loaiHD) {
-    soCan++;
-    if (_cvCoTaiLieuLoai(nx, loaiHD)) dien++; else thieu.push('📎 ' + loaiHD);
-  });
+  // ★ SỬA — chỉ cần có ÍT NHẤT 1 tài liệu hợp đồng đính kèm (không bắt đủ
+  //   cả 3 loại riêng biệt nữa) là coi như đạt phần này.
+  soCan++;
+  if (_cvCoTaiLieuHopDong(nx)) dien++;
+  else thieu.push('📎 Hợp đồng đính kèm (thuê đất/xưởng, nước cấp hoặc nước thải)');
 
   return { soCan: soCan, soDien: dien, hoanTat: (dien === soCan), thieu: thieu };
 }
 
-/* ★ MỚI — Gác nút/ô chọn "Đã rà soát": chỉ cho phép chọn khi đơn vị đã
-   ĐỦ THÔNG TIN (đủ trường dữ liệu + đủ 3 loại hợp đồng đính kèm).
+/* ★ Gác nút/ô chọn "Đã rà soát": chỉ cho phép chọn khi đơn vị đã
+   ĐỦ THÔNG TIN (đủ trường dữ liệu + có tài liệu hợp đồng đính kèm).
    Dùng lại từ Script.html khi mở và khi lưu hộp thoại "Sửa thông tin".
    - selEl      : phần tử <select id="suaTrangThaiRaSoat"> (có thể null)
    - nx         : bản ghi nhà xưởng/đất hiện tại (đã có DanhSachTaiLieu mới nhất)
