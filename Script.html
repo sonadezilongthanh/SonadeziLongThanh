@@ -1369,7 +1369,9 @@ function giaChaoThue_(nx) {
     phan.push('Mặt bằng: ' + nx['TienThueMatBang - DonGia (USD)'] + ' USD/m²/năm');
   }
   if (nx['TienDatTho - DonGia (USD)']) {
-    phan.push('Đất thô: ' + nx['TienDatTho - DonGia (USD)'] + ' USD/m²/năm');
+    // ★ SỬA — bỏ đơn vị cố định "USD/m²/năm": cán bộ tự gõ kèm đơn vị
+    //   ngay trong ô "Đơn giá" khi cần (giống Tiền thuê xưởng ở trên).
+    phan.push('Đất thô: ' + nx['TienDatTho - DonGia (USD)']);
   }
   return phan.join(' — ');
 }
@@ -1450,7 +1452,7 @@ function moPanelChiTiet(ma) {
     html += dongTT('Tên nhà đầu tư',        nx.KhachThue);
     html += dongTT('Quốc tịch',             nx.QuocTich);
     html += dongTT('Ngành nghề, sản phẩm',  docNganhNghe(nx));
-    html += dongTT('Tổng vốn đầu tư',       nx.TongVonDauTu_USD ? dinhDangSo(nx.TongVonDauTu_USD, 'USD') : '');
+    html += dongTT('Tổng vốn đầu tư',       dinhDangSoTuDo_(nx.TongVonDauTu_USD));
     html += dongTT('Người đại diện',        nx.NguoiDaiDien);
     html += dongTT('Giấy chứng nhận đầu tư', nx.GiayCNDT);
     html += dongTT('Giấy chứng nhận doanh nghiệp', nx.GiayCNDN);
@@ -1487,7 +1489,7 @@ function moPanelChiTiet(ma) {
                                                      nx['TienThueMatBang - PTThanhToan'],
                                                      'USD/m²/năm'));
       html += dongTT('Tiền đất thô',       ghepGiaPT(nx['TienDatTho - DonGia (USD)'],
-                                                     nx['TienDatTho - PTThanhToan'], 'USD'));
+                                                     nx['TienDatTho - PTThanhToan']));
     }
 
     /* ════════ D — PHÍ QUẢN LÝ & GHI CHÚ (dùng chung) ════════ */
@@ -1720,6 +1722,40 @@ function dinhDangSo(v, donVi) {
   const n = parseFloat(v);
   if (isNaN(n)) return v;
   return n.toLocaleString('vi-VN') + ' ' + (donVi || '');
+}
+
+/**
+ * ★ MỚI — hiển thị số KHÔNG ép đơn vị cố định (dùng cho Tổng vốn đầu tư,
+ * vì mỗi nhà đầu tư 1 loại tiền: USD/EUR/VNĐ...).
+ * - Luôn tự thêm dấu CHẤM phân cách hàng nghìn cho PHẦN SỐ ở đầu chuỗi,
+ *   dù cán bộ có gõ kèm đơn vị phía sau hay không.
+ *   VD: "40000000"        -> "40.000.000"
+ *       "40000000 USD"    -> "40.000.000 USD"
+ *       "40.000.000 EUR"  -> "40.000.000 EUR"   (đã có dấu chấm vẫn nhận đúng)
+ * - Nếu chuỗi không bắt đầu bằng số (hiếm) → hiển thị nguyên văn, không đoán.
+ */
+function dinhDangSoTuDo_(v) {
+  if (v === null || v === undefined || v === '') return '';
+  const s = String(v).trim();
+
+  const m = s.match(/^-?[\d.]+/);          // phần số (có thể lẫn dấu chấm) ở đầu chuỗi
+  if (!m) return s;
+
+  let soThuan   = m[0].replace(/\.$/, ''); // bỏ dấu chấm gõ dư ở cuối (nếu có)
+  const phanSau = s.slice(m[0].length).trim();
+
+  const soLanCham = (soThuan.match(/\./g) || []).length;
+  if (soLanCham > 1) {
+    soThuan = soThuan.replace(/\./g, '');                    // nhiều dấu chấm → chắc chắn là phân cách nghìn
+  } else if (soLanCham === 1 && soThuan.split('.')[1].length === 3) {
+    soThuan = soThuan.replace('.', '');                      // 1 dấu chấm + đúng 3 số sau → cũng là phân cách nghìn
+  }
+
+  const n = Number(soThuan);
+  if (isNaN(n)) return s;
+
+  const daDinhDang = n.toLocaleString('vi-VN');
+  return phanSau ? daDinhDang + ' ' + phanSau : daDinhDang;
 }
 
 /** Gộp Đơn giá + PT thanh toán thành 1 dòng hiển thị */
@@ -2175,7 +2211,8 @@ function soanTinNhan() {
     const giaTho = nx['TienDatTho - DonGia (USD)'];
     const phanGia = [];
     if (giaMB)  phanGia.push('Tiền thuê mặt bằng: ' + giaMB + ' USD/m²/năm');
-    if (giaTho) phanGia.push('Tiền đất thô: '       + giaTho + ' USD/m²/năm');
+    // ★ SỬA — bỏ đơn vị cố định, gõ kèm đơn vị ngay trong ô "Đơn giá" khi cần.
+    if (giaTho) phanGia.push('Tiền đất thô: '       + giaTho);
     giaChaoThue = phanGia.length ? phanGia.join('\n• ') : 'Liên hệ';
   }
 

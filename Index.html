@@ -259,8 +259,10 @@
       </div>
 
       <div class="dong-form">
-        <label>Tổng vốn đầu tư (USD)</label>
-        <input type="text" id="suaTongVonDauTu">
+        <label>Tổng vốn đầu tư</label>
+        <!-- ★ SỬA — bỏ đơn vị cố định "USD": mỗi nhà đầu tư một loại tiền
+             (USD/EUR/VNĐ...), cán bộ tự gõ kèm đơn vị ngay trong ô này. -->
+        <input type="text" id="suaTongVonDauTu" placeholder="VD: 6.680.000 USD">
       </div>
 
       <div class="dong-form">
@@ -296,15 +298,8 @@
         </select>
       </div>
 
-      <div class="dong-form">
-        <label>Trạng thái rà soát</label>
-        <select id="suaTrangThaiRaSoat">
-          <option value="">— Chưa rà soát —</option>
-          <option value="Đã rà soát">Đã rà soát</option>
-        </select>
-        <!-- ★ MỚI: chỉ hiện khi đơn vị chưa đủ điều kiện — xem _cvGacRaSoat() trong Tab_CongViec.html -->
-        <p class="bc-goi-y" id="suaGoiYRaSoat" style="display:none"></p>
-      </div>
+      <!-- ★ SỬA — "Trạng thái rà soát" đã dời xuống thanh nút dưới cùng
+           (.nhom-nut), luôn hiện sẵn không cần cuộn hết form mới thấy. -->
 
       <div class="dong-form">
         <label>Tặng hoa kỷ niệm</label>
@@ -425,8 +420,10 @@
         </div>
 
         <div class="dong-form">
-          <label>Tiền đất thô — Đơn giá (USD)</label>
-          <input type="text" id="suaDonGiaDatTho">
+          <label>Tiền đất thô — Đơn giá</label>
+          <!-- ★ SỬA — bỏ đơn vị cố định "USD": cán bộ tự gõ kèm đơn vị
+               (USD/EUR/VNĐ...) ngay trong ô này khi cần. -->
+          <input type="text" id="suaDonGiaDatTho" placeholder="VD: 0.05 USD/m² hoặc 1.200.000 VNĐ/m²">
         </div>
 
         <div class="dong-form">
@@ -464,8 +461,21 @@
     <div class="thong-bao" id="thongBaoSua"></div>
 
     <div class="nhom-nut">
-      <button class="nut nut-nhat"  onclick="dongHopThoaiSua()">Huỷ</button>
-      <button class="nut nut-chinh" id="nutLuu" onclick="luuThayDoi()">💾 Lưu</button>
+      <!-- ★ SỬA — Trạng thái rà soát dời ra thanh dưới cùng (luôn dính đáy,
+           thấy ngay không cần cuộn hết form). Xem CSS #hopThoaiSua .nhom-nut -->
+      <div class="dong-form" style="margin-bottom:10px">
+        <label>Trạng thái rà soát</label>
+        <select id="suaTrangThaiRaSoat">
+          <option value="">— Chưa rà soát —</option>
+          <option value="Đã rà soát">Đã rà soát</option>
+        </select>
+        <!-- ★ MỚI: chỉ hiện khi đơn vị chưa đủ điều kiện — xem _cvGacRaSoat() trong Tab_CongViec.html -->
+        <p class="bc-goi-y" id="suaGoiYRaSoat" style="display:none"></p>
+      </div>
+      <div class="hang-nut">
+        <button class="nut nut-nhat"  onclick="dongHopThoaiSua()">Huỷ</button>
+        <button class="nut nut-chinh" id="nutLuu" onclick="luuThayDoi()">💾 Lưu</button>
+      </div>
     </div>
 
   </div>

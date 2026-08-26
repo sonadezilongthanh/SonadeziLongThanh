@@ -119,7 +119,7 @@ const COT_CHUNG_TRUOC = [
   ['Tên nhà đầu tư',              function (nx) { return nx.KhachThue || ''; },        'nhadautu'],
   ['Quốc tịch',                   function (nx) { return nx.QuocTich || ''; },         'nhadautu'],
   ['Ngành nghề, sản phẩm',        function (nx) { return docNganhNghe(nx); },          'nhadautu'],
-  ['Tổng vốn đầu tư (USD)',       function (nx) { return dinhDangSo(nx.TongVonDauTu_USD, ''); }, 'nhadautu'],
+  ['Tổng vốn đầu tư',             function (nx) { return dinhDangSoTuDo_(nx.TongVonDauTu_USD); }, 'nhadautu'],
   ['Người đại diện',              function (nx) { return nx.NguoiDaiDien || ''; },     'nhadautu'],
   ['Giấy chứng nhận đầu tư',      function (nx) { return nx.GiayCNDT || ''; },         'phaply'],
   ['Giấy chứng nhận doanh nghiệp',function (nx) { return nx.GiayCNDN || ''; },         'phaply'],
