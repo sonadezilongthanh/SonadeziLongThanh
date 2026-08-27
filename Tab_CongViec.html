@@ -299,14 +299,15 @@ var CV_TRUONG_DAT = [
   { nhan: 'Người đại diện',  ten: ['NguoiDaiDien'] }
 ];
 
-/* ★ SỬA — Không bắt đủ CẢ 3 loại riêng biệt nữa. Chỉ cần đơn vị có ÍT NHẤT
-   1 tài liệu thuộc nhóm "Hợp đồng" (1 trong 3 loại mới, hoặc nhãn "Hợp đồng"
-   cũ trước khi tách loại) là coi như đạt phần tài liệu hợp đồng. */
+/* ★ SỬA (V4.2) — Bắt buộc ĐỦ CẢ 3 LOẠI hợp đồng đính kèm mới coi là hoàn tất.
+   Mỗi loại được tính là 1 tiêu chí riêng trong tỷ lệ % (soCan += 3), nhờ đó
+   thanh tiến độ vẫn phản ánh được mức hoàn thành từng phần.
+   Nhãn "Hợp đồng" cũ (trước khi tách loại) được quy về "Hợp đồng thuê đất,
+   xưởng" để không làm mất dữ liệu đã nhập trước đây. */
 var CV_LOAI_HD_BAT_BUOC = [
-  'Hợp đồng thuê đất, xưởng',
-  'Hợp đồng nước cấp',
-  'Hợp đồng nước thải',
-  'Hợp đồng'   // nhãn cũ trước khi tách loại — vẫn tính là hợp lệ
+  { nhan: '📎 HĐ thuê đất/xưởng', loai: ['Hợp đồng thuê đất, xưởng', 'Hợp đồng'] },
+  { nhan: '📎 HĐ nước cấp',       loai: ['Hợp đồng nước cấp'] },
+  { nhan: '📎 HĐ nước thải',      loai: ['Hợp đồng nước thải'] }
 ];
 
 function _cvCoGiaTri(v) {
@@ -318,15 +319,27 @@ function _cvLayTruong(nx, dsTen) {
   return false;
 }
 
-/* ★ SỬA — Đơn vị đã có ÍT NHẤT 1 tài liệu thuộc nhóm Hợp đồng (bất kỳ loại
-   nào trong CV_LOAI_HD_BAT_BUOC) — so khớp cột "loai" trong DanhSachTaiLieu. */
-function _cvCoTaiLieuHopDong(nx) {
+/* ★ SỬA (V4.2) — Trả về MẢNG NHÃN các loại hợp đồng CÒN THIẾU của đơn vị.
+   Mảng rỗng ⇒ đã đủ cả 3 loại. So khớp cột "loai" trong DanhSachTaiLieu. */
+function _cvThieuTaiLieuHopDong(nx) {
   var ds = (nx && nx.DanhSachTaiLieu) || [];
+  var daCo = {};
   for (var i = 0; i < ds.length; i++) {
-    var loaiTL = String(ds[i].loai || '').trim();
-    if (CV_LOAI_HD_BAT_BUOC.indexOf(loaiTL) > -1) return true;
+    daCo[String(ds[i].loai || '').trim()] = true;
   }
-  return false;
+  var thieu = [];
+  CV_LOAI_HD_BAT_BUOC.forEach(function (nhom) {
+    var co = false;
+    for (var j = 0; j < nhom.loai.length; j++) {
+      if (daCo[nhom.loai[j]]) { co = true; break; }
+    }
+    if (!co) thieu.push(nhom.nhan);
+  });
+  return thieu;
+}
+/* Giữ lại để tương thích các nơi gọi cũ (nếu có) */
+function _cvCoTaiLieuHopDong(nx) {
+  return _cvThieuTaiLieuHopDong(nx).length === 0;
 }
 
 /* Đơn vị coi như "không cần nhập" → không tính vào %.
@@ -348,11 +361,12 @@ function _cvTinhDonVi(nx) {
   });
   var soCan = truong.length;
 
-  // ★ SỬA — chỉ cần có ÍT NHẤT 1 tài liệu hợp đồng đính kèm (không bắt đủ
-  //   cả 3 loại riêng biệt nữa) là coi như đạt phần này.
-  soCan++;
-  if (_cvCoTaiLieuHopDong(nx)) dien++;
-  else thieu.push('📎 Hợp đồng đính kèm (thuê đất/xưởng, nước cấp hoặc nước thải)');
+  // ★ SỬA (V4.2) — Bắt buộc ĐỦ CẢ 3 loại hợp đồng đính kèm. Mỗi loại là 1
+  //   tiêu chí riêng trong tổng số cần nhập.
+  var thieuHD = _cvThieuTaiLieuHopDong(nx);
+  soCan += CV_LOAI_HD_BAT_BUOC.length;
+  dien  += (CV_LOAI_HD_BAT_BUOC.length - thieuHD.length);
+  thieuHD.forEach(function (n) { thieu.push(n); });
 
   return { soCan: soCan, soDien: dien, hoanTat: (dien === soCan), thieu: thieu };
 }

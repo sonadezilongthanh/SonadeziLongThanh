@@ -46,8 +46,12 @@ const RSL_TRUONG_DAT = [
   { nhan: 'Phí quản lý',          ten: ['PhiQuanLy (USD)', 'PhiQuanLy'] },
   { nhan: 'Người đại diện',       ten: ['NguoiDaiDien'] }
 ];
+/* ★ SỬA (V4.2) — Bắt buộc ĐỦ CẢ 3 LOẠI hợp đồng đính kèm.
+   Nhãn "Hợp đồng" cũ được quy về "Hợp đồng thuê đất, xưởng". */
 const RSL_LOAI_HD_BAT_BUOC = [
-  'Hợp đồng thuê đất, xưởng', 'Hợp đồng nước cấp', 'Hợp đồng nước thải', 'Hợp đồng'
+  { nhan: '📎 HĐ thuê đất/xưởng', loai: ['Hợp đồng thuê đất, xưởng', 'Hợp đồng'] },
+  { nhan: '📎 HĐ nước cấp',       loai: ['Hợp đồng nước cấp'] },
+  { nhan: '📎 HĐ nước thải',      loai: ['Hợp đồng nước thải'] }
 ];
 
 function rslCoGiaTri_(v) {
@@ -57,12 +61,23 @@ function rslLayTruong_(nx, dsTen) {
   for (var i = 0; i < dsTen.length; i++) if (rslCoGiaTri_(nx[dsTen[i]])) return true;
   return false;
 }
-function rslCoTaiLieuHopDong_(nx, mapTL) {
+/* ★ SỬA (V4.2) — Trả về mảng nhãn các loại hợp đồng CÒN THIẾU (rỗng = đủ). */
+function rslThieuTaiLieuHopDong_(nx, mapTL) {
   var ds = mapTL[nx.MaDonVi] || [];
-  for (var i = 0; i < ds.length; i++) {
-    if (RSL_LOAI_HD_BAT_BUOC.indexOf(String(ds[i].loai || '').trim()) > -1) return true;
-  }
-  return false;
+  var daCo = {};
+  for (var i = 0; i < ds.length; i++) daCo[String(ds[i].loai || '').trim()] = true;
+  var thieu = [];
+  RSL_LOAI_HD_BAT_BUOC.forEach(function (nhom) {
+    var co = false;
+    for (var j = 0; j < nhom.loai.length; j++) {
+      if (daCo[nhom.loai[j]]) { co = true; break; }
+    }
+    if (!co) thieu.push(nhom.nhan);
+  });
+  return thieu;
+}
+function rslCoTaiLieuHopDong_(nx, mapTL) {
+  return rslThieuTaiLieuHopDong_(nx, mapTL).length === 0;
 }
 // Đơn vị "trống, chưa có khách thuê" → không tính, giống hệt _cvDonViBoQua
 function rslDonViBoQua_(nx) {
@@ -77,9 +92,8 @@ function rslTinhDonVi_(nx, mapTL) {
   truong.forEach(function (t) {
     if (!rslLayTruong_(nx, t.ten)) thieu.push(t.nhan);
   });
-  if (!rslCoTaiLieuHopDong_(nx, mapTL)) {
-    thieu.push('📎 Hợp đồng đính kèm');
-  }
+  // ★ SỬA (V4.2) — liệt kê cụ thể từng loại hợp đồng còn thiếu
+  rslThieuTaiLieuHopDong_(nx, mapTL).forEach(function (n) { thieu.push(n); });
   return { hoanTat: thieu.length === 0, thieu: thieu };
 }
 
