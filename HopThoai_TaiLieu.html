@@ -25,6 +25,15 @@
   background: none; border: none; cursor: pointer;
   color: #b91c1c; font-size: 15px; padding: 0 2px;
 }
+/* ★ MỚI — nút & ô chọn để chuyển tài liệu sang loại (thư mục) khác */
+.tl-chuyen {
+  background: none; border: none; cursor: pointer;
+  color: #0B4696; font-size: 15px; padding: 0 2px;
+}
+.tl-chon-chuyen {
+  font-size: 12px; padding: 3px 6px; border-radius: 5px;
+  border: 1px solid #9db4d0; background: #eef4ff; color: #0B4696;
+}
 .tl-trong { font-size: 13px; color: #64748b; padding: 8px 2px; }
 
 .tl-tha {
@@ -73,7 +82,9 @@
           <option>Brochure</option>
           <option>Bản vẽ</option>
           <option>Hình ảnh</option>
-          <option>Hợp đồng</option>
+          <option>Hợp đồng thuê đất, xưởng</option>
+          <option>Hợp đồng nước cấp</option>
+          <option>Hợp đồng nước thải</option>
           <option>Khác</option>
         </select>
         <button class="nut nut-nhat" style="white-space:nowrap" type="button"
@@ -180,9 +191,12 @@ function tlVeDanhSach() {
     const idThan = 'tlThan_' + idx;
     const than = nhom[loai].map(function (t) {
       const id = tlLayId(t.link);
+      const loaiEsc = String(loai).replace(/'/g, "\\'").replace(/"/g, '&quot;');
       return '<div class="tl-muc">'
            +   '<span class="tl-ten">📄 ' + t.ten + '</span>'
            +   '<a class="tl-xem" href="' + t.link + '" target="_blank" rel="noopener">Xem ↗</a>'
+           +   (id ? '<button class="tl-chuyen" title="Chuyển sang thư mục khác" '
+           +          'onclick="tlMoChonChuyen(\'' + id + '\', \'' + loaiEsc + '\', this)">🔀</button>' : '')
            +   (id ? '<button class="tl-xoa" title="Xoá tài liệu" '
            +          'onclick="tlXoa(\'' + id + '\')">🗑</button>' : '')
            + '</div>';
@@ -426,6 +440,75 @@ function tlXoa(fileId) {
     .xoaTaiLieu({
       maDonVi : TL_MA,
       fileId  : fileId,
+      token   : PHIEN_SUA.token,
+      hoTen   : PHIEN_SUA.hoTen
+    });
+}
+
+/** ★ MỚI — Bấm 🔀: hiện/ẩn ô chọn loại tài liệu đích ngay cạnh nút
+ *  (danh sách loại lấy từ chính <select id="tlLoai"> để khỏi lặp lại 2 nơi). */
+function tlMoChonChuyen(fileId, loaiHienTai, nut) {
+  const daMo = nut.nextElementSibling
+            && nut.nextElementSibling.classList.contains('tl-chon-chuyen');
+
+  // Đóng mọi ô chọn đang mở dở ở dòng khác (tránh rối giao diện)
+  document.querySelectorAll('.tl-chon-chuyen').forEach(function (el) { el.remove(); });
+  if (daMo) return;   // bấm lại nút đang mở → chỉ đóng, không mở lại
+
+  const dsLoai = Array.prototype.map.call(
+    document.querySelectorAll('#tlLoai option'),
+    function (o) { return o.value || o.textContent; }
+  );
+
+  const chon = document.createElement('select');
+  chon.className = 'tl-chon-chuyen';
+  chon.innerHTML = '<option value="">— Chuyển đến —</option>'
+    + dsLoai
+        .filter(function (l) { return l !== loaiHienTai; })
+        .map(function (l) { return '<option value="' + l + '">' + l + '</option>'; })
+        .join('');
+  chon.onchange = function () {
+    if (this.value) tlChuyenThuMuc(fileId, loaiHienTai, this.value, chon);
+  };
+
+  nut.insertAdjacentElement('afterend', chon);
+  chon.focus();
+}
+
+/** ★ MỚI — Gọi server để thực sự chuyển 1 tài liệu sang loại (thư mục) khác */
+function tlChuyenThuMuc(fileId, loaiCu, loaiMoi, elChon) {
+  if (!confirm('Chuyển tài liệu này từ "' + loaiCu + '" sang "' + loaiMoi + '"?')) {
+    elChon.remove();
+    return;
+  }
+
+  const tb = document.getElementById('tlThongBao');
+  tb.className = 'thong-bao';
+  tb.textContent = 'Đang chuyển thư mục…';
+  elChon.disabled = true;
+
+  google.script.run
+    .withSuccessHandler(function (kq) {
+      const nx = timNhaXuong(TL_MA);
+      if (nx && nx.DanhSachTaiLieu) {
+        const tep = nx.DanhSachTaiLieu.filter(function (t) {
+          return tlLayId(t.link) === fileId;
+        })[0];
+        if (tep) tep.loai = kq.loaiMoi;
+      }
+      tb.className = 'thong-bao ok';
+      tb.textContent = '✓ Đã chuyển "' + kq.ten + '" sang "' + kq.loaiMoi + '".';
+      tlVeDanhSach();
+    })
+    .withFailureHandler(function (loi) {
+      tb.className = 'thong-bao loi';
+      tb.textContent = '✕ ' + loi.message;
+      tlVeDanhSach();   // vẽ lại để ô chọn dở dang biến mất
+    })
+    .chuyenThuMucTaiLieu({
+      maDonVi : TL_MA,
+      fileId  : fileId,
+      loaiMoi : loaiMoi,
       token   : PHIEN_SUA.token,
       hoTen   : PHIEN_SUA.hoTen
     });
