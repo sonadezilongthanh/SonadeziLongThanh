@@ -495,3 +495,84 @@ function chuyenThuMucTaiLieu(tt) {
 
   return { thanhCong: true, ten: tenTaiLieu, loaiCu: loaiCu, loaiMoi: loaiMoi };
 }
+
+/***********************************************************************
+ * ★ MỚI (V4.2) — HÀM GỌI TỪ GIAO DIỆN — ĐỔI TÊN 1 TÀI LIỆU
+ *   Dùng khi đặt tên hiển thị sai chính tả / sai số hợp đồng, không
+ *   cần xoá rồi tải lại từ đầu.
+ *   - Cập nhật cột TenTaiLieu trên dòng tương ứng trong DS_TaiLieu.
+ *   - Đổi luôn tên tệp THẬT trên Drive theo quy ước lúc tải lên:
+ *       "<MaDonVi> - <TenHienThi>.<đuôi>"   (giữ nguyên phần đuôi cũ).
+ *   - FileId và LinkFile KHÔNG đổi khi đổi tên (link cũ vẫn dùng được).
+ ***********************************************************************/
+function doiTenTaiLieu(tt) {
+  tt = tt || {};
+
+  // ★ Xác thực bằng token tài khoản, dùng chung cơ chế với xoaTaiLieu()
+  const p = tlLayPhien_(tt.token, 'đổi tên');
+
+  const fileId  = String(tt.fileId  || '').trim();
+  const maDonVi = String(tt.maDonVi || '').trim();
+  const tenMoi  = tlLamSachTen_(tt.tenMoi);
+
+  if (!fileId)  throw new Error('Thiếu mã tệp cần đổi tên.');
+  if (!maDonVi) throw new Error('Thiếu mã đơn vị.');
+  if (!tenMoi)  throw new Error('Tên mới không hợp lệ hoặc để trống.');
+
+  const lock = LockService.getScriptLock();
+  try { lock.waitLock(10000); }
+  catch (e) { throw new Error('Hệ thống đang bận, vui lòng thử lại sau.'); }
+
+  let tenCu = '';
+
+  try {
+    const sh = SpreadsheetApp.openById(tlIdSheet_())
+                 .getSheetByName(tlTenSheet_('TAI_LIEU', 'DS_TaiLieu'));
+    const dl = sh.getDataRange().getValues();
+    const td = dl[0].map(function (t) { return String(t).trim(); });
+
+    const iMa   = td.indexOf('MaDonVi');
+    const iTen  = td.indexOf('TenTaiLieu');
+    const iLink = td.indexOf('LinkFile');
+    const iId   = td.indexOf('FileId');
+    if (iTen === -1) throw new Error('Không tìm thấy cột TenTaiLieu trong sheet DS_TaiLieu.');
+
+    let dongTimThay = -1;
+    for (let i = 1; i < dl.length; i++) {
+      const idDong = (iId > -1 && dl[i][iId])
+                   ? String(dl[i][iId]).trim()
+                   : tlLayIdTuLink_(dl[i][iLink]);
+      if (idDong === fileId
+          && (!maDonVi || String(dl[i][iMa]).trim() === maDonVi)) {
+        dongTimThay = i;
+        break;
+      }
+    }
+    if (dongTimThay === -1) throw new Error('Không tìm thấy tài liệu trong danh sách.');
+
+    tenCu = String(dl[dongTimThay][iTen]).trim();
+
+    if (tenCu === tenMoi) {
+      return { thanhCong: true, tenCu: tenCu, tenMoi: tenMoi, khongDoi: true };
+    }
+
+    sh.getRange(dongTimThay + 1, iTen + 1).setValue(tenMoi);
+  } finally {
+    lock.releaseLock();
+  }
+
+  // --- Đổi tên tệp thật trên Drive, giữ nguyên phần đuôi (.pdf, .jpg…) ---
+  try {
+    const file    = DriveApp.getFileById(fileId);
+    const tenTepCu = file.getName();
+    const khop     = tenTepCu.match(/\.([^.]+)$/);
+    const duoi     = khop ? khop[1] : '';
+    file.setName(maDonVi + ' - ' + tenMoi + (duoi ? '.' + duoi : ''));
+  } catch (e) { /* tệp đã bị xoá thủ công trên Drive — vẫn giữ thay đổi ở Sheet */ }
+
+  tlGhiNhatKy_([[new Date(), p.email, maDonVi,
+                 'DoiTenTaiLieu', tenCu, tenMoi]]);
+  tlXoaCache_();
+
+  return { thanhCong: true, tenCu: tenCu, tenMoi: tenMoi };
+}

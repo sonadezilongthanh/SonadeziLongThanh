@@ -25,6 +25,11 @@
   background: none; border: none; cursor: pointer;
   color: #b91c1c; font-size: 15px; padding: 0 2px;
 }
+/* ★ MỚI (V4.2) — nút đổi tên tài liệu */
+.tl-suaten {
+  background: none; border: none; cursor: pointer;
+  color: #b45309; font-size: 15px; padding: 0 2px;
+}
 /* ★ MỚI — nút & ô chọn để chuyển tài liệu sang loại (thư mục) khác */
 .tl-chuyen {
   background: none; border: none; cursor: pointer;
@@ -195,6 +200,8 @@ function tlVeDanhSach() {
       return '<div class="tl-muc">'
            +   '<span class="tl-ten">📄 ' + t.ten + '</span>'
            +   '<a class="tl-xem" href="' + t.link + '" target="_blank" rel="noopener">Xem ↗</a>'
+           +   (id ? '<button class="tl-suaten" title="Đổi tên tài liệu" '
+           +          'onclick="tlDoiTen(\'' + id + '\')">✏️</button>' : '')
            +   (id ? '<button class="tl-chuyen" title="Chuyển sang thư mục khác" '
            +          'onclick="tlMoChonChuyen(\'' + id + '\', \'' + loaiEsc + '\', this)">🔀</button>' : '')
            +   (id ? '<button class="tl-xoa" title="Xoá tài liệu" '
@@ -440,6 +447,48 @@ function tlXoa(fileId) {
     .xoaTaiLieu({
       maDonVi : TL_MA,
       fileId  : fileId,
+      token   : PHIEN_SUA.token,
+      hoTen   : PHIEN_SUA.hoTen
+    });
+}
+
+/** ★ MỚI (V4.2) — Bấm ✏️: đổi tên hiển thị của 1 tài liệu.
+ *  Tên hiện tại lấy trực tiếp từ dữ liệu (không truyền qua onclick)
+ *  để tránh lỗi khi tên có dấu nháy ' hoặc " . */
+function tlDoiTen(fileId) {
+  const nx  = timNhaXuong(TL_MA);
+  const tep = (nx && nx.DanhSachTaiLieu)
+            ? nx.DanhSachTaiLieu.filter(function (t) {
+                return tlLayId(t.link) === fileId;
+              })[0]
+            : null;
+  const tenCu = tep ? String(tep.ten || '') : '';
+
+  const tenMoi = prompt('Nhập tên mới cho tài liệu:', tenCu);
+  if (tenMoi === null) return;                       // bấm Huỷ
+  const ten = String(tenMoi).replace(/\s+/g, ' ').trim();
+  if (!ten)            { alert('Tên tài liệu không được để trống.'); return; }
+  if (ten === tenCu)   return;                        // không thay đổi
+
+  const tb = document.getElementById('tlThongBao');
+  tb.className = 'thong-bao';
+  tb.textContent = 'Đang đổi tên…';
+
+  google.script.run
+    .withSuccessHandler(function (kq) {
+      if (tep) tep.ten = kq.tenMoi;
+      tb.className = 'thong-bao ok';
+      tb.textContent = '✓ Đã đổi tên thành "' + kq.tenMoi + '".';
+      tlVeDanhSach();
+    })
+    .withFailureHandler(function (loi) {
+      tb.className = 'thong-bao loi';
+      tb.textContent = '✕ ' + loi.message;
+    })
+    .doiTenTaiLieu({
+      maDonVi : TL_MA,
+      fileId  : fileId,
+      tenMoi  : ten,
       token   : PHIEN_SUA.token,
       hoTen   : PHIEN_SUA.hoTen
     });
