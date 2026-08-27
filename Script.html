@@ -1366,7 +1366,9 @@ function giaChaoThue_(nx) {
 
   const phan = [];
   if (nx['TienThueMatBang - DonGia (USD)']) {
-    phan.push('Mặt bằng: ' + nx['TienThueMatBang - DonGia (USD)'] + ' USD/m²/năm');
+    // ★ SỬA — bỏ đơn vị cố định "USD/m²/năm": cán bộ tự gõ kèm đơn vị
+    //   ngay trong ô "Đơn giá" khi cần (giống Tiền thuê xưởng / Đất thô).
+    phan.push('Mặt bằng: ' + nx['TienThueMatBang - DonGia (USD)']);
   }
   if (nx['TienDatTho - DonGia (USD)']) {
     // ★ SỬA — bỏ đơn vị cố định "USD/m²/năm": cán bộ tự gõ kèm đơn vị
@@ -1485,9 +1487,9 @@ function moPanelChiTiet(ma) {
       html += dongTT('Lô đất thuê',        nx.LoDatThue);
       html += dongTT('Tổng DT đất thuê',   dinhDangSo(nx['Tong DienTichDatThue (m2)'], 'm²'));
       html += dongTT('DT đất thuê thêm',   dinhDangSo(nx['DienTichDatThueThem (m2)'], 'm²'));
+      // ★ SỬA — bỏ đơn vị cố định "USD/m²/năm": cán bộ tự gõ kèm đơn vị.
       html += dongTT('Tiền thuê mặt bằng', ghepGiaPT(nx['TienThueMatBang - DonGia (USD)'],
-                                                     nx['TienThueMatBang - PTThanhToan'],
-                                                     'USD/m²/năm'));
+                                                     nx['TienThueMatBang - PTThanhToan']));
       html += dongTT('Tiền đất thô',       ghepGiaPT(nx['TienDatTho - DonGia (USD)'],
                                                      nx['TienDatTho - PTThanhToan']));
     }
@@ -2210,7 +2212,8 @@ function soanTinNhan() {
     const giaMB  = nx['TienThueMatBang - DonGia (USD)'];
     const giaTho = nx['TienDatTho - DonGia (USD)'];
     const phanGia = [];
-    if (giaMB)  phanGia.push('Tiền thuê mặt bằng: ' + giaMB + ' USD/m²/năm');
+    // ★ SỬA — bỏ đơn vị cố định, gõ kèm đơn vị ngay trong ô "Đơn giá" khi cần.
+    if (giaMB)  phanGia.push('Tiền thuê mặt bằng: ' + giaMB);
     // ★ SỬA — bỏ đơn vị cố định, gõ kèm đơn vị ngay trong ô "Đơn giá" khi cần.
     if (giaTho) phanGia.push('Tiền đất thô: '       + giaTho);
     giaChaoThue = phanGia.length ? phanGia.join('\n• ') : 'Liên hệ';
