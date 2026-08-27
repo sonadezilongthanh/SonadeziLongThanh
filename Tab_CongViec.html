@@ -299,33 +299,12 @@ var CV_TRUONG_DAT = [
   { nhan: 'Người đại diện',  ten: ['NguoiDaiDien'] }
 ];
 
-/* ★ SỬA — Không bắt đủ CẢ 3 loại riêng biệt nữa. Chỉ cần đơn vị có ÍT NHẤT
-   1 tài liệu thuộc nhóm "Hợp đồng" (1 trong 3 loại mới, hoặc nhãn "Hợp đồng"
-   cũ trước khi tách loại) là coi như đạt phần tài liệu hợp đồng. */
-var CV_LOAI_HD_BAT_BUOC = [
-  'Hợp đồng thuê đất, xưởng',
-  'Hợp đồng nước cấp',
-  'Hợp đồng nước thải',
-  'Hợp đồng'   // nhãn cũ trước khi tách loại — vẫn tính là hợp lệ
-];
-
 function _cvCoGiaTri(v) {
   var s = (v === null || v === undefined) ? '' : String(v).trim();
   return s !== '' && s !== '-';
 }
 function _cvLayTruong(nx, dsTen) {
   for (var i = 0; i < dsTen.length; i++) if (_cvCoGiaTri(nx[dsTen[i]])) return true;
-  return false;
-}
-
-/* ★ SỬA — Đơn vị đã có ÍT NHẤT 1 tài liệu thuộc nhóm Hợp đồng (bất kỳ loại
-   nào trong CV_LOAI_HD_BAT_BUOC) — so khớp cột "loai" trong DanhSachTaiLieu. */
-function _cvCoTaiLieuHopDong(nx) {
-  var ds = (nx && nx.DanhSachTaiLieu) || [];
-  for (var i = 0; i < ds.length; i++) {
-    var loaiTL = String(ds[i].loai || '').trim();
-    if (CV_LOAI_HD_BAT_BUOC.indexOf(loaiTL) > -1) return true;
-  }
   return false;
 }
 
@@ -346,43 +325,7 @@ function _cvTinhDonVi(nx) {
   truong.forEach(function (t) {
     if (_cvLayTruong(nx, t.ten)) dien++; else thieu.push(t.nhan);
   });
-  var soCan = truong.length;
-
-  // ★ SỬA — chỉ cần có ÍT NHẤT 1 tài liệu hợp đồng đính kèm (không bắt đủ
-  //   cả 3 loại riêng biệt nữa) là coi như đạt phần này.
-  soCan++;
-  if (_cvCoTaiLieuHopDong(nx)) dien++;
-  else thieu.push('📎 Hợp đồng đính kèm (thuê đất/xưởng, nước cấp hoặc nước thải)');
-
-  return { soCan: soCan, soDien: dien, hoanTat: (dien === soCan), thieu: thieu };
-}
-
-/* ★ Gác nút/ô chọn "Đã rà soát": chỉ cho phép chọn khi đơn vị đã
-   ĐỦ THÔNG TIN (đủ trường dữ liệu + có tài liệu hợp đồng đính kèm).
-   Dùng lại từ Script.html khi mở và khi lưu hộp thoại "Sửa thông tin".
-   - selEl      : phần tử <select id="suaTrangThaiRaSoat"> (có thể null)
-   - nx         : bản ghi nhà xưởng/đất hiện tại (đã có DanhSachTaiLieu mới nhất)
-   - duLieuMoi  : (tuỳ chọn) các trường vừa sửa trên form, chưa lưu xuống Sheet —
-                  truyền vào để kiểm tra "nếu lưu ngay bây giờ thì có đủ không".
-   Trả về { hoanTat, thieu } để nơi gọi tự quyết định chặn lưu hay không. */
-function _cvGacRaSoat(selEl, nx, duLieuMoi) {
-  var nxKT = {};
-  Object.keys(nx || {}).forEach(function (k) { nxKT[k] = nx[k]; });
-  if (duLieuMoi) {
-    Object.keys(duLieuMoi).forEach(function (k) { nxKT[k] = duLieuMoi[k]; });
-  }
-  var kq = _cvTinhDonVi(nxKT);
-
-  if (selEl) {
-    var tuyChon = Array.prototype.filter.call(selEl.options, function (o) {
-      return o.value === 'Đã rà soát';
-    })[0];
-    if (tuyChon) {
-      tuyChon.disabled = !kq.hoanTat;
-      tuyChon.textContent = kq.hoanTat ? 'Đã rà soát' : 'Đã rà soát (chưa đủ điều kiện)';
-    }
-  }
-  return kq;
+  return { soCan: truong.length, soDien: dien, hoanTat: (dien === truong.length), thieu: thieu };
 }
 
 function _cvMauPct(p) { return p >= 90 ? '#16a34a' : (p >= 60 ? '#d97706' : '#dc2626'); }

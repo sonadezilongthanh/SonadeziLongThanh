@@ -16,7 +16,7 @@
      ══════════════════════════════════════════════════════════════════ -->
 
 <style>
-.gt-boc { max-width: none; margin: 0 auto; padding-bottom: 22px; }
+.gt-boc { max-width: 1180px; margin: 0 auto; padding-bottom: 26px; }
 
 /* ---------- Dải tiêu đề ---------- */
 .gt-hero {
@@ -39,9 +39,8 @@
 /* ---------- Dải số liệu nổi bật ---------- */
 .gt-noi-bat {
   background: #f5f8fc; border-bottom: 1px solid var(--xam-vien);
-  padding: 14px 22px; display: grid; gap: 24px;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 190px));
-  justify-content: start;
+  padding: 16px 22px; display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
 .gt-noi-bat .so   { font-size: 25px; font-weight: 700; color: var(--xanh-dam); line-height: 1.1; }
 .gt-noi-bat .nhan { font-size: 12px; color: var(--xam-chu); margin-top: 3px; }
@@ -62,14 +61,14 @@
 
 /* ---------- Lưới thẻ thông tin ---------- */
 .gt-luoi {
-  column-width: 380px; column-gap: 14px; padding: 16px 22px 2px;
+  display: grid; gap: 14px; padding: 18px 22px;
+  grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+  align-items: start;
 }
 .gt-the {
   background: var(--trang); border: 1px solid var(--xam-vien);
   border-radius: 12px; box-shadow: var(--bong); overflow: hidden;
   scroll-margin-top: 58px;
-  display: inline-block; width: 100%; margin-bottom: 14px;
-  break-inside: avoid; -webkit-column-break-inside: avoid;
 }
 .gt-the-dau {
   background: #eef3f8; padding: 11px 15px; border-bottom: 1px solid var(--xam-vien);
@@ -200,8 +199,8 @@ var ICON_NHOM = {
   CHUDAUTU: '🏢', QUYHOACH: '📐', NHAXUONG: '🏭', DATTHUE: '🗺️'
 };
 
-/** ★ Nhóm được ĐÓNG sẵn khi mở tab (để trống = mặc định MỞ hết, người dùng tự bấm để thu gọn khi cần) */
-var NHOM_DONG_SAN = [];
+/** ★ Nhóm được xổ sẵn phần "Xem chi tiết" khi mở tab (không cần bấm) */
+var NHOM_MO_SAN = ['CHUDAUTU', 'VITRI', 'QUYHOACH'];
 
 var NHAN_KCN = {
   vi: { tieuDe: 'KHU CÔNG NGHIỆP LONG THÀNH',
@@ -380,6 +379,7 @@ function veBieuTuong_(ds) {
     var nhan = layTheoNN_(d.muc);
     var phu  = layTheoNN_(d.phu);
     return '<div class="gt-bt">'
+         + (d.icon ? '<span class="ic">' + gtThoat_(d.icon) + '</span>' : '')
          + '<div><div class="tri">' + gtThoat_(layTheoNN_(d.giaTri)) + '</div>'
          + (nhan ? '<div class="nhan">' + gtThoat_(nhan) + '</div>' : '')
          + (phu  ? '<div class="phu">'  + gtThoat_(phu)  + '</div>' : '')
@@ -392,7 +392,7 @@ function veTheGia_(ds) {
   return ds.map(function (d) {
     var phu = layTheoNN_(d.phu).split('||');
     return '<div class="gt-gia">'
-         + '<div class="ten">' + gtThoat_(layTheoNN_(d.muc)) + '</div>'
+         + '<div class="ten">' + (d.icon ? gtThoat_(d.icon) + ' ' : '') + gtThoat_(layTheoNN_(d.muc)) + '</div>'
          + '<div class="so">' + gtThoat_(layTheoNN_(d.giaTri)) + '</div>'
          + (phu[0] ? '<div class="dv">'  + gtThoat_(phu[0].trim()) + '</div>' : '')
          + (phu[1] ? '<div class="phu">' + gtThoat_(phu[1].trim()) + '</div>' : '')
@@ -438,11 +438,11 @@ function veGhiChu_(ds) {
 
 /** Dòng chi tiết — thu gọn để thẻ không bị dày chữ */
 function veChiTiet_(ds, maNhom) {
-  var moSan = (NHOM_DONG_SAN.indexOf(maNhom) >= 0) ? '' : ' open';
+  var moSan = (NHOM_MO_SAN.indexOf(maNhom) >= 0) ? ' open' : '';
   return '<details class="gt-chi-tiet"' + moSan + '><summary>' + NHAN_KCN[NN_KCN].chiTiet + '</summary>'
        + ds.map(function (d) {
            return '<div class="gt-dong">'
-                + '<div class="muc">' + gtThoat_(layTheoNN_(d.muc)) + '</div>'
+                + '<div class="muc">' + (d.icon ? gtThoat_(d.icon) + ' ' : '') + gtThoat_(layTheoNN_(d.muc)) + '</div>'
                 + '<div class="gt">' + gtThoat_(layTheoNN_(d.giaTri)) + '</div></div>';
          }).join('')
        + '</details>';

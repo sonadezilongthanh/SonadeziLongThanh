@@ -24,13 +24,7 @@ const TL_DUOI_CHO_PHEP = [
   'pdf', 'jpg', 'jpeg', 'png', 'webp', 'gif',
   'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'dwg', 'zip'
 ];
-// ★ MỚI: tách "Hợp đồng" thành 3 loại cụ thể để buộc nhập đủ 3 loại
-//   (dùng để tính "Tiến độ nhập liệu" và gác nút "Đã rà soát" — xem Tab_CongViec.html).
-const TL_LOAI_CHO_PHEP = [
-  'Brochure', 'Bản vẽ', 'Hình ảnh',
-  'Hợp đồng thuê đất, xưởng', 'Hợp đồng nước cấp', 'Hợp đồng nước thải',
-  'Khác'
-];
+const TL_LOAI_CHO_PHEP = ['Brochure', 'Bản vẽ', 'Hình ảnh', 'Hợp đồng', 'Khác'];
 
 // Vai trò được phép thao tác tài liệu
 const TL_VAI_TRO_DUOC_TAI = ['QuanTri', 'QuanLy', 'NhapLieu'];
@@ -406,92 +400,4 @@ function xoaTaiLieu(tt) {
   tlXoaCache_();
 
   return { thanhCong: true };
-}
-
-
-/***********************************************************************
- * ★ MỚI — HÀM GỌI TỪ GIAO DIỆN — CHUYỂN 1 TÀI LIỆU SANG LOẠI (THƯ MỤC) KHÁC
- *   Dùng khi tải nhầm loại tài liệu (VD: chọn nhầm "Khác" thay vì
- *   "Brochure"), không cần xoá rồi tải lại từ đầu.
- *   - Chuyển tệp THẬT trên Drive sang đúng thư mục con LoaiTaiLieu mới
- *     (trong cùng 03_Brochure / MaCum / MaDonVi).
- *   - Cập nhật lại cột LoaiTaiLieu trên dòng tương ứng trong DS_TaiLieu.
- *   - FileId và LinkFile KHÔNG đổi khi chuyển thư mục (link cũ vẫn dùng được).
- ***********************************************************************/
-function chuyenThuMucTaiLieu(tt) {
-  tt = tt || {};
-
-  // ★ Xác thực bằng token tài khoản, dùng chung cơ chế với xoaTaiLieu()
-  const p = tlLayPhien_(tt.token, 'chuyển thư mục');
-
-  const fileId  = String(tt.fileId  || '').trim();
-  const maDonVi = String(tt.maDonVi || '').trim();
-  const loaiMoi = String(tt.loaiMoi || '').trim();
-
-  if (!fileId)  throw new Error('Thiếu mã tệp cần chuyển.');
-  if (!maDonVi) throw new Error('Thiếu mã đơn vị.');
-  if (TL_LOAI_CHO_PHEP.indexOf(loaiMoi) === -1) {
-    throw new Error('Loại tài liệu đích không hợp lệ.');
-  }
-
-  const lock = LockService.getScriptLock();
-  try { lock.waitLock(10000); }
-  catch (e) { throw new Error('Hệ thống đang bận, vui lòng thử lại sau.'); }
-
-  let tenTaiLieu = '';
-  let loaiCu     = '';
-
-  try {
-    const sh = SpreadsheetApp.openById(tlIdSheet_())
-                 .getSheetByName(tlTenSheet_('TAI_LIEU', 'DS_TaiLieu'));
-    const dl = sh.getDataRange().getValues();
-    const td = dl[0].map(function (t) { return String(t).trim(); });
-
-    const iMa   = td.indexOf('MaDonVi');
-    const iTen  = td.indexOf('TenTaiLieu');
-    const iLink = td.indexOf('LinkFile');
-    const iId   = td.indexOf('FileId');
-    const iLoai = td.indexOf('LoaiTaiLieu');
-    if (iLoai === -1) throw new Error('Không tìm thấy cột LoaiTaiLieu trong sheet DS_TaiLieu.');
-
-    let dongTimThay = -1;
-    for (let i = 1; i < dl.length; i++) {
-      const idDong = (iId > -1 && dl[i][iId])
-                   ? String(dl[i][iId]).trim()
-                   : tlLayIdTuLink_(dl[i][iLink]);
-      if (idDong === fileId
-          && (!maDonVi || String(dl[i][iMa]).trim() === maDonVi)) {
-        dongTimThay = i;
-        break;
-      }
-    }
-    if (dongTimThay === -1) throw new Error('Không tìm thấy tài liệu trong danh sách.');
-
-    tenTaiLieu = (iTen > -1) ? String(dl[dongTimThay][iTen]) : '';
-    loaiCu     = String(dl[dongTimThay][iLoai]).trim();
-
-    if (loaiCu === loaiMoi) {
-      return { thanhCong: true, ten: tenTaiLieu, loaiCu: loaiCu, loaiMoi: loaiMoi, khongDoi: true };
-    }
-
-    sh.getRange(dongTimThay + 1, iLoai + 1).setValue(loaiMoi);
-  } finally {
-    lock.releaseLock();
-  }
-
-  // --- Chuyển tệp thật trên Drive sang đúng thư mục LoaiTaiLieu mới ---
-  const thuMucMoi = tlLayThuMucLuu_(maDonVi, loaiMoi);
-  const file  = DriveApp.getFileById(fileId);
-  const chaCu = file.getParents();
-  while (chaCu.hasNext()) {
-    const cha = chaCu.next();
-    if (cha.getId() !== thuMucMoi.getId()) cha.removeFile(file);
-  }
-  thuMucMoi.addFile(file);
-
-  tlGhiNhatKy_([[new Date(), p.email, maDonVi,
-                 'ChuyenThuMucTaiLieu', loaiCu + ' — ' + tenTaiLieu, loaiMoi]]);
-  tlXoaCache_();
-
-  return { thanhCong: true, ten: tenTaiLieu, loaiCu: loaiCu, loaiMoi: loaiMoi };
 }
