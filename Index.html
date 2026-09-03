@@ -227,7 +227,7 @@
 
       <div class="dong-form">
         <label>Tên nhà đầu tư (khách thuê)</label>
-        <input type="text" id="suaKhachThue" placeholder="Tên công ty thuê">
+        <textarea id="suaKhachThue" rows="1" class="o-tu-gian" placeholder="Tên công ty thuê"></textarea>
       </div>
 
       <div class="dong-form">
@@ -242,14 +242,14 @@
 
       <div class="dong-form">
         <label>Tiến độ (ghi chú thêm)</label>
-        <input type="text" id="suaTienDo" placeholder="VD: Đang hoàn thiện">
+        <textarea id="suaTienDo" rows="1" class="o-tu-gian" placeholder="VD: Đang hoàn thiện"></textarea>
       </div>
 
       <div class="tieu-de-nhom">A2. Thông tin nhà đầu tư</div>
 
       <div class="dong-form">
         <label>Quốc tịch</label>
-        <input type="text" id="suaQuocTich" placeholder="VD: Hàn Quốc">
+        <textarea id="suaQuocTich" rows="1" class="o-tu-gian" placeholder="VD: Hàn Quốc"></textarea>
       </div>
 
       <div class="dong-form">
@@ -262,12 +262,12 @@
         <label>Tổng vốn đầu tư (USD)</label>
         <!-- ★ SỬA — mặc định đơn vị USD: chỉ cần gõ con số, hệ thống tự hiển thị
              kèm "USD". Nếu là loại tiền khác thì gõ kèm đơn vị (VD: 424.000.000 Euro). -->
-        <input type="text" id="suaTongVonDauTu" placeholder="VD: 6.680.000 (mặc định USD)">
+        <textarea id="suaTongVonDauTu" rows="1" class="o-tu-gian" placeholder="VD: 6.680.000 (mặc định USD)"></textarea>
       </div>
 
       <div class="dong-form">
         <label>Người đại diện</label>
-        <input type="text" id="suaNguoiDaiDien">
+        <textarea id="suaNguoiDaiDien" rows="1" class="o-tu-gian"></textarea>
       </div>
 
       <!-- ★ V4.2: cho phep nhap NHIEU DONG (moi lan cap/thay doi 1 dong) -->
@@ -286,7 +286,7 @@
       <!-- ★ V2.8: Ngày thành lập — dùng cho cảnh báo kỷ niệm (đặt lẵng hoa) -->
       <div class="dong-form">
         <label>Ngày thành lập</label>
-        <input type="text" id="suaNgayThanhLap" placeholder="dd/MM/yyyy">
+        <textarea id="suaNgayThanhLap" rows="1" class="o-tu-gian" placeholder="dd/MM/yyyy"></textarea>
       </div>
 <!-- ★ Phụ trách & chăm sóc KH (tặng hoa dịp kỷ niệm thành lập) -->
       <div class="tieu-de-nhom">Phụ trách &amp; Chăm sóc khách hàng</div>
@@ -312,39 +312,39 @@
 
       <div class="dong-form">
         <label>Ghi chú tặng hoa</label>
-        <textarea id="suaGhiChuTangHoa" rows="2"
+        <textarea id="suaGhiChuTangHoa" class="o-tu-gian" rows="2"
                   placeholder="VD: KH đề nghị không tặng / đã tặng năm 2025…"></textarea>
       </div>
       <div class="tieu-de-nhom">A3. Bản thỏa thuận &amp; Hợp đồng</div>
 
       <div class="dong-form">
         <label>Bản thỏa thuận — Số</label>
-        <input type="text" id="suaBTTSo">
+        <textarea id="suaBTTSo" rows="1" class="o-tu-gian"></textarea>
       </div>
 
       <div class="dong-form">
         <label>Bản thỏa thuận — Ngày</label>
-        <input type="text" id="suaBTTNgay" placeholder="dd/MM/yyyy">
+        <textarea id="suaBTTNgay" rows="1" class="o-tu-gian" placeholder="dd/MM/yyyy"></textarea>
       </div>
 
       <div class="dong-form">
         <label>Bản thỏa thuận — Ngày hết hạn</label>
-        <input type="text" id="suaBTTNgayHetHan" placeholder="dd/MM/yyyy">
+        <textarea id="suaBTTNgayHetHan" rows="1" class="o-tu-gian" placeholder="dd/MM/yyyy"></textarea>
       </div>
 
       <div class="dong-form">
         <label>Hợp đồng — Số</label>
-        <input type="text" id="suaSoHopDong">
+        <textarea id="suaSoHopDong" rows="1" class="o-tu-gian"></textarea>
       </div>
 
       <div class="dong-form">
         <label>Hợp đồng — Ngày</label>
-        <input type="text" id="suaNgayHopDong" placeholder="dd/MM/yyyy">
+        <textarea id="suaNgayHopDong" rows="1" class="o-tu-gian" placeholder="dd/MM/yyyy"></textarea>
       </div>
 
       <div class="dong-form">
         <label>Ngày hết hạn hợp đồng</label>
-        <input type="text" id="suaNgayHetHan" placeholder="dd/MM/yyyy">
+        <textarea id="suaNgayHetHan" rows="1" class="o-tu-gian" placeholder="dd/MM/yyyy"></textarea>
       </div>
 
       <!-- ══════════════════════════════════════════════════════════
@@ -363,12 +363,12 @@
 
         <div class="dong-form">
           <label>Diện tích văn phòng (m²)</label>
-          <input type="text" id="suaDienTichVanPhong">
+          <textarea id="suaDienTichVanPhong" rows="1" class="o-tu-gian"></textarea>
         </div>
 
         <div class="dong-form">
           <label>Diện tích khu đất (m²)</label>
-          <input type="text" id="suaDienTichKhuDat">
+          <textarea id="suaDienTichKhuDat" rows="1" class="o-tu-gian"></textarea>
         </div>
 
         <!-- ★ o-tu-gian: cho phep hien thi/nhap nhieu dong khi co ghi chu chi tiet -->
@@ -380,7 +380,7 @@
 
         <div class="dong-form">
           <label>Tiền thuê xưởng — PT thanh toán</label>
-          <input type="text" id="suaPTThanhToanXuong" placeholder="VD: hàng quý">
+          <textarea id="suaPTThanhToanXuong" rows="1" class="o-tu-gian" placeholder="VD: hàng quý"></textarea>
         </div>
 
       </div>
@@ -395,43 +395,41 @@
 
         <div class="dong-form">
           <label>Lô đất thuê</label>
-          <input type="text" id="suaLoDatThue" placeholder="VD: C.II.III-3+4">
+          <textarea id="suaLoDatThue" rows="1" class="o-tu-gian" placeholder="VD: C.II.III-3+4"></textarea>
         </div>
 
         <div class="dong-form">
           <label>Tổng diện tích đất thuê (m²)</label>
-          <input type="text" id="suaTongDienTichDat">
+          <textarea id="suaTongDienTichDat" rows="1" class="o-tu-gian"></textarea>
         </div>
 
         <div class="dong-form">
           <label>Diện tích đất thuê thêm (m²)</label>
-          <input type="text" id="suaDienTichThueThem">
+          <textarea id="suaDienTichThueThem" rows="1" class="o-tu-gian"></textarea>
         </div>
 
         <div class="dong-form">
           <label>Tiền thuê mặt bằng — Đơn giá</label>
           <!-- ★ SỬA — bỏ đơn vị cố định "USD/m²/năm": cán bộ tự gõ kèm đơn vị
                (USD/EUR/VNĐ...) ngay trong ô này khi cần. -->
-          <input type="text" id="suaDonGiaThueMB" placeholder="VD: 22 USD/m²/năm hoặc 550.000 VNĐ/m²/năm">
+          <textarea id="suaDonGiaThueMB" rows="1" class="o-tu-gian" placeholder="VD: 22 USD/m²/năm hoặc 550.000 VNĐ/m²/năm"></textarea>
         </div>
 
         <div class="dong-form">
           <label>Tiền thuê mặt bằng — PT thanh toán</label>
-          <input type="text" id="suaPTThanhToanMB"
-                 placeholder="VD: 1 lần cho thời hạn thuê">
+          <textarea id="suaPTThanhToanMB" rows="1" class="o-tu-gian" placeholder="VD: 1 lần cho thời hạn thuê"></textarea>
         </div>
 
         <div class="dong-form">
           <label>Tiền đất thô — Đơn giá</label>
           <!-- ★ SỬA — bỏ đơn vị cố định "USD": cán bộ tự gõ kèm đơn vị
                (USD/EUR/VNĐ...) ngay trong ô này khi cần. -->
-          <input type="text" id="suaDonGiaDatTho" placeholder="VD: 0.05 USD/m² hoặc 1.200.000 VNĐ/m²">
+          <textarea id="suaDonGiaDatTho" rows="1" class="o-tu-gian" placeholder="VD: 0.05 USD/m² hoặc 1.200.000 VNĐ/m²"></textarea>
         </div>
 
         <div class="dong-form">
           <label>Tiền đất thô — PT thanh toán</label>
-          <input type="text" id="suaPTThanhToanDatTho"
-                 placeholder="VD: 1 lần cho thời hạn thuê">
+          <textarea id="suaPTThanhToanDatTho" rows="1" class="o-tu-gian" placeholder="VD: 1 lần cho thời hạn thuê"></textarea>
         </div>
 
       </div>
@@ -443,19 +441,18 @@
 
       <div class="dong-form">
         <label id="nhanPhiQuanLy">Phí quản lý</label>
-        <input type="text" id="suaPhiQuanLy">
+        <textarea id="suaPhiQuanLy" rows="1" class="o-tu-gian"></textarea>
         <small style="color:#66738a">Nhà xưởng: phí quản lý tính trên DT khu đất</small>
       </div>
 
       <div class="dong-form">
         <label>Phí quản lý — PT thanh toán</label>
-        <input type="text" id="suaPTThanhToanPQL"
-               placeholder="VD: hàng năm / hàng quý / 1 lần cho thời hạn thuê">
+        <textarea id="suaPTThanhToanPQL" rows="1" class="o-tu-gian" placeholder="VD: hàng năm / hàng quý / 1 lần cho thời hạn thuê"></textarea>
       </div>
 
       <div class="dong-form">
         <label>Ghi chú</label>
-        <textarea id="suaGhiChu" rows="3"></textarea>
+        <textarea id="suaGhiChu" class="o-tu-gian" rows="3"></textarea>
       </div>
 
     </div><!-- /.than-sua -->
