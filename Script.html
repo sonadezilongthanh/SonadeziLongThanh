@@ -1454,7 +1454,7 @@ function moPanelChiTiet(ma) {
     html += dongTT('Tên nhà đầu tư',        nx.KhachThue);
     html += dongTT('Quốc tịch',             nx.QuocTich);
     html += dongTT('Ngành nghề, sản phẩm',  docNganhNghe(nx));
-    html += dongTT('Tổng vốn đầu tư',       dinhDangSoTuDo_(nx.TongVonDauTu_USD));
+    html += dongTT('Tổng vốn đầu tư',       dinhDangSoTuDo_(nx.TongVonDauTu_USD, 'USD'));   // ★ SỬA — mặc định USD
     html += dongTT('Người đại diện',        nx.NguoiDaiDien);
     html += dongTT('Giấy chứng nhận đầu tư', nx.GiayCNDT);
     html += dongTT('Giấy chứng nhận doanh nghiệp', nx.GiayCNDN);
@@ -1736,7 +1736,7 @@ function dinhDangSo(v, donVi) {
  *       "40.000.000 EUR"  -> "40.000.000 EUR"   (đã có dấu chấm vẫn nhận đúng)
  * - Nếu chuỗi không bắt đầu bằng số (hiếm) → hiển thị nguyên văn, không đoán.
  */
-function dinhDangSoTuDo_(v) {
+function dinhDangSoTuDo_(v, donViMacDinh) {   // ★ SỬA — thêm tham số đơn vị mặc định
   if (v === null || v === undefined || v === '') return '';
   const s = String(v).trim();
 
@@ -1757,7 +1757,10 @@ function dinhDangSoTuDo_(v) {
   if (isNaN(n)) return s;
 
   const daDinhDang = n.toLocaleString('vi-VN');
-  return phanSau ? daDinhDang + ' ' + phanSau : daDinhDang;
+  // ★ SỬA — nếu cán bộ chỉ gõ con số (không kèm đơn vị) thì gắn đơn vị mặc định.
+  //         Nếu đã gõ sẵn đơn vị (Euro, VNĐ, JPY...) thì giữ nguyên, không ghi đè.
+  if (phanSau) return daDinhDang + ' ' + phanSau;
+  return donViMacDinh ? daDinhDang + ' ' + donViMacDinh : daDinhDang;
 }
 
 /** Gộp Đơn giá + PT thanh toán thành 1 dòng hiển thị */
