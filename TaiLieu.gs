@@ -7,7 +7,7 @@
  *   Bản V3.3b cũ vẫn kiểm tra token theo "mã khoá chỉnh sửa" đã ngừng
  *   sử dụng → mọi lượt tải tài liệu đều bị chặn dù đã đăng nhập QuanTri.
  *
- * ★ Quyền: QuanTri, QuanLy và NhapLieu được tải lên / xoá tài liệu.
+ * ★ Quyền: QuanTri và NhapLieu được tải lên / xoá tài liệu. (★ SỬA: bỏ QuanLy)
  * ★ Người tải / người xoá ghi vào Sheet lấy từ EMAIL trong token
  *   (không lấy tên do trình duyệt khai báo → không thể mạo danh).
  ***********************************************************************/
@@ -33,7 +33,8 @@ const TL_LOAI_CHO_PHEP = [
 ];
 
 // Vai trò được phép thao tác tài liệu
-const TL_VAI_TRO_DUOC_TAI = ['QuanTri', 'QuanLy', 'NhapLieu'];
+// ★ SỬA: QuanLy chỉ xem — không tải lên / xoá / đổi tên tài liệu
+const TL_VAI_TRO_DUOC_TAI = ['QuanTri', 'NhapLieu'];
 
 
 /***********************************************************************

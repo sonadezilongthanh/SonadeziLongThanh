@@ -244,7 +244,8 @@ function layPhienTuToken_(token) {
 function layNguoiDungTuPhien_(p) {
   p = p || {};
   const vaiTro  = p.hopLe ? String(p.vaiTro || '').trim() : 'Khach';
-  const duocSua = (vaiTro === 'QuanTri' || vaiTro === 'QuanLy' || vaiTro === 'NhapLieu');
+  // ★ SỬA: vai trò QuanLy CHỈ XEM — không còn quyền chỉnh sửa dữ liệu
+  const duocSua = (vaiTro === 'QuanTri' || vaiTro === 'NhapLieu');
 
   // ★ PA-B — kèm SĐT + email liên hệ cá nhân (chỉ với người đã đăng nhập)
   let lienHe = { soDienThoai: '', emailLienHe: '' };
@@ -482,7 +483,8 @@ function capNhatNhaXuong(maDonVi, duLieuMoi, phien, hoTenPhu) {
   if (!p.hopLe) {
     throw new Error('Phiên làm việc đã hết hiệu lực. Vui lòng đăng nhập lại.');
   }
-  if (p.vaiTro !== 'QuanTri' && p.vaiTro !== 'QuanLy' && p.vaiTro !== 'NhapLieu') {
+  // ★ SỬA: chỉ QuanTri và NhapLieu được ghi dữ liệu (QuanLy chỉ xem)
+  if (p.vaiTro !== 'QuanTri' && p.vaiTro !== 'NhapLieu') {
     throw new Error('Tài khoản của bạn (' + p.vaiTro
       + ') không có quyền chỉnh sửa dữ liệu.');
   }

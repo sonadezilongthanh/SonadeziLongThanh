@@ -28,7 +28,8 @@ let DA_GAN_GIAO_DIEN = false;
 /** Quyền sửa hiệu lực — do SERVER xác nhận qua vai trò của tài khoản */
 function duocPhepSua() {
   const vt = PHIEN_SUA.vaiTro || NGUOI_DUNG.vaiTro;
-  return !!(NGUOI_DUNG.duocSua || vt === 'QuanTri' || vt === 'QuanLy' || vt === 'NhapLieu');
+  // ★ SỬA: QuanLy chỉ xem — bỏ khỏi danh sách được sửa
+  return !!(NGUOI_DUNG.duocSua || vt === 'QuanTri' || vt === 'NhapLieu');
 }
 
 /** Có phải tài khoản quản trị không */
@@ -840,7 +841,7 @@ function taoHopThoaiQuanLyTK() {
     +         'Dòng nền vàng là tài khoản mới đăng ký đang chờ cấp quyền. '
     +         'Sau khi chọn vai trò và trạng thái, bấm <b>Lưu</b> để áp dụng.'
     +         '<b>Vai trò:</b> QuanTri (toàn quyền, quản lý tài khoản) · '
-    +         'QuanLy (xem + sửa dữ liệu + theo dõi công việc toàn phòng) · '
+    +         'QuanLy (chỉ xem + theo dõi công việc toàn phòng, KHÔNG sửa dữ liệu) · '
     +         'NhapLieu (xem + sửa dữ liệu) · ChiXem (chỉ tra cứu nội bộ).<br>'
     +       '</p>'
     +     '</div>'
