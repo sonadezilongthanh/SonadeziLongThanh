@@ -346,10 +346,11 @@ function layDanhSachCanBoPhuTrach() {
   });
   cauHinh.AnhMasterKCN = chuanHoaAnhDrive_(cauHinh.AnhMasterKCN);
 
-  // ★★★ TUYỆT ĐỐI KHÔNG GỬI MẬT KHẨU VỀ TRÌNH DUYỆT ★★★
+  // ★★★ TUYỆT ĐỐI KHÔNG GỬI MẬT KHẨU / ID THƯ MỤC VỀ TRÌNH DUYỆT ★★★
   // (Hai khoá dưới đây đã ngừng dùng từ V4.0 nhưng vẫn xoá để phòng ngừa.)
   delete cauHinh[KHOA_CAU_HINH_MA_SUA];
   delete cauHinh[KHOA_CAU_HINH_MK_XEM];
+  delete cauHinh['IdThuMucTaiLieu'];
 
   // --- Gom tài liệu theo mã đơn vị ---
   const mapTL = {};
@@ -401,30 +402,91 @@ function layDanhSachCanBoPhuTrach() {
   return ketQuaTra;
 }
 
+/***********************************************************************
+ * ★ DANH SÁCH TRẮNG (WHITELIST) CHO CHẾ ĐỘ KHÁCH
+ * Chỉ các trường được liệt kê tại đây mới được gửi về trình duyệt của khách.
+ * Tất cả các trường nội bộ, email, hợp đồng, chi phí đều bị loại bỏ tự động.
+ ***********************************************************************/
+const COT_HIEN_KHACH = [
+  'MaDonVi', 'TenNhaXuong', 'MaCum', 'LoaiHinh', 'TrangThai',
+  'Lat', 'Lng', 'ToaDoSVG',
+  'DienTichDat', 'DienTichXayDung', 'TienDo',
+  'LinkBrochure', 'LinkAnh', 'DanhSachTaiLieu'
+];
+
+const KHOA_CAU_HINH_KHACH = [
+  'AnhMasterKCN', 'ViewBoxMaster', 'BrochureChungKCN',
+  'LinkHoSoKCN', 'LinkHoSoKCN_VI', 'LinkHoSoKCN_EN', 'LinkHoSoKCN_ZH'
+];
+
+const COT_CUM_KHACH = [
+  'MaCum', 'TenCum', 'ToaDoSVG', 'ViewBox', 'AnhMatBang'
+];
+
+const COT_TRANG_THAI_KHACH = [
+  'TenTrangThai', 'MauSac'
+];
+
 /**
- * Xoá trắng cột nội bộ trước khi gửi cho chế độ khách.
- * Danh sách cột áp dụng theo LoaiHinh của từng dòng.
+ * Lọc dữ liệu theo DANH SÁCH TRẮNG (Whitelist) trước khi gửi cho khách.
+ * Áp dụng cho: nhaXuong, cauHinh, cum, trangThai.
+ * Đối với nhãn bản đồ/danh sách: KhachThue được ẩn hoàn toàn (thay bằng TenNhaXuong hoặc TrangThai nếu cần).
  */
 function locDuLieuChoKhach_(ketQua) {
-  const banSao = JSON.parse(JSON.stringify(ketQua));
-  (banSao.nhaXuong || []).forEach(function (nx) {
-    const lh = String(nx.LoaiHinh).trim();
-    // ★ V4.7: "Đất ở KDC" dùng chung bộ cột nội bộ với "Đất cho thuê"
-    const dsCot = (lh === 'Đất cho thuê' || lh === 'Đất ở KDC')
-      ? COT_AN_KHACH_DAT
-      : COT_AN_KHACH_NHA_XUONG;
-    dsCot.forEach(function (cot) {
-      if (cot in nx) nx[cot] = '';
+  // 1. Lọc nhà xưởng
+  const dsNhaXuong = (ketQua.nhaXuong || []).map(function (nx) {
+    const o = {};
+    COT_HIEN_KHACH.forEach(function (k) {
+      if (k in nx) o[k] = nx[k];
     });
 
-    // ★ Ẩn tài liệu Hợp đồng / Khác với khách (loại khỏi payload gửi về)
+    // Ẩn hoàn toàn KhachThue; nếu nhãn hiển thị cần thay thế thì dùng TenNhaXuong hoặc TrangThai
+    o.KhachThue = '';
+
+    // Lọc tài liệu theo loại được phép cho khách
     if (Array.isArray(nx.DanhSachTaiLieu)) {
-      nx.DanhSachTaiLieu = nx.DanhSachTaiLieu.filter(function (tl) {
+      o.DanhSachTaiLieu = nx.DanhSachTaiLieu.filter(function (tl) {
         return LOAI_TL_AN_KHACH.indexOf(String(tl.loai).trim()) === -1;
       });
+    } else {
+      o.DanhSachTaiLieu = [];
     }
+
+    return o;
   });
-  return banSao;
+
+  // 2. Lọc cấu hình chung
+  const cauHinhKhach = {};
+  if (ketQua.cauHinh) {
+    KHOA_CAU_HINH_KHACH.forEach(function (k) {
+      if (k in ketQua.cauHinh) cauHinhKhach[k] = ketQua.cauHinh[k];
+    });
+  }
+
+  // 3. Lọc danh sách cụm
+  const dsCum = (ketQua.cum || []).map(function (c) {
+    const o = {};
+    COT_CUM_KHACH.forEach(function (k) {
+      if (k in c) o[k] = c[k];
+    });
+    return o;
+  });
+
+  // 4. Lọc danh mục trạng thái
+  const dsTrangThai = (ketQua.trangThai || []).map(function (t) {
+    const o = {};
+    COT_TRANG_THAI_KHACH.forEach(function (k) {
+      if (k in t) o[k] = t[k];
+    });
+    return o;
+  });
+
+  return {
+    nhaXuong : dsNhaXuong,
+    cum      : dsCum,
+    trangThai: dsTrangThai,
+    cauHinh  : cauHinhKhach
+  };
 }
 
 

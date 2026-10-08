@@ -374,6 +374,7 @@ function xoaTaiLieu(tt) {
   catch (e) { throw new Error('Hệ thống đang bận, vui lòng thử lại sau.'); }
 
   let tenXoa = '';
+  let daTimThay = false;
   try {
     const sh = SpreadsheetApp.openById(tlIdSheet_())
                  .getSheetByName(tlTenSheet_('TAI_LIEU', 'DS_TaiLieu'));
@@ -393,11 +394,16 @@ function xoaTaiLieu(tt) {
           && (!maDonVi || String(dl[i][iMa]).trim() === maDonVi)) {
         tenXoa = (iTen > -1) ? String(dl[i][iTen]) : '';
         sh.deleteRow(i + 1);
+        daTimThay = true;
         break;
       }
     }
   } finally {
     lock.releaseLock();
+  }
+
+  if (!daTimThay) {
+    throw new Error('Không tìm thấy tài liệu trong danh sách hoặc tài liệu không thuộc đơn vị này.');
   }
 
   try { DriveApp.getFileById(fileId).setTrashed(true); } catch (e) {}
