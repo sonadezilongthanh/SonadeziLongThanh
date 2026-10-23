@@ -14,16 +14,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Bản đồ KCN">
   <style>
-    html, body { margin: 0; height: 100%; overflow: hidden; background: #0b2a5b; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #fff; }
     iframe { border: 0; width: 100%; height: 100%; display: block; background: #fff; }
-    #manHinhCho {
-      position: fixed; inset: 0; z-index: 5; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; gap: 16px;
-      background: #0b2a5b; color: #fff; font: 500 15px system-ui, sans-serif;
-      transition: opacity .3s;
-    }
-    #manHinhCho img { width: 96px; height: 96px; border-radius: 20px; }
-    #manHinhCho.an { opacity: 0; pointer-events: none; }
     #btnCaiDat {
       position: fixed; right: 16px; bottom: 16px; z-index: 10; display: none;
       padding: 10px 16px; border: 0; border-radius: 24px; cursor: pointer;
@@ -37,11 +29,6 @@
   </style>
 </head>
 <body>
-  <div id="manHinhCho">
-    <img src="icons/icon-192.png" alt="">
-    <div>Đang tải Bản đồ KCN Long Thành…</div>
-  </div>
-
   <iframe id="khungApp"
     src="https://script.google.com/macros/s/AKfycbyD1ujseXrtEbNkpZz8FDA3BlcNqDS3oiF6F7N7QrwpZUt80zSzk-3ZrWjLACKj2BmH7w/exec"
     allow="clipboard-read; clipboard-write; geolocation; fullscreen"
@@ -50,12 +37,6 @@
   <button id="btnCaiDat">⬇ Cài đặt ứng dụng<span id="btnDong" title="Ẩn">✕</span></button>
 
   <script>
-    // Ẩn màn hình chờ khi app GAS đã tải (tối đa 15 giây)
-    var cho = document.getElementById('manHinhCho');
-    function anCho() { cho.classList.add('an'); }
-    document.getElementById('khungApp').addEventListener('load', anCho);
-    setTimeout(anCho, 15000);
-
     // Service Worker – điều kiện bắt buộc để trình duyệt cho phép cài đặt
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').catch(function () {});
