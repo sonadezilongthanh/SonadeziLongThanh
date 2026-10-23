@@ -1,7 +1,7 @@
 // Service Worker tối thiểu cho vỏ PWA "Bản đồ KCN Long Thành".
 // Chỉ lưu đệm các file của vỏ; KHÔNG can thiệp dữ liệu app GAS (script.google.com).
 // Khi sửa index.html / icon: tăng số phiên bản CACHE (v1 → v2) để máy người dùng nhận bản mới.
-var CACHE = 'bando-kcn-v5';
+var CACHE = 'bando-kcn-v6';
 var TAI_NGUYEN = [
   './',
   './index.html',
