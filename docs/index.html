@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Bản đồ KCN Long Thành</title>
+  <meta name="description" content="Bản đồ và tra cứu đơn vị KCN Long Thành – Sonadezi Long Thành">
+  <meta name="theme-color" content="#0b2a5b">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="icons/favicon.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Bản đồ KCN">
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #0b2a5b; }
+    iframe { border: 0; width: 100%; height: 100%; display: block; background: #fff; }
+    #manHinhCho {
+      position: fixed; inset: 0; z-index: 5; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 16px;
+      background: #0b2a5b; color: #fff; font: 500 15px system-ui, sans-serif;
+      transition: opacity .3s;
+    }
+    #manHinhCho img { width: 96px; height: 96px; border-radius: 20px; }
+    #manHinhCho.an { opacity: 0; pointer-events: none; }
+    #btnCaiDat {
+      position: fixed; right: 16px; bottom: 16px; z-index: 10; display: none;
+      padding: 10px 16px; border: 0; border-radius: 24px; cursor: pointer;
+      background: #0b2a5b; color: #fff; font: 600 14px system-ui, sans-serif;
+      box-shadow: 0 4px 12px rgba(0,0,0,.3);
+    }
+    #btnDong {
+      margin-left: 8px; background: transparent; border: 0; color: #fff;
+      font-size: 16px; cursor: pointer; padding: 0 2px;
+    }
+  </style>
+</head>
+<body>
+  <div id="manHinhCho">
+    <img src="icons/icon-192.png" alt="">
+    <div>Đang tải Bản đồ KCN Long Thành…</div>
+  </div>
+
+  <iframe id="khungApp"
+    src="https://script.google.com/macros/s/AKfycbyD1ujseXrtEbNkpZz8FDA3BlcNqDS3oiF6F7N7QrwpZUt80zSzk-3ZrWjLACKj2BmH7w/exec"
+    allow="clipboard-read; clipboard-write; geolocation; fullscreen"
+    title="Bản đồ KCN Long Thành"></iframe>
+
+  <button id="btnCaiDat">⬇ Cài đặt ứng dụng<span id="btnDong" title="Ẩn">✕</span></button>
+
+  <script>
+    // Ẩn màn hình chờ khi app GAS đã tải (tối đa 15 giây)
+    var cho = document.getElementById('manHinhCho');
+    function anCho() { cho.classList.add('an'); }
+    document.getElementById('khungApp').addEventListener('load', anCho);
+    setTimeout(anCho, 15000);
+
+    // Service Worker – điều kiện bắt buộc để trình duyệt cho phép cài đặt
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    }
+
+    // Nút "Cài đặt ứng dụng"
+    var suKienCaiDat = null;
+    var btn = document.getElementById('btnCaiDat');
+    var daCaiDat = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+
+    window.addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault();
+      suKienCaiDat = e;
+      if (!daCaiDat) btn.style.display = 'block';
+    });
+    btn.addEventListener('click', function (e) {
+      if (e.target.id === 'btnDong') { btn.style.display = 'none'; return; }
+      if (!suKienCaiDat) return;
+      suKienCaiDat.prompt();
+      suKienCaiDat.userChoice.finally(function () {
+        suKienCaiDat = null;
+        btn.style.display = 'none';
+      });
+    });
+    window.addEventListener('appinstalled', function () { btn.style.display = 'none'; });
+  </script>
+</body>
+</html>
