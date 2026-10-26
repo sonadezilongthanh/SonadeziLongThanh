@@ -753,6 +753,15 @@ body{
   #panelChiTiet:not(.an) .panel-than { animation: none; }
 }
 
+/* ★ V4.6 — Khi thư viện Motion đã nạp (html.dung-motion), JS điều khiển
+   toàn bộ hiệu ứng panel → tắt transition/animation CSS để không chồng nhau.
+   Nếu Motion không nạp được, khối V4.4 phía trên vẫn hoạt động bình thường. */
+html.dung-motion #panelChiTiet,
+html.dung-motion #panelChiTiet.an,
+html.dung-motion #lopPhu,
+html.dung-motion #lopPhu.an{ transition: none; }
+html.dung-motion #panelChiTiet:not(.an) .panel-than{ animation: none; }
+
 /* ================================================================
    ★ V4.5 — HIỆU ỨNG CHUYỂN CẤP BẢN ĐỒ (toàn cảnh ⇄ mặt bằng cụm)
    Cùng nguyên tắc với panel chi tiết: chỉ dùng transform + opacity

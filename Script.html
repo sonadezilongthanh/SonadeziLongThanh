@@ -400,6 +400,28 @@ function taoManHinhDangNhap() {
     +   'max-width:390px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.35);'
     +   'margin:auto}'
     + '.dn-logo{width:72px;height:72px;object-fit:contain;margin-bottom:10px}'
+    /* ★ V4.7 — cụm logo động trên màn hình đăng nhập */
+    + '.dn-logo-khung{position:relative;width:104px;height:104px;margin:2px auto 14px}'
+    + '.dn-hao-quang{position:absolute;inset:-16px;pointer-events:none}'
+    + '.dn-hao-quang::before{content:"";position:absolute;inset:0;border-radius:50%;'
+    +   'background:radial-gradient(circle,rgba(59,130,246,.38) 0%,rgba(11,70,150,.14) 45%,rgba(11,70,150,0) 70%);'
+    +   'animation:dnThoHaoQuang 3.2s ease-in-out infinite}'
+    + '.dn-vien-xoay{position:absolute;inset:-7px;border-radius:50%;pointer-events:none;'
+    +   'background:conic-gradient(from 0deg,rgba(11,70,150,0) 0 55%,#60a5fa 80%,#0B4696 95%,rgba(11,70,150,0));'
+    +   '-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 2.5px));'
+    +   'mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 2.5px));'
+    +   'animation:dnXoayVien 5s linear infinite}'
+    + '.dn-song{position:absolute;inset:0;border-radius:50%;border:2px solid rgba(11,70,150,.45);'
+    +   'opacity:0;pointer-events:none}'
+    + '.dn-logo-tron{position:relative;width:104px;height:104px;border-radius:50%;overflow:hidden;'
+    +   'background:#fff;box-shadow:0 8px 24px rgba(11,70,150,.22),inset 0 0 0 1px rgba(11,70,150,.08)}'
+    + '.dn-logo-tron .dn-logo{width:100%;height:100%;margin:0;padding:13px;box-sizing:border-box;display:block}'
+    + '.dn-loe{position:absolute;top:0;bottom:0;left:0;width:60%;pointer-events:none;'
+    +   'transform:translateX(-140%) skewX(-18deg);'
+    +   'background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.85),rgba(255,255,255,0))}'
+    + '@keyframes dnThoHaoQuang{0%,100%{transform:scale(.92);opacity:.75}50%{transform:scale(1.06);opacity:1}}'
+    + '@keyframes dnXoayVien{to{transform:rotate(360deg)}}'
+    + '@media (prefers-reduced-motion:reduce){.dn-hao-quang::before,.dn-vien-xoay{animation:none}}'
     + '.dn-hop h2{color:#0B4696;margin:0 0 4px;font-size:20px;letter-spacing:.5px}'
     + '.dn-mota{color:#66738a;font-size:13px;margin:0 0 16px}'
     + '.dn-nhan{display:block;text-align:left;font-size:12.5px;font-weight:600;'
@@ -427,8 +449,16 @@ function taoManHinhDangNhap() {
     + '</style>'
     + '<div id="manHinhDangNhap" class="an">'
     +   '<div class="dn-hop">'
-    +     '<img class="dn-logo" alt="Sonadezi Long Thành" '
-    +       'src="https://drive.google.com/thumbnail?id=1LY4a06X3731WVwceDNHNlPmDZXIRTi9d&sz=w120">'
+    +     '<div class="dn-logo-khung">'
+    +       '<span class="dn-hao-quang"></span>'
+    +       '<span class="dn-song"></span><span class="dn-song"></span>'
+    +       '<span class="dn-vien-xoay"></span>'
+    +       '<div class="dn-logo-tron">'
+    +         '<img class="dn-logo" alt="Sonadezi Long Thành" '
+    +           'src="https://drive.google.com/thumbnail?id=1LY4a06X3731WVwceDNHNlPmDZXIRTi9d&sz=w240">'
+    +         '<span class="dn-loe"></span>'
+    +       '</div>'
+    +     '</div>'
     +     '<h2>KCN LONG THÀNH</h2>'
     +     '<p class="dn-mota">Hệ thống tra cứu nhà xưởng &amp; đất cho thuê</p>'
 
@@ -509,7 +539,7 @@ function hienManHinhDangNhap() {
   if (mk) mk.value = '';
 
   chuyenSangDangNhap();
-  document.getElementById('manHinhDangNhap').classList.remove('an');
+  dnHieuUngVao_();
 
   // Gợi ý lại email đã dùng lần trước (desktop giữ được localStorage)
   try {
@@ -528,7 +558,78 @@ function hienManHinhDangNhap() {
 
 function anManHinhDangNhap() {
   const el = document.getElementById('manHinhDangNhap');
-  if (el) el.classList.add('an');
+  if (!el || el.classList.contains('an')) return;
+
+  // ★ V4.7 — không có Motion: ẩn ngay như cũ
+  if (!dnCoMotion_()) { el.classList.add('an'); return; }
+
+  const phien = ++DN_PHIEN_HIEU_UNG;
+  const hop  = el.querySelector('.dn-hop');
+  const logo = el.querySelector('.dn-logo-tron');
+  el.style.pointerEvents = 'none';
+
+  Promise.all([
+    Motion.animate(logo, { scale: 1.15 }, { duration: 0.3, ease: 'easeOut' }),
+    Motion.animate(hop, { opacity: 0, scale: 0.96, y: -12 }, { duration: 0.32, ease: 'easeIn', delay: 0.05 }),
+    Motion.animate(el, { opacity: 0 }, { duration: 0.4, ease: 'easeIn', delay: 0.12 })
+  ]).then(function () {
+    if (phien !== DN_PHIEN_HIEU_UNG) return;   // đã gọi hiện lại giữa chừng
+    el.classList.add('an');
+    el.style.pointerEvents = '';
+  });
+}
+
+/* ================================================================
+   ★ V4.7 — HIỆU ỨNG MÀN HÌNH ĐĂNG NHẬP BẰNG MOTION
+   Trình tự: nền hiện → thẻ nổi lên → logo bật ra (lò xo) → vòng sáng
+   xoay + 2 sóng lan → vệt sáng lướt qua logo → chữ & ô nhập hiện lần lượt.
+   Ô nhập dùng được ngay, không phải chờ hiệu ứng.
+   Không có Motion / bật "giảm chuyển động" → hiện ngay như cũ.
+================================================================ */
+let DN_PHIEN_HIEU_UNG = 0;
+
+function dnCoMotion_() {
+  return !!(window.Motion && Motion.animate &&
+            !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches));
+}
+
+function dnHieuUngVao_() {
+  const el = document.getElementById('manHinhDangNhap');
+  DN_PHIEN_HIEU_UNG++;
+  el.style.pointerEvents = '';
+
+  if (!dnCoMotion_()) { el.classList.remove('an'); return; }
+
+  const $ = function (s) { return el.querySelector(s); };
+  const hop = $('.dn-hop'), logo = $('.dn-logo-tron'), haoQuang = $('.dn-hao-quang'),
+        vien = $('.dn-vien-xoay'), loe = $('.dn-loe'), song = el.querySelectorAll('.dn-song');
+  const chu = [$('.dn-hop h2'), $('.dn-mota')]
+    .concat(Array.prototype.slice.call($('#dnKhungDangNhap').children));
+
+  // Đặt trạng thái xuất phát TRƯỚC khi hiện để không bị chớp 1 khung hình
+  [el, hop, logo, haoQuang, vien].concat(chu).forEach(function (n) { if (n) n.style.opacity = '0'; });
+  el.classList.remove('an');
+
+  const animate = Motion.animate, stagger = Motion.stagger;
+  animate(el, { opacity: [0, 1] }, { duration: 0.45, ease: 'easeOut' });
+  animate(hop, { opacity: [0, 1], y: [32, 0], scale: [0.95, 1] },
+    { type: 'spring', bounce: 0.2, visualDuration: 0.55, delay: 0.05 });
+  animate(logo, { opacity: [0, 1], scale: [0.3, 1], rotate: [-25, 0] },
+    { type: 'spring', bounce: 0.45, visualDuration: 0.7, delay: 0.2 });
+  animate(haoQuang, { opacity: [0, 1], scale: [0.5, 1] }, { duration: 0.7, ease: 'easeOut', delay: 0.3 });
+  animate(vien, { opacity: [0, 1] }, { duration: 0.6, ease: 'easeOut', delay: 0.55 });
+  animate(song, { opacity: [0.6, 0], scale: [1, 1.85] },
+    { duration: 1.2, ease: 'easeOut', delay: stagger(0.3, { startDelay: 0.45 }) });
+  animate(loe, { x: ['-140%', '260%'] }, { duration: 0.9, ease: 'easeInOut', delay: 0.8 });
+  animate(chu, { opacity: [0, 1], y: [14, 0] },
+    { duration: 0.4, ease: 'easeOut', delay: stagger(0.045, { startDelay: 0.4 }) });
+}
+
+/** Rung nhẹ thẻ đăng nhập khi có lỗi */
+function dnRung_() {
+  if (!dnCoMotion_()) return;
+  const hop = document.querySelector('#manHinhDangNhap .dn-hop');
+  if (hop) Motion.animate(hop, { x: [0, -10, 10, -6, 6, -2, 0] }, { duration: 0.45, ease: 'easeOut' });
 }
 
 /** Gửi yêu cầu đăng nhập lên server */
@@ -539,8 +640,8 @@ function guiDangNhap() {
   const nut   = document.getElementById('dnNutDangNhap');
 
   tb.className = '';
-  if (!email) { tb.textContent = '✕ Vui lòng nhập email tài khoản.'; return; }
-  if (!mk)    { tb.textContent = '✕ Vui lòng nhập mật khẩu.'; return; }
+  if (!email) { tb.textContent = '✕ Vui lòng nhập email tài khoản.'; dnRung_(); return; }
+  if (!mk)    { tb.textContent = '✕ Vui lòng nhập mật khẩu.'; dnRung_(); return; }
 
   nut.disabled = true;
   nut.textContent = 'Đang kiểm tra…';
@@ -578,6 +679,7 @@ function guiDangNhap() {
       nut.textContent = 'Đăng nhập';
       tb.className = '';
       tb.textContent = '✕ ' + loi.message;
+      dnRung_();
     })
     .dangNhapTaiKhoan(email, mk);
 }
@@ -1595,8 +1697,54 @@ function moPanelChiTiet(ma) {
   const thanPanel = document.querySelector('#panelChiTiet .panel-than');
   if (thanPanel) thanPanel.scrollTop = 0;
 
-  document.getElementById('panelChiTiet').classList.remove('an');
-  document.getElementById('lopPhu').classList.remove('an');
+  panelHieuUngMo_();
+}
+
+/* ================================================================
+   ★ V4.6 — HIỆU ỨNG MỞ/ĐÓNG PANEL CHI TIẾT BẰNG MOTION
+   - Chỉ dùng transform (x, y) + opacity → GPU xử lý, không reflow.
+   - Lò xo không nảy (bounce 0) cho phong cách nghiêm túc.
+   - Mở lại trong lúc đang đóng: tiếp tục mượt từ vị trí hiện tại.
+   - Không có Motion / người dùng bật "giảm chuyển động" → dùng CSS cũ.
+================================================================ */
+let PANEL_PHIEN_HIEU_UNG = 0;   // số phiên, chặn callback đóng cũ khi đã mở lại
+
+function panelCoMotion_() {
+  return !!(window.Motion && Motion.animate &&
+            document.documentElement.classList.contains('dung-motion') &&
+            !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches));
+}
+
+function panelHieuUngMo_() {
+  const pn = document.getElementById('panelChiTiet');
+  const lp = document.getElementById('lopPhu');
+  const tuTrangThaiAn = pn.classList.contains('an');
+  const dangDong = pn.dataset.dangDong === '1';
+
+  PANEL_PHIEN_HIEU_UNG++;
+  pn.dataset.dangDong = '';
+  pn.style.pointerEvents = '';
+  lp.style.pointerEvents = '';
+  pn.classList.remove('an');
+  lp.classList.remove('an');
+
+  if (!panelCoMotion_()) return;
+  const animate = Motion.animate, stagger = Motion.stagger;
+
+  // Từ trạng thái ẩn: đặt điểm xuất phát; đang đóng dở: chạy tiếp từ vị trí hiện tại
+  const batDauMoi = tuTrangThaiAn && !dangDong;
+  animate(pn,
+    { x: batDauMoi ? ['104%', '0%'] : '0%', opacity: batDauMoi ? [0, 1] : 1 },
+    { type: 'spring', bounce: 0, visualDuration: 0.32 });
+  animate(lp, { opacity: batDauMoi ? [0, 1] : 1 }, { duration: 0.25, ease: 'easeOut' });
+
+  // Nội dung hiện lần lượt (chỉ 10 khối đầu để nhẹ máy)
+  const than = document.getElementById('panelNoiDung');
+  const khoi = than ? Array.prototype.slice.call(than.children, 0, 10) : [];
+  if (khoi.length) {
+    animate(khoi, { opacity: [0, 1], y: [10, 0] },
+      { duration: 0.26, ease: 'easeOut', delay: stagger(0.035, { startDelay: tuTrangThaiAn ? 0.08 : 0 }) });
+  }
 }
 
 /** Mở/đóng 1 nhóm loại tài liệu trong panel chi tiết (chỉ đổi hiển thị, không gọi server) */
@@ -1678,9 +1826,34 @@ function panelTaoGoiChonLoc() {
 }
 
 function dongPanel() {
-  document.getElementById('panelChiTiet').classList.add('an');
-  document.getElementById('lopPhu').classList.add('an');
+  const pn = document.getElementById('panelChiTiet');
+  const lp = document.getElementById('lopPhu');
   boHighlight();
+
+  // ★ V4.6 — không có Motion: giữ cơ chế CSS cũ
+  if (!panelCoMotion_() || pn.classList.contains('an')) {
+    pn.classList.add('an');
+    lp.classList.add('an');
+    return;
+  }
+  if (pn.dataset.dangDong === '1') return;   // đang đóng rồi, bỏ qua bấm lặp
+
+  const phien = ++PANEL_PHIEN_HIEU_UNG;
+  pn.dataset.dangDong = '1';
+  pn.style.pointerEvents = 'none';           // nhả thao tác bản đồ ngay khi bấm đóng
+  lp.style.pointerEvents = 'none';
+
+  Promise.all([
+    Motion.animate(pn, { x: '104%', opacity: 0 }, { duration: 0.22, ease: 'easeIn' }),
+    Motion.animate(lp, { opacity: 0 }, { duration: 0.2, ease: 'easeIn' })
+  ]).then(function () {
+    if (phien !== PANEL_PHIEN_HIEU_UNG) return;   // đã mở lại giữa chừng
+    pn.dataset.dangDong = '';
+    pn.style.pointerEvents = '';
+    lp.style.pointerEvents = '';
+    pn.classList.add('an');
+    lp.classList.add('an');
+  });
 }
 /** Đổ danh sách cán bộ vào dropdown "Cán bộ phụ trách" rồi chọn giá trị hiện tại.
  *  Nguồn: DU_LIEU.danhSachCanBo (server gửi kèm cho tài khoản biên tập). */

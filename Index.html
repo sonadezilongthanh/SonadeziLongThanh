@@ -547,6 +547,11 @@
 })();
 </script>
 
+<!-- ★ V4.6 — Thư viện Motion cho hiệu ứng mở/đóng panel chi tiết.
+     Nạp bất đồng bộ: nếu CDN lỗi/bị chặn, app vẫn dùng hiệu ứng CSS V4.4. -->
+<script src="https://cdn.jsdelivr.net/npm/motion@14.1.0/dist/motion.js" async
+        onload="if (window.Motion && Motion.animate) document.documentElement.classList.add('dung-motion')"></script>
+
 <?!= include('HopThoai_TaiLieu'); ?>
 <?!= include('Script'); ?>
 </body>
