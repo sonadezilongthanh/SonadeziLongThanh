@@ -137,8 +137,16 @@ function khoiTaoApp(dl) {
   if (NGUOI_DUNG.vaiTro && NGUOI_DUNG.vaiTro !== PHIEN_SUA.vaiTro) {
     PHIEN_SUA.vaiTro = NGUOI_DUNG.vaiTro;
     if (NGUOI_DUNG.vaiTro === 'Khach') {
+      // ★ V4.8 — đang đăng nhập mà server trả 'Khach' → phiên hết hạn / bị thu hồi
+      const daDangNhap = !!PHIEN_SUA.token;
       PHIEN_SUA.token = '';
       PHIEN_SUA.email = '';
+      if (daDangNhap) {
+        setTimeout(function () {
+          alert('Phiên đăng nhập đã hết hạn hoặc tài khoản đã thay đổi quyền.\n'
+              + 'Vui lòng đăng nhập lại để tiếp tục chỉnh sửa.');
+        }, 300);
+      }
     }
     luuPhienSua();
   }
@@ -987,7 +995,11 @@ function napDanhSachTaiKhoan() {
     .layDanhSachTaiKhoan(PHIEN_SUA.token);
 }
 
+// ★ V4.8 — lưu danh sách để nút thao tác tra theo CHỈ SỐ, không nhúng email vào onclick
+let QLTK_DS = [];
+
 function veBangTaiKhoan(ds) {
+  QLTK_DS = ds || [];
   const than = document.getElementById('qltkThan');
   if (!ds || ds.length === 0) {
     than.innerHTML = '<tr><td style="padding:20px;text-align:center;color:#8b96a8">'
@@ -1028,19 +1040,18 @@ function veBangTaiKhoan(ds) {
           + '<td class="qltk-phu">' + _escHTML(tk.ngayDangKy || '—') + '</td>'
           + '<td class="qltk-phu">' + _escHTML(tk.dangNhapCuoi || '—') + '</td>'
           + '<td style="white-space:nowrap">'
-          +   '<button class="qltk-nut qltk-luu" onclick="luuTaiKhoanDong(' + i + ',\''
-          +     eMail + '\')">Lưu</button>'
-          +   '<button class="qltk-nut qltk-reset" onclick="datLaiMKTaiKhoan(\''
-          +     eMail + '\')">Đặt lại MK</button>'
-          +   '<button class="qltk-nut qltk-xoa" onclick="xoaTaiKhoanDong(\''
-          +     eMail + '\')">Xoá</button>'
+          +   '<button class="qltk-nut qltk-luu" onclick="luuTaiKhoanDong(' + i + ')">Lưu</button>'
+          +   '<button class="qltk-nut qltk-reset" onclick="datLaiMKTaiKhoan(' + i + ')">Đặt lại MK</button>'
+          +   '<button class="qltk-nut qltk-xoa" onclick="xoaTaiKhoanDong(' + i + ')">Xoá</button>'
           + '</td></tr>';
   });
 
   than.innerHTML = html;
 }
 
-function luuTaiKhoanDong(i, email) {
+function luuTaiKhoanDong(i) {
+  const email = (QLTK_DS[i] || {}).email;
+  if (!email) return;
   const vaiTro    = document.getElementById('qltkVT' + i).value;
   const trangThai = document.getElementById('qltkTT' + i).value;
 
@@ -1061,7 +1072,9 @@ function luuTaiKhoanDong(i, email) {
     .capNhatTaiKhoan(PHIEN_SUA.token, email, vaiTro, trangThai, null);
 }
 
-function datLaiMKTaiKhoan(email) {
+function datLaiMKTaiKhoan(i) {
+  const email = (QLTK_DS[i] || {}).email;
+  if (!email) return;
   if (!confirm('Đặt lại mật khẩu cho tài khoản:\n' + email
       + '\n\nHệ thống sẽ sinh mật khẩu tạm để chuyển cho nhân viên. '
       + 'Mật khẩu cũ sẽ không dùng được nữa. Tiếp tục?')) return;
@@ -1081,7 +1094,9 @@ function datLaiMKTaiKhoan(email) {
     .datLaiMatKhauTaiKhoan(PHIEN_SUA.token, email);
 }
 
-function xoaTaiKhoanDong(email) {
+function xoaTaiKhoanDong(i) {
+  const email = (QLTK_DS[i] || {}).email;
+  if (!email) return;
   if (!confirm('XOÁ tài khoản khỏi danh mục phân quyền:\n' + email
       + '\n\nThao tác này không thể hoàn tác. Tiếp tục?')) return;
 

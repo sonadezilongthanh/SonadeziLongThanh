@@ -20,6 +20,7 @@ const MUOI_TK        = 'SZL-KCNLT-TK-2026';  // ⚠ Đổi = vô hiệu mọi to
 const TK_SAI_TOI_DA  = 8;                    // Số lần sai trước khi khoá tạm
 const TK_KHOA_GIAY   = 600;                  // Khoá tạm 10 phút
 const TK_EMAIL_BAO   = 'sonadezilongthanh@gmail.com'; // Nhận mail báo đăng ký mới
+const TK_HAN_TOKEN_NGAY = 7;                 // ★ V4.8 — token hết hạn sau 7 ngày
 
 const COT_TK = {
   EMAIL     : 'Email',
@@ -82,12 +83,34 @@ function docBangTK_() {
   return { sh: sh, vung: vung, idx: idx };
 }
 
+/***********************************************************************
+ * ★ V4.8 — BẢN NHỚ TẠM BẢNG TÀI KHOẢN TRONG 01 LƯỢT GỌI SERVER
+ *  layDuLieuTongHop() trước đây đọc DM_PhanQuyen 3 lần (xác thực token,
+ *  liên hệ cá nhân, danh sách cán bộ). Nay chỉ đọc 1 lần.
+ *  • Chỉ dùng cho thao tác ĐỌC. Các hàm GHI vẫn dùng docBangTK_() đọc mới.
+ *  • Mọi lệnh ghi đều xoá bản nhớ → không bao giờ dùng dữ liệu cũ.
+ *  • Biến toàn cục GAS được khởi tạo lại ở mỗi lượt gọi → không lưu chéo phiên.
+ ***********************************************************************/
+let BANG_TK_NHO_ = null;
+
+function docBangTKNho_() {
+  if (!BANG_TK_NHO_) BANG_TK_NHO_ = docBangTK_();
+  return BANG_TK_NHO_;
+}
+
+function xoaBangTKNho_() {
+  BANG_TK_NHO_ = null;
+}
+
 function chuanHoaEmail_(v) {
   return String(v || '').trim().toLowerCase();
 }
 
 function hopLeEmail_(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+  // ★ V4.8 — BẢO MẬT: chỉ chấp nhận ký tự email thông dụng.
+  //   Regex cũ cho phép dấu ' ( ) ; → kẻ xấu đăng ký email chứa mã JS,
+  //   mã chạy khi Quản trị mở màn hình "Quản lý tài khoản" (XSS).
+  return /^[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(\.[A-Za-z0-9\-]+)*\.[A-Za-z]{2,}$/.test(email);
 }
 
 function taoMuoi_() {
@@ -113,6 +136,7 @@ function timDongTK_(b, email) {
 /** Ghi 1 ô vào sheet (dòng theo mảng vung, cột theo idx) */
 function ghiOTK_(b, iDong, tenCot, giaTri) {
   b.sh.getRange(iDong + 1, b.idx[tenCot] + 1).setValue(giaTri);
+  xoaBangTKNho_();   // ★ V4.8
 }
 
 function nhatKyTK_(nguoi, thaoTac, ghiChu) {
@@ -124,20 +148,24 @@ function nhatKyTK_(nguoi, thaoTac, ghiChu) {
 
 /***********************************************************************
  * 2. TOKEN PHIÊN (tự chứa, không lưu trạng thái phía server)
- *    Cấu trúc: base64WebSafe(email) + "." + chữ ký SHA-256
+ *    ★ V4.8 — Cấu trúc: base64WebSafe(email) + "." + hạn (ms) + "." + chữ ký
+ *    Hạn nằm trong chữ ký → không sửa tay được. Token kiểu cũ (2 phần)
+ *    tự mất hiệu lực → người dùng đăng nhập lại 01 lần sau khi cập nhật.
  ***********************************************************************/
 
-function taoTokenTK_(b, iDong) {
+function taoTokenTK_(b, iDong, hetHan) {
+  hetHan = hetHan || (Date.now() + TK_HAN_TOKEN_NGAY * 24 * 60 * 60 * 1000);
   const d     = b.vung[iDong];
   const email = chuanHoaEmail_(d[b.idx[COT_TK.EMAIL]]);
   const raw   = 'SZL-TK|' + email
               + '|' + String(d[b.idx[COT_TK.HASH]])
               + '|' + String(d[b.idx[COT_TK.VAITRO]]).trim()
               + '|' + String(d[b.idx[COT_TK.TRANGTHAI]]).trim()
+              + '|' + String(hetHan)
               + '|' + MUOI_TK;
   const chuKy = Utilities.base64EncodeWebSafe(Utilities.computeDigest(
     Utilities.DigestAlgorithm.SHA_256, raw, Utilities.Charset.UTF_8));
-  return Utilities.base64EncodeWebSafe(email) + '.' + chuKy;
+  return Utilities.base64EncodeWebSafe(email) + '.' + String(hetHan) + '.' + chuKy;
 }
 
 /**
@@ -147,21 +175,25 @@ function taoTokenTK_(b, iDong) {
 function giaiTokenTK_(token) {
   const rong = { hopLe: false, email: '', hoTen: '', vaiTro: 'Khach' };
   token = String(token || '');
-  if (token.indexOf('.') < 1) return rong;
+  const phan = token.split('.');
+  if (phan.length !== 3) return rong;                                  // token kiểu cũ / sai dạng
+
+  const hetHan = Number(phan[1]);
+  if (!hetHan || Date.now() > hetHan) return rong;                     // ★ V4.8 — hết hạn
 
   let email = '';
   try {
     email = chuanHoaEmail_(Utilities.newBlob(
-      Utilities.base64DecodeWebSafe(token.split('.')[0])).getDataAsString());
+      Utilities.base64DecodeWebSafe(phan[0])).getDataAsString());
   } catch (e) { return rong; }
   if (!email) return rong;
 
   let b;
-  try { b = docBangTK_(); } catch (e) { return rong; }
+  try { b = docBangTKNho_(); } catch (e) { return rong; }
 
   const i = timDongTK_(b, email);
   if (i < 0) return rong;
-  if (taoTokenTK_(b, i) !== token) return rong;                       // chữ ký sai
+  if (taoTokenTK_(b, i, hetHan) !== token) return rong;               // chữ ký sai
   if (String(b.vung[i][b.idx[COT_TK.TRANGTHAI]]).trim() !== 'HoatDong') return rong;
 
   const vaiTro = String(b.vung[i][b.idx[COT_TK.VAITRO]]).trim();
@@ -226,6 +258,7 @@ function dangKyTaiKhoan(email, hoTen, matKhau) {
     dongMoi[b.idx[COT_TK.DOI_MK]]    = false;
 
     b.sh.getRange(b.sh.getLastRow() + 1, 1, 1, dongMoi.length).setValues([dongMoi]);
+    xoaBangTKNho_();   // ★ V4.8
   } finally {
     lock.releaseLock();
   }
@@ -396,7 +429,7 @@ function layDanhSachTaiKhoan(token) {
  */
 function layDanhSachCanBo_() {
   try {
-    const b  = docBangTK_();
+    const b  = docBangTKNho_();   // ★ V4.8
     const ds = [];
     for (let i = 1; i < b.vung.length; i++) {
       const email = chuanHoaEmail_(b.vung[i][b.idx[COT_TK.EMAIL]]);
@@ -508,6 +541,7 @@ function xoaTaiKhoan(token, email) {
   if (i < 0) throw new Error('Không tìm thấy tài khoản ' + email);
 
   b.sh.deleteRow(i + 1);
+  xoaBangTKNho_();   // ★ V4.8
   nhatKyTK_(p.email, 'XoaTaiKhoan', 'Đã xoá tài khoản ' + email);
   return { thanhCong: true };
 }
@@ -586,7 +620,7 @@ function layLienHeTK_(email) {
   try {
     email = chuanHoaEmail_(email);
     if (!email) return rong;
-    const b = docBangTK_();
+    const b = docBangTKNho_();   // ★ V4.8
     const i = timDongTK_(b, email);
     if (i < 0) return rong;
     const iSDT   = b.idx['SoDienThoai'];

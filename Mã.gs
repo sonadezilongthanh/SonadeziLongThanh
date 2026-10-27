@@ -121,11 +121,14 @@ const CHE_DO_THU_NGHIEM = false;
  * ĐIỂM VÀO WEB APP
  ***********************************************************************/
 function doGet(e) {
+  // ★ V4.8 — BẢO MẬT: endpoint ?json trước đây trả TOÀN BỘ DS_NhaXuong
+  //   (hợp đồng, đơn giá, phí quản lý…) cho bất kỳ ai có link /exec.
+  //   Nay chỉ trả dữ liệu đã lọc theo DANH SÁCH TRẮNG của chế độ khách.
   if (e && e.parameter && e.parameter.json) {
-  const cells = docSheet_('DS_NhaXuong', false);   // đã map theo tiêu đề cột sẵn
-  return ContentService.createTextOutput(JSON.stringify(cells))
-    .setMimeType(ContentService.MimeType.JSON);
-}
+    const daLoc = locDuLieuChoKhach_({ nhaXuong: docSheet_(TEN_SHEET.NHA_XUONG, false) });
+    return ContentService.createTextOutput(JSON.stringify(daLoc.nhaXuong))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
   return HtmlService.createTemplateFromFile('Index')
     .evaluate()
     .setTitle('KCN Long Thành')
@@ -298,41 +301,9 @@ function layNguoiDungTuPhien_(p) {
     if (vaiTro !== 'Khach') kq.danhSachCanBo = layDanhSachCanBo_();
     return kq;
   }
-/***********************************************************************
- * ★ DANH SÁCH CÁN BỘ PHỤ TRÁCH (chỉ vai trò NhapLieu)
- *  Dùng riêng cho ô "Cán bộ phụ trách" trong form chỉnh sửa.
- *  KHÔNG ảnh hưởng danh sách họ tên ở màn hình đăng nhập.
- *  Nguồn: DM_PhanQuyen — lọc VaiTro === 'NhapLieu'.
- ***********************************************************************/
-function layDanhSachCanBoPhuTrach() {
-  try {
-    const ds = docSheet_(TEN_SHEET.PHAN_QUYEN, false);
-    if (!ds || ds.length === 0) return [];
 
-    // Dò tên cột họ tên (phòng khi tiêu đề đổi)
-    const cotUuTien = ['HoTen', 'Họ tên', 'HoVaTen', 'TenNhanVien', 'Ten'];
-    const cacCot = Object.keys(ds[0]);
-    let cotTen = '';
-    for (let i = 0; i < cotUuTien.length; i++) {
-      if (cacCot.indexOf(cotUuTien[i]) > -1) { cotTen = cotUuTien[i]; break; }
-    }
-    if (!cotTen) return [];
-
-    const tap = {};
-    ds.forEach(function (r) {
-      const vaiTro = String(r.VaiTro || '').trim();
-      if (vaiTro !== 'NhapLieu') return;              // ← chỉ giữ NhapLieu
-      const t = String(r[cotTen] || '').trim();
-      if (t) tap[t] = true;
-    });
-
-    return Object.keys(tap).sort(function (a, b) {
-      return a.localeCompare(b, 'vi');
-    });
-  } catch (err) {
-    return [];
-  }
-}
+  // ★ V4.8 — đã gỡ hàm thừa layDanhSachCanBoPhuTrach() (nằm lọt trong hàm này, không nơi nào gọi).
+  //   Danh sách cán bộ phụ trách dùng layDanhSachCanBo_() trong TaiKhoan.gs.
   const nhaXuong  = docSheet_(TEN_SHEET.NHA_XUONG, true);
   const cum       = docSheet_(TEN_SHEET.CUM, true);
   const trangThai = docSheet_(TEN_SHEET.TRANG_THAI, true);
@@ -825,6 +796,7 @@ function onOpen() {
     .addItem('👤 Tạo tài khoản quản trị đầu tiên', 'taoTaiKhoanQuanTriDauTien')
     .addItem('🔓 Gỡ khoá đăng nhập tài khoản', 'moKhoaTamThoi')
     .addItem('🩺 Kiểm tra module tài khoản', 'kiemTraQuyen')
+    .addItem('🔒 Thu hồi link công khai tài liệu hợp đồng', 'thuHoiChiaSeTaiLieuNoiBo')
     .addSeparator()
     .addItem('🔍 Kiểm tra cột trùng tên', 'menuKiemTraCotTrung')
     .addItem('🧹 Dọn dữ liệu lệch cột', 'menuDonDuLieuLechCot')

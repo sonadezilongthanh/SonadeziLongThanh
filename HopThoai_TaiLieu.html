@@ -144,7 +144,11 @@ let TL_MA       = null;   // mã đơn vị đang mở
 let TL_HANG_CHO = [];     // [{tep, ten, trangThai, loi}]
 
 function moHopThoaiTaiLieu(ma) {
-  if (!duocPhepSua()) { moHopThoaiMaKhoa(); return; }
+  // ★ V4.8 — moHopThoaiMaKhoa() đã bị gỡ từ V4.0 → gọi sẽ lỗi ReferenceError
+  if (!duocPhepSua()) {
+    alert('Vui lòng đăng nhập bằng tài khoản có quyền nhập liệu để quản lý tài liệu.');
+    return;
+  }
 
   TL_MA = ma;
   TL_HANG_CHO = [];

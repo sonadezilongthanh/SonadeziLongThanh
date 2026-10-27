@@ -224,6 +224,34 @@ function tlThemDong_(banGhi) {
   }
 }
 
+/***********************************************************************
+ * ★ V4.8 — CHÍNH SÁCH CHIA SẺ THEO LOẠI TÀI LIỆU
+ *  • Loại NỘI BỘ (3 loại hợp đồng + "Khác" — trùng LOAI_TL_AN_KHACH ở Mã.gs):
+ *    KHÔNG chia sẻ "Bất kỳ ai có liên kết". Chỉ tài khoản Google đã được
+ *    chia sẻ thư mục 03_Brochure mới mở được.
+ *  • Loại CÔNG KHAI (Brochure, Bản vẽ, Hình ảnh): giữ như cũ.
+ ***********************************************************************/
+function tlLaLoaiNoiBo_(loai) {
+  const ds = (typeof LOAI_TL_AN_KHACH !== 'undefined')
+    ? LOAI_TL_AN_KHACH
+    : ['Hợp đồng thuê đất, xưởng', 'Hợp đồng nước cấp', 'Hợp đồng nước thải', 'Khác'];
+  return ds.indexOf(String(loai || '').trim()) > -1;
+}
+
+/** Đặt quyền chia sẻ cho tệp/thư mục theo loại tài liệu. Trả về true nếu thành công. */
+function tlDatChiaSe_(doiTuong, loai) {
+  try {
+    if (tlLaLoaiNoiBo_(loai)) {
+      doiTuong.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE);
+    } else {
+      doiTuong.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    }
+    return true;
+  } catch (e) {
+    return false;   // tổ chức chặn chia sẻ ngoài — quản trị chỉnh tay
+  }
+}
+
 function tlLayIdTuLink_(link) {
   const m = String(link || '').match(/[-\w]{25,}/);
   return m ? m[0] : '';
@@ -273,9 +301,8 @@ function taiLenTaiLieu(tep) {
   );
   const file = thuMuc.createFile(blob);
 
-  try {
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  } catch (e) { /* tổ chức chặn chia sẻ ngoài — quản trị chỉnh tay */ }
+  // ★ V4.8 — hợp đồng / "Khác": riêng tư; Brochure, Bản vẽ, Hình ảnh: công khai qua link
+  tlDatChiaSe_(file, loai);
 
   // ★ V4.0 — người tải lấy từ email đã xác thực, không lấy từ trình duyệt
   const nguoi = p.email;
@@ -328,6 +355,11 @@ function layLienKetThuMuc(tt) {
 
   const loai = (TL_LOAI_CHO_PHEP.indexOf(tt.loai) > -1) ? tt.loai : '';
   if (!loai) throw new Error('Loại tài liệu không hợp lệ.');
+  // ★ V4.8 — không tạo link công khai cho thư mục hợp đồng / "Khác"
+  if (tlLaLoaiNoiBo_(loai)) {
+    throw new Error('Không thể chia sẻ công khai thư mục "' + loai
+      + '" (tài liệu nội bộ). Chỉ chia sẻ được Brochure, Bản vẽ, Hình ảnh.');
+  }
 
   const thuMuc = tlLayThuMucLuu_(maDonVi, loai);
 
@@ -495,6 +527,7 @@ function chuyenThuMucTaiLieu(tt) {
     if (cha.getId() !== thuMucMoi.getId()) cha.removeFile(file);
   }
   thuMucMoi.addFile(file);
+  tlDatChiaSe_(file, loaiMoi);   // ★ V4.8 — cập nhật quyền theo loại mới
 
   tlGhiNhatKy_([[new Date(), p.email, maDonVi,
                  'ChuyenThuMucTaiLieu', loaiCu + ' — ' + tenTaiLieu, loaiMoi]]);
@@ -582,4 +615,50 @@ function doiTenTaiLieu(tt) {
   tlXoaCache_();
 
   return { thanhCong: true, tenCu: tenCu, tenMoi: tenMoi };
+}
+
+/***********************************************************************
+ * ★ V4.8 — CHẠY 01 LẦN (menu ⚙ Hệ thống KCN): THU HỒI LINK CÔNG KHAI
+ *   của các tài liệu NỘI BỘ đã tải lên trước đây (3 loại hợp đồng + "Khác"),
+ *   kèm thư mục loại tài liệu chứa chúng. Brochure / Bản vẽ / Hình ảnh
+ *   giữ nguyên. Chạy lại nhiều lần không gây hại.
+ ***********************************************************************/
+function thuHoiChiaSeTaiLieuNoiBo() {
+  const ds = tlDocSheet_(tlTenSheet_('TAI_LIEU', 'DS_TaiLieu'));
+  let soTep = 0, soThuMuc = 0, soLoi = 0;
+  const daXuLyThuMuc = {};
+
+  ds.forEach(function (r) {
+    const loai = String(r.LoaiTaiLieu || '').trim();
+    if (!tlLaLoaiNoiBo_(loai)) return;
+
+    const id = String(r.FileId || '').trim() || tlLayIdTuLink_(r.LinkFile);
+    if (!id) return;
+
+    try {
+      const f = DriveApp.getFileById(id);
+      if (tlDatChiaSe_(f, loai)) soTep++; else soLoi++;
+
+      // Thư mục loại tài liệu (cùng tên với loại) — thu hồi nếu từng được chia sẻ
+      const cha = f.getParents();
+      while (cha.hasNext()) {
+        const tm = cha.next();
+        if (tm.getName() !== loai || daXuLyThuMuc[tm.getId()]) continue;
+        daXuLyThuMuc[tm.getId()] = true;
+        if (tlDatChiaSe_(tm, loai)) soThuMuc++;
+      }
+    } catch (e) {
+      soLoi++;   // tệp đã bị xoá / không có quyền
+    }
+  });
+
+  const kq = '✓ Đã thu hồi link công khai:\n'
+           + '• ' + soTep + ' tệp tài liệu nội bộ\n'
+           + '• ' + soThuMuc + ' thư mục loại tài liệu\n'
+           + (soLoi ? '• ' + soLoi + ' tệp không xử lý được (đã xoá hoặc thiếu quyền)\n' : '')
+           + '\nNhân viên cần được chia sẻ thư mục 03_Brochure (bằng tài khoản Google) '
+           + 'để tiếp tục mở hợp đồng từ App.';
+  Logger.log(kq);
+  try { SpreadsheetApp.getUi().alert(kq); } catch (e) { /* chạy từ trình soạn thảo */ }
+  return kq;
 }
