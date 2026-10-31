@@ -184,13 +184,63 @@ function layIdDrive_(link) {
   return m ? m[0] : '';
 }
 
-/** Chuyển link Drive -> URL ảnh nhúng được vào <img> */
+/***********************************************************************
+ * ★ V5.0.1 — ẢNH NỀN BẢN ĐỒ KHAI BÁO BẰNG TÊN FILE
+ *  Sheet DS_Cum / DM_CauHinh đang ghi ảnh dạng TÊN FILE (vd. MASTER.png,
+ *  GD3.png, CCNLP1_Master.png) → tra ID trong thư mục ảnh bản đồ trên Drive.
+ *  Có thể đổi thư mục bằng khoá DM_CauHinh "IdThuMucAnhBanDo".
+ ***********************************************************************/
+const ID_THU_MUC_ANH_BAN_DO = '1TCEvgjaTJl7BoEnpjCG65MAozL1rYs5d';
+const KHOA_CACHE_ANH_BAN_DO = 'MAP_ANH_BAN_DO';
+let BANG_ANH_BAN_DO_ = null;          // bộ nhớ tạm trong 1 lần chạy
+let ID_THU_MUC_ANH_DANG_DUNG_ = '';
+
+/** Đọc toàn bộ file trong thư mục ảnh → { tenFile(chữ thường): fileId } */
+function docBangAnhBanDo_(lamMoi) {
+  if (BANG_ANH_BAN_DO_ && !lamMoi) return BANG_ANH_BAN_DO_;
+  const cache = CacheService.getScriptCache();
+  if (!lamMoi) {
+    const c = cache.get(KHOA_CACHE_ANH_BAN_DO);
+    if (c) { BANG_ANH_BAN_DO_ = JSON.parse(c); return BANG_ANH_BAN_DO_; }
+  }
+  const bang = {};
+  try {
+    const it = DriveApp.getFolderById(ID_THU_MUC_ANH_DANG_DUNG_ || ID_THU_MUC_ANH_BAN_DO).getFiles();
+    while (it.hasNext()) {
+      const f = it.next();
+      bang[String(f.getName()).trim().toLowerCase()] = f.getId();
+    }
+  } catch (err) {
+    console.error('Không đọc được thư mục ảnh bản đồ: ' + err);
+  }
+  BANG_ANH_BAN_DO_ = bang;
+  try { cache.put(KHOA_CACHE_ANH_BAN_DO, JSON.stringify(bang), 21600); } catch (e) {}
+  return bang;
+}
+
+/** Tên file → ID Drive (không thấy thì đọc lại thư mục 1 lần, phòng ảnh mới tải lên) */
+function layIdAnhTheoTen_(ten) {
+  const k = String(ten).trim().toLowerCase();
+  let id = docBangAnhBanDo_(false)[k];
+  if (!id) id = docBangAnhBanDo_(true)[k];
+  return id || '';
+}
+
+/** Chuyển link Drive / tên file -> URL ảnh nhúng được vào <img> */
 function chuanHoaAnhDrive_(link) {
   if (!link) return '';
   const s = String(link).trim();
-  if (s.indexOf('drive.google.com') < 0) return s;   // link ảnh ngoài, giữ nguyên
-  const id = layIdDrive_(s);
-  return id ? ('https://drive.google.com/thumbnail?id=' + id + '&sz=w2400') : s;
+  if (!s) return '';
+  if (s.indexOf('drive.google.com') > -1) {
+    const id = layIdDrive_(s);
+    return id ? ('https://drive.google.com/thumbnail?id=' + id + '&sz=w2400') : s;
+  }
+  if (/^(https?:|data:)/i.test(s)) return s;            // link ảnh ngoài, giữ nguyên
+  // ★ V5.0.1: chỉ ghi tên file → tra trong thư mục ảnh bản đồ
+  const idTen = layIdAnhTheoTen_(s);
+  if (idTen) return 'https://drive.google.com/thumbnail?id=' + idTen + '&sz=w2400';
+  console.warn('Không tìm thấy ảnh bản đồ: ' + s);
+  return '';
 }
 
 /** Chuyển link Drive -> URL xem tài liệu (tự nhận diện THƯ MỤC vs TỆP) */
@@ -279,7 +329,7 @@ function layNguoiDungTuPhien_(p) {
  *   - Chế độ khách: các cột nội bộ bị XOÁ TRẮNG trước khi trả về.
  ***********************************************************************/
  function lamMoiDuLieuTongHop(phien) {
-  try { CacheService.getScriptCache().remove('DU_LIEU_TONG_HOP'); } catch (e) {}
+  try { CacheService.getScriptCache().removeAll(['DU_LIEU_TONG_HOP', KHOA_CACHE_ANH_BAN_DO]); } catch (e) {}
   return layDuLieuTongHop(phien);
 }
 
@@ -315,7 +365,12 @@ function layNguoiDungTuPhien_(p) {
   cauHinhDS.forEach(function (c) {
     cauHinh[String(c.Khoa).trim()] = c.GiaTri;
   });
+  // ★ V5.0.1: thư mục ảnh bản đồ (nếu có khai báo) — không gửi về trình duyệt
+  ID_THU_MUC_ANH_DANG_DUNG_ = String(cauHinh.IdThuMucAnhBanDo || '').trim();
+  delete cauHinh.IdThuMucAnhBanDo;
   cauHinh.AnhMasterKCN = chuanHoaAnhDrive_(cauHinh.AnhMasterKCN);
+  // ★ V5.0: ảnh bản đồ tổng CCN Long Phước 1
+  cauHinh.AnhMasterKCN_LP = chuanHoaAnhDrive_(cauHinh.AnhMasterKCN_LP);
 
   // ★★★ TUYỆT ĐỐI KHÔNG GỬI MẬT KHẨU / ID THƯ MỤC VỀ TRÌNH DUYỆT ★★★
   // (Hai khoá dưới đây đã ngừng dùng từ V4.0 nhưng vẫn xoá để phòng ngừa.)
@@ -353,6 +408,9 @@ function layNguoiDungTuPhien_(p) {
     c.ToaDoSVG   = String(c.ToaDoSVG || '').trim();
     c.ViewBox    = String(c.ViewBox  || '').trim();
     c.AnhMatBang = chuanHoaAnhDrive_(c.AnhMatBang);
+    // ★ V5.0: mã KCN của cụm (để trống = KCN Long Thành) + diện tích hiển thị
+    c.MaKCN      = String(c.MaKCN || '').trim().toUpperCase() || 'LT';
+    c.DienTich   = parseFloat(c.DienTich) || '';
   });
 
   const ketQua = {
@@ -387,11 +445,13 @@ const COT_HIEN_KHACH = [
 
 const KHOA_CAU_HINH_KHACH = [
   'AnhMasterKCN', 'ViewBoxMaster', 'BrochureChungKCN',
+  'AnhMasterKCN_LP', 'ViewBoxMaster_LP',                      // ★ V5.0
   'LinkHoSoKCN', 'LinkHoSoKCN_VI', 'LinkHoSoKCN_EN', 'LinkHoSoKCN_ZH'
 ];
 
 const COT_CUM_KHACH = [
-  'MaCum', 'TenCum', 'ToaDoSVG', 'ViewBox', 'AnhMatBang'
+  'MaCum', 'TenCum', 'ToaDoSVG', 'ViewBox', 'AnhMatBang',
+  'MaKCN', 'DienTich'                                          // ★ V5.0
 ];
 
 const COT_TRANG_THAI_KHACH = [
@@ -637,6 +697,7 @@ function tenCotTuChiSo_(i) {
 function xoaCache() {
   CacheService.getScriptCache().remove('DU_LIEU_TONG_HOP');
   try { CacheService.getScriptCache().remove(CACHE_TT_KCN); } catch (e) {}
+  try { CacheService.getScriptCache().remove(KHOA_CACHE_ANH_BAN_DO); } catch (e) {}   // ★ V5.0.1
   SpreadsheetApp.getUi().alert('✓ Đã làm mới. Tải lại trang App để thấy dữ liệu mới nhất.');
 }
 
