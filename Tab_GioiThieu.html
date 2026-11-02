@@ -1,5 +1,6 @@
 <!-- ══════════════════════════════════════════════════════════════════
      THẺ "GIỚI THIỆU KCN" — BỐ CỤC HỒ SƠ NĂNG LỰC, 3 NGÔN NGỮ (VI/EN/ZH)
+     ★ V5.1: chọn KCN Long Thành / CCN Long Phước 1 (cột MaKCN)
      Nguồn dữ liệu : sheet DM_ThongTinKCN  (module ThongTinKCN.gs)
      Bố cục        : dải tiêu đề → dải số liệu nổi bật → thanh điều hướng
                      → lưới thẻ thông tin theo nhóm
@@ -35,6 +36,16 @@
   cursor: pointer; white-space: nowrap;
 }
 .gt-ngonngu button.dang-chon { background: #fff; color: var(--xanh-dam); font-weight: 600; }
+
+/* ★ V5.1: bộ chọn KCN / CCN trên dải tiêu đề */
+.gt-chon-kcn { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 11px; }
+.gt-chon-kcn:empty { display: none; }
+.gt-chon-kcn button {
+  border: 1px solid rgba(255,255,255,.45); background: transparent;
+  color: #fff; padding: 6px 14px; border-radius: 20px; font-size: 12.5px;
+  cursor: pointer; white-space: nowrap;
+}
+.gt-chon-kcn button.dang-chon { background: rgba(255,255,255,.95); color: var(--xanh-dam); font-weight: 600; }
 
 /* ---------- Dải số liệu nổi bật ---------- */
 .gt-noi-bat {
@@ -157,6 +168,7 @@
       <div class="gt-nhan-tren">SONADEZI LONG THÀNH</div>
       <h2 id="gtTieuDe">KHU CÔNG NGHIỆP LONG THÀNH</h2>
       <div class="gt-phu" id="gtPhuDe">Thông tin tổng quan phục vụ giới thiệu khách hàng</div>
+      <div class="gt-chon-kcn" id="gtChonKCN"></div>
     </div>
     <div class="gt-ngonngu" id="gtNgonNgu">
       <button type="button" data-nn="vi" class="dang-chon">🇻🇳 Tiếng Việt</button>
@@ -192,6 +204,55 @@ var TT_KCN      = null;
 var TT_DANG_TAI = false;
 var NN_KCN      = 'vi';
 var SO_NOI_BAT  = 4;      // số ô tối đa trên dải số liệu đầu trang
+
+/***********************************************************************
+ * ★ V5.1 — NHIỀU KCN / CCN (cột MaKCN của sheet DM_ThongTinKCN)
+ ***********************************************************************/
+var KCN_GT       = null;   // mã KCN đang xem trên thẻ Giới thiệu
+var DS_KCN_GT = [
+  { ma: 'LT',
+    ten   : { vi: '🏭 KCN Long Thành', en: '🏭 Long Thanh IZ', zh: '🏭 隆城工业区' },
+    tieuDe: { vi: 'KHU CÔNG NGHIỆP LONG THÀNH', en: 'LONG THANH INDUSTRIAL ZONE', zh: '隆城工业区' } },
+  { ma: 'LP',
+    ten   : { vi: '🗺️ CCN Long Phước 1', en: '🗺️ Long Phuoc 1 IC', zh: '🗺️ 隆福1号工业集群' },
+    tieuDe: { vi: 'CỤM CÔNG NGHIỆP LONG PHƯỚC 1', en: 'LONG PHUOC 1 INDUSTRIAL CLUSTER', zh: '隆福1号工业集群' } }
+];
+
+function layKcnGT_(ma) {
+  return DS_KCN_GT.filter(function (k) { return k.ma === ma; })[0] || DS_KCN_GT[0];
+}
+
+/** Các dòng thông tin của KCN đang chọn */
+function dongTheoKCN_() {
+  var ds = (TT_KCN && TT_KCN.dong) ? TT_KCN.dong : [];
+  return ds.filter(function (d) { return (d.maKCN || 'LT') === KCN_GT; });
+}
+
+/** Vẽ nút chọn KCN — chỉ hiện các KCN đã có dữ liệu */
+function veNutChonKcnGT_() {
+  var hop = document.getElementById('gtChonKCN');
+  if (!hop) return;
+  var ds = (TT_KCN && TT_KCN.dong) ? TT_KCN.dong : [];
+  var co = DS_KCN_GT.filter(function (k) {
+    return ds.some(function (d) { return (d.maKCN || 'LT') === k.ma; });
+  });
+  if (co.length < 2) { hop.innerHTML = ''; return; }
+  hop.innerHTML = co.map(function (k) {
+    return '<button type="button" data-kcn="' + k.ma + '"'
+         + (k.ma === KCN_GT ? ' class="dang-chon"' : '') + '>'
+         + gtThoat_(k.ten[NN_KCN] || k.ten.vi) + '</button>';
+  }).join('');
+  Array.prototype.forEach.call(hop.querySelectorAll('button'), function (b) {
+    b.addEventListener('click', function () { chonKcnGT(b.dataset.kcn); });
+  });
+}
+
+function chonKcnGT(ma) {
+  if (ma === KCN_GT) return;
+  KCN_GT = layKcnGT_(ma).ma;
+  veGioiThieu();
+  try { document.querySelector('.gt-boc').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {}
+}
 
 /** Biểu tượng đầu mỗi thẻ, theo mã nhóm trong sheet */
 var ICON_NHOM = {
@@ -238,6 +299,8 @@ var NHAN_KCN = {
 
 /** Gọi khi mở thẻ Giới thiệu (từ chuyenTab) */
 function renderGioiThieu() {
+  // ★ V5.1: lần đầu mở → mặc định theo KCN đang xem ở thẻ Bản đồ
+  if (!KCN_GT) KCN_GT = (typeof KCN_DANG_XEM !== 'undefined' && KCN_DANG_XEM) ? KCN_DANG_XEM : 'LT';
   if (TT_KCN) { veGioiThieu(); return; }
   if (TT_DANG_TAI) return;
 
@@ -286,14 +349,17 @@ function gtThoat_(s) {
  ***********************************************************************/
 function veGioiThieu() {
   var nhan = NHAN_KCN[NN_KCN];
-  document.getElementById('gtTieuDe').textContent     = nhan.tieuDe;
+  if (!KCN_GT) KCN_GT = 'LT';
+  var kcn  = layKcnGT_(KCN_GT);                                  // ★ V5.1
+  document.getElementById('gtTieuDe').textContent     = kcn.tieuDe[NN_KCN] || kcn.tieuDe.vi;
+  veNutChonKcnGT_();
   document.getElementById('gtPhuDe').textContent      = nhan.phuDe;
   document.getElementById('gtNutSaoChep').textContent = nhan.sao;
   document.getElementById('gtNutChiaSe').textContent  = nhan.chiaSe;
   document.getElementById('gtGhiChu').textContent     = nhan.ghiChu;
   capNhatNutPDF_();
 
-  var ds     = (TT_KCN && TT_KCN.dong) ? TT_KCN.dong : [];
+  var ds     = dongTheoKCN_();                                   // ★ V5.1
   var elThan = document.getElementById('gtThan');
   var elNav  = document.getElementById('gtDieuHuong');
   var elNB   = document.getElementById('gtNoiBat');
@@ -466,6 +532,9 @@ function nhayToiThe_(nut) {
  ***********************************************************************/
 function layLinkHoSoKCN_() {
   var ch = (typeof DU_LIEU !== 'undefined' && DU_LIEU && DU_LIEU.cauHinh) ? DU_LIEU.cauHinh : {};
+  if (KCN_GT && KCN_GT !== 'LT') {                                // ★ V5.1
+    return String(ch['LinkHoSoKCN_' + KCN_GT + '_' + NN_KCN.toUpperCase()] || ch['LinkHoSoKCN_' + KCN_GT] || '').trim();
+  }
   return String(ch['LinkHoSoKCN_' + NN_KCN.toUpperCase()] || ch.LinkHoSoKCN || '').trim();
 }
 
@@ -483,8 +552,9 @@ function capNhatNutPDF_() {
 }
 
 function noiDungGioiThieuVanBan_() {
-  var ds  = (TT_KCN && TT_KCN.dong) ? TT_KCN.dong : [];
-  var out = [NHAN_KCN[NN_KCN].tieuDe, ''];
+  var ds  = dongTheoKCN_();                                       // ★ V5.1
+  var kcn = layKcnGT_(KCN_GT);
+  var out = [kcn.tieuDe[NN_KCN] || kcn.tieuDe.vi, ''];
   var nhomHienTai = '';
 
   ds.forEach(function (d) {
@@ -523,7 +593,8 @@ function saoChepDuPhong_(vb, xong) {
 
 function chiaSeGioiThieu() {
   var vb = noiDungGioiThieuVanBan_();
-  if (navigator.share) navigator.share({ title: NHAN_KCN[NN_KCN].tieuDe, text: vb }).catch(function () {});
+  var kcn = layKcnGT_(KCN_GT);
+  if (navigator.share) navigator.share({ title: kcn.tieuDe[NN_KCN] || kcn.tieuDe.vi, text: vb }).catch(function () {});
   else saoChepGioiThieu();
 }
 
