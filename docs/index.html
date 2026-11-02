@@ -86,6 +86,52 @@
     document.getElementById('khungApp').addEventListener('load', anManHinhKhoiDong);
     setTimeout(anManHinhKhoiDong, THOI_GIAN_TOI_DA);
 
+    // ===== GIỮ ĐĂNG NHẬP: lưu phiên "Ghi nhớ đăng nhập" trên tên miền của vỏ PWA =====
+    // App GAS chạy trong iframe nên bộ nhớ của app dễ bị mất; vỏ giữ hộ và trả lại khi mở app.
+    var KHOA_PHIEN = 'SZL_VO_PHIEN', KHOA_TUY_CHON = 'SZL_VO_TUY_CHON';
+    var khungApp = document.getElementById('khungApp');
+
+    function docKhoa(k) {
+      try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; }
+    }
+    function ghiKhoa(k, v) {
+      try { if (v) localStorage.setItem(k, JSON.stringify(v)); else localStorage.removeItem(k); } catch (e) {}
+    }
+    function hanToken(t) {
+      var p = String(t || '').split('.');
+      return p.length === 3 ? (Number(p[1]) || 0) : 0;
+    }
+    // Chỉ nhận tin từ đúng iframe app của trang này
+    function thuocKhungApp(w) {
+      for (var i = 0; i < 5 && w; i++) {
+        if (w === khungApp.contentWindow) return true;
+        if (w === w.parent) return false;
+        w = w.parent;
+      }
+      return false;
+    }
+    window.addEventListener('message', function (ev) {
+      var d = ev.data;
+      if (!d || d.szl !== true) return;
+      if (!/^https:\/\/[a-z0-9-]+-script\.googleusercontent\.com$/.test(ev.origin)) return;
+      if (!thuocKhungApp(ev.source)) return;
+
+      if (d.lenh === 'xin-phien') {
+        var phien = docKhoa(KHOA_PHIEN);
+        if (phien && hanToken(phien.token) <= Date.now()) { phien = null; ghiKhoa(KHOA_PHIEN, null); }
+        var tc = docKhoa(KHOA_TUY_CHON) || {};
+        ev.source.postMessage({ szl: 'phien', phien: phien, email: tc.email || '', chon: tc.chon || '' }, ev.origin);
+      } else if (d.lenh === 'luu-phien' && d.phien && d.phien.token) {
+        ghiKhoa(KHOA_PHIEN, { token: d.phien.token, email: d.phien.email, hoTen: d.phien.hoTen, vaiTro: d.phien.vaiTro });
+      } else if (d.lenh === 'xoa-phien') {
+        ghiKhoa(KHOA_PHIEN, null);
+      } else if (d.lenh === 'luu-tuy-chon') {
+        ghiKhoa(KHOA_TUY_CHON, { email: d.email, chon: d.chon });
+      }
+    });
+    // Xin trình duyệt giữ bộ nhớ của app đã cài, tránh bị tự dọn khi máy thiếu dung lượng
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {});
+
     // ===== Service Worker – điều kiện bắt buộc để trình duyệt cho phép cài đặt =====
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').catch(function () {});
