@@ -83,7 +83,7 @@
   .bang-canh-bao td{padding:8px 10px;border-bottom:1px solid #f1f5f9;cursor:pointer}
   .bang-canh-bao tr:hover td{background:#f8fafc}
   .bang-canh-bao tr.khan-cap td:last-child{color:#dc2626;font-weight:700}
-  .bang-canh-bao .suy-ra{color:#b45309;font-size:11px;font-style:italic}
+  .bang-canh-bao .suy-ra{color:#b45309;font-size:12px;font-style:italic}
   .rong-canh-bao{text-align:center;color:#64748b;padding:20px 0;line-height:1.7}
 </style>
 
@@ -660,13 +660,18 @@ function dungSVG(viewBox, anhNen, vungList) {
     elSvg.classList.remove('co-anh-nen');
   }
 
-  elSvg.innerHTML = vungList.map(function (v) {
+  // ★ V5.0 — "Sắp trống" dùng sọc chéo để không lẫn với "Trống"
+  const mauSapTrong = MAU_TRANG_THAI['Sắp trống'] || '';
+  elSvg.innerHTML = (mauSapTrong
+      ? '<defs><pattern id="vanSapTrong" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
+      + '<rect width="16" height="16" fill="#fff"></rect><rect width="9" height="16" fill="' + mauSapTrong + '"></rect></pattern></defs>'
+      : '') + vungList.map(function (v) {
     const t = tamPolygon(v.diem);
     const cls = 'vung-bam'
               + (v.loai === 'cum' ? ' la-cum' : '')
               + (v.mo ? ' mo' : '');
     return '<polygon class="' + cls + '" data-ma="' + v.ma + '" data-loai="' + v.loai + '" '
-         +   'points="' + v.diem + '" fill="' + v.mau + '"><title>' + v.tip + '</title></polygon>'
+         +   'points="' + v.diem + '" fill="' + (mauSapTrong && v.mau === mauSapTrong ? 'url(#vanSapTrong)' : v.mau) + '"><title>' + v.tip + '</title></polygon>'
          + '<text class="nhan-vung" x="' + t.x + '" y="' + t.y + '">' + v.nhan + '</text>'
          + (v.nhanPhu
              ? '<text class="nhan-phu" x="' + t.x + '" y="' + (t.y + 17) + '">' + v.nhanPhu + '</text>'
@@ -1025,13 +1030,13 @@ function veChuGiai() {
       + (KCN_DANG_XEM !== MA_KCN_MAC_DINH ? '' :               // ★ V5.0
         '<b class="cg-tieu-de">LÔ ĐẤT:</b>'
       + (DU_LIEU.trangThai || []).map(function (t) {
-          return '<span><i class="o-mau" style="background:' + (t.MauSac || MAU_MAC_DINH)
+          return '<span><i class="o-mau" style="background:' + nenTrangThaiV5(t.TenTrangThai, t.MauSac || MAU_MAC_DINH)
                + '"></i>' + t.TenTrangThai + '</span>';
         }).join('')
       + '<span><i class="o-mau" style="background:#cbd5e1"></i>Ngoài bộ lọc</span>');
   } else {
     cg.innerHTML = (DU_LIEU.trangThai || []).map(function (t) {
-      return '<span><i class="o-mau" style="background:' + (t.MauSac || MAU_MAC_DINH)
+      return '<span><i class="o-mau" style="background:' + nenTrangThaiV5(t.TenTrangThai, t.MauSac || MAU_MAC_DINH)
            + '"></i>' + t.TenTrangThai + '</span>';
     }).join('')
     + '<span><i class="o-mau" style="background:#cbd5e1"></i>Ngoài bộ lọc</span>';
