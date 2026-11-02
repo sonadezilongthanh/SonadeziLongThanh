@@ -71,7 +71,7 @@
   }
   .chip-nhom:hover { border-color: #0B4696; }
   .chip-nhom.bat { background: #e3edfb; border-color: #0B4696; color: #0B4696; }
-  .chip-nhom .dau { font-size: 11px; }
+  .chip-nhom .dau { font-size: 12px; }
   .thanh-nhom-cot .nut-nho { margin-left: auto; }
 </style>
 
@@ -297,10 +297,10 @@ function renderBangTraCuu(ds) {
 
     let nutMaps = '';
     if (nx.Lat && nx.Lng) {
-      nutMaps = '<a class="nut nut-maps nut-nho" target="_blank" rel="noopener" '
-              + 'title="Dẫn đường Google Maps" '
+      nutMaps = '<a class="nut nut-maps nut-nho nut-tt" target="_blank" rel="noopener" '
+              + 'title="Dẫn đường Google Maps" aria-label="Dẫn đường Google Maps" '
               + 'href="https://www.google.com/maps/dir/?api=1&destination='
-              + nx.Lat + ',' + nx.Lng + '">🚗</a>';
+              + nx.Lat + ',' + nx.Lng + '">🚗<span class="chu-tt">Dẫn đường</span></a>';
     }
 
     const cotDinhDanhHtml = COT_DINH_DANH_HIEN.map(function (t) {
@@ -316,10 +316,10 @@ function renderBangTraCuu(ds) {
       +   cotDinhDanhHtml
       +   cotRiengHtml
       +   '<td data-nhan="Thao tác" style="white-space:nowrap">'
-      +     '<button class="nut nut-nhat nut-nho" title="Xem chi tiết" '
-      +       'onclick="moPanelChiTiet(\'' + ma + '\')">👁️</button> '
-      +     '<button class="nut nut-nhat nut-nho" title="Xem trên bản đồ" '
-      +       'onclick="xemTrenBanDo(\'' + ma + '\')">🗺️</button> '
+      +     '<button class="nut nut-nhat nut-nho nut-tt" title="Xem chi tiết" aria-label="Xem chi tiết ' + ma + '" '
+      +       'onclick="moPanelChiTiet(\'' + ma + '\')">👁️<span class="chu-tt">Chi tiết</span></button> '
+      +     '<button class="nut nut-nhat nut-nho nut-tt" title="Xem trên bản đồ" aria-label="Xem ' + ma + ' trên bản đồ" '
+      +       'onclick="xemTrenBanDo(\'' + ma + '\')">🗺️<span class="chu-tt">Bản đồ</span></button> '
       +     nutMaps
       +   '</td>'
       + '</tr>';

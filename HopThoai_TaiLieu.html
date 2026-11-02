@@ -47,7 +47,7 @@
   background: #f8fafc; color: #334155; transition: .15s;
 }
 .tl-tha:hover, .tl-tha.keo { border-color: #0B4696; background: #eef4ff; }
-.tl-tha small { display: block; margin-top: 6px; color: #64748b; font-size: 11px; }
+.tl-tha small { display: block; margin-top: 6px; color: #64748b; font-size: 12px; }
 
 .tl-cho {
   display: flex; align-items: center; gap: 8px;
@@ -61,7 +61,7 @@
   flex: 1; padding: 5px 8px; font-size: 13px;
   border: 1px solid #cbd5e1; border-radius: 5px; width: auto;
 }
-.tl-dung-luong { font-size: 11px; color: #64748b; white-space: nowrap; }
+.tl-dung-luong { font-size: 12px; color: #64748b; white-space: nowrap; }
 .tl-hang-chon { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .tl-hang-chon select { flex: 1; }
 </style>
@@ -424,9 +424,9 @@ function tlTaiTiep(i) {
 }
 
 /** Xoá 1 tài liệu (chuyển tệp vào Thùng rác Drive + xoá dòng trong Sheet) */
-function tlXoa(fileId) {
-  if (!confirm('Xoá tài liệu này khỏi hệ thống?\n'
-             + 'Tệp sẽ được chuyển vào Thùng rác Drive (khôi phục được trong 30 ngày).')) return;
+async function tlXoa(fileId) {
+  if (!(await xacNhanV5('Xoá tài liệu này khỏi hệ thống?\n'
+             + 'Tệp sẽ được chuyển vào Thùng rác Drive (khôi phục được trong 30 ngày).', 'Xoá', true))) return;
 
   const tb = document.getElementById('tlThongBao');
   tb.className = 'thong-bao';
@@ -459,7 +459,7 @@ function tlXoa(fileId) {
 /** ★ MỚI (V4.2) — Bấm ✏️: đổi tên hiển thị của 1 tài liệu.
  *  Tên hiện tại lấy trực tiếp từ dữ liệu (không truyền qua onclick)
  *  để tránh lỗi khi tên có dấu nháy ' hoặc " . */
-function tlDoiTen(fileId) {
+async function tlDoiTen(fileId) {
   const nx  = timNhaXuong(TL_MA);
   const tep = (nx && nx.DanhSachTaiLieu)
             ? nx.DanhSachTaiLieu.filter(function (t) {
@@ -468,7 +468,7 @@ function tlDoiTen(fileId) {
             : null;
   const tenCu = tep ? String(tep.ten || '') : '';
 
-  const tenMoi = prompt('Nhập tên mới cho tài liệu:', tenCu);
+  const tenMoi = await nhapV5('Nhập tên mới cho tài liệu:', tenCu);
   if (tenMoi === null) return;                       // bấm Huỷ
   const ten = String(tenMoi).replace(/\s+/g, ' ').trim();
   if (!ten)            { alert('Tên tài liệu không được để trống.'); return; }
@@ -529,8 +529,8 @@ function tlMoChonChuyen(fileId, loaiHienTai, nut) {
 }
 
 /** ★ MỚI — Gọi server để thực sự chuyển 1 tài liệu sang loại (thư mục) khác */
-function tlChuyenThuMuc(fileId, loaiCu, loaiMoi, elChon) {
-  if (!confirm('Chuyển tài liệu này từ "' + loaiCu + '" sang "' + loaiMoi + '"?')) {
+async function tlChuyenThuMuc(fileId, loaiCu, loaiMoi, elChon) {
+  if (!(await xacNhanV5('Chuyển tài liệu này từ "' + loaiCu + '" sang "' + loaiMoi + '"?', 'Chuyển'))) {
     elChon.remove();
     return;
   }
