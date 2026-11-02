@@ -96,21 +96,78 @@ function _escHTML(s) {
  ***********************************************************************/
 window.addEventListener('load', function () {
   khoiPhucPhienSua();
-  taoManHinhDangNhap();
-  taoHopThoaiDoiMK();
-  taoHopThoaiQuanLyTK();
-  taoMenuTaiKhoan();
-  khoiDongV5_();   // ★ V5.0
+  xinPhienTuVo_(function () {   // ★ V5.3
+    taoManHinhDangNhap();
+    taoHopThoaiDoiMK();
+    taoHopThoaiQuanLyTK();
+    taoMenuTaiKhoan();
+    khoiDongV5_();   // ★ V5.0
 
-  if (PHIEN_SUA.vaiTro) {
-    // Đã có phiên trong tab này (kể cả chế độ khách) → vào thẳng
-    // ★ V4.11 — phiên đã đăng nhập: màn chờ chính là hiệu ứng Mở kho
-    if (PHIEN_SUA.token) moKhoBatDau_(true);
-    taiDuLieu();
-  } else {
-    hienManHinhDangNhap();
-  }
+    if (PHIEN_SUA.vaiTro) {
+      // Đã có phiên trong tab này (kể cả chế độ khách) → vào thẳng
+      // ★ V4.11 — phiên đã đăng nhập: màn chờ chính là hiệu ứng Mở kho
+      if (PHIEN_SUA.token) moKhoBatDau_(true);
+      taiDuLieu();
+    } else {
+      hienManHinhDangNhap();
+    }
+  });
 });
+
+/***********************************************************************
+ * ★ V5.3 — GIỮ ĐĂNG NHẬP TRONG VỎ PWA (biểu tượng màn hình chính)
+ *  App chạy trong iframe trên tên miền googleusercontent, nên localStorage
+ *  của app dễ bị mất/phân vùng. Khi mở từ vỏ PWA trên GitHub Pages, phiên
+ *  "Ghi nhớ đăng nhập" được lưu thêm ở vỏ (tên miền chính) qua postMessage.
+ *  Hạn phiên vẫn do token server ký, không thay đổi.
+ ***********************************************************************/
+const NGUON_VO_PWA = 'https://sonadezilongthanh.github.io';
+const VO_PWA = { co: false, coPhien: false, email: '', chonGhiNho: '' };
+
+function trongVoPwa_() {
+  try {
+    const ds = window.location.ancestorOrigins;
+    return !!ds && Array.prototype.indexOf.call(ds, NGUON_VO_PWA) >= 0;
+  } catch (e) { return false; }
+}
+
+function guiVoPwa_(goi) {
+  if (!VO_PWA.co) return;
+  try { window.top.postMessage(Object.assign({ szl: true }, goi), NGUON_VO_PWA); } catch (e) {}
+}
+
+/** Hỏi vỏ PWA phiên đã lưu rồi mới khởi động; không ở trong vỏ thì chạy ngay */
+function xinPhienTuVo_(xong) {
+  VO_PWA.co = trongVoPwa_();
+  if (!VO_PWA.co) { xong(); return; }
+
+  let daXong = false, hen = null;
+  function ketThuc() {
+    if (daXong) return;
+    daXong = true;
+    clearTimeout(hen);
+    window.removeEventListener('message', nhan);
+    xong();
+  }
+  function nhan(ev) {
+    if (ev.origin !== NGUON_VO_PWA || !ev.data || ev.data.szl !== 'phien') return;
+    VO_PWA.email = String(ev.data.email || '');
+    VO_PWA.chonGhiNho = String(ev.data.chon || '');
+    const p = ev.data.phien;
+    if (p && p.token && p.email && p.vaiTro && hanToken_(p.token) > Date.now()) {
+      VO_PWA.coPhien = true;
+      if (!PHIEN_SUA.token) {
+        PHIEN_SUA = { token: p.token, email: p.email, hoTen: p.hoTen || '', vaiTro: p.vaiTro };
+        try { sessionStorage.setItem('SZL_PHIEN_SUA', JSON.stringify(PHIEN_SUA)); } catch (e) {}
+        henGioHetPhien_();
+      }
+    }
+    ketThuc();
+  }
+  window.addEventListener('message', nhan);
+  hen = setTimeout(ketThuc, 1200);
+  guiVoPwa_({ lenh: 'xin-phien' });
+}
 
 /** Gọi server tải dữ liệu — server tự lọc thông tin nội bộ nếu là khách */
 function taiDuLieu() {
@@ -585,6 +642,14 @@ function hienManHinhDangNhap() {
     if (oGhiNho) oGhiNho.checked = (localStorage.getItem('SZL_CHON_GHI_NHO') === '1');
   } catch (e) {}
 
+  // ★ V5.3 — trong vỏ PWA: lấy email cũ từ vỏ, mặc định bật "Ghi nhớ đăng nhập"
+  if (VO_PWA.co) {
+    const oEmailVo = document.getElementById('dnEmail');
+    if (VO_PWA.email && oEmailVo && !oEmailVo.value) oEmailVo.value = VO_PWA.email;
+    const oGhiNhoVo = document.getElementById('dnGhiNho');
+    if (oGhiNhoVo) oGhiNhoVo.checked = (VO_PWA.chonGhiNho !== '0');
+  }
+
   setTimeout(function () {
     const oEmail = document.getElementById('dnEmail');
     const oMK    = document.getElementById('dnMatKhau');
@@ -971,6 +1036,9 @@ function guiDangNhap() {
         localStorage.setItem('SZL_EMAIL_DANG_NHAP', kq.email);
         localStorage.setItem('SZL_CHON_GHI_NHO', ghiNho ? '1' : '0');
       } catch (e) {}
+      VO_PWA.email = kq.email;                                // ★ V5.3
+      VO_PWA.chonGhiNho = ghiNho ? '1' : '0';
+      guiVoPwa_({ lenh: 'luu-tuy-chon', email: kq.email, chon: ghiNho ? '1' : '0' });
 
       PHIEN_SUA = {
         token : kq.token,
@@ -1135,13 +1203,20 @@ function hanToken_(token) {
 
 function ghiNhoPhien_() {
   try { localStorage.setItem(KHOA_GHI_NHO, JSON.stringify(PHIEN_SUA)); } catch (e) {}
+  if (VO_PWA.co) {                                        // ★ V5.3
+    VO_PWA.coPhien = true;
+    guiVoPwa_({ lenh: 'luu-phien', phien: PHIEN_SUA });
+  }
 }
 
 function xoaGhiNhoPhien_() {
   try { localStorage.removeItem(KHOA_GHI_NHO); } catch (e) {}
+  VO_PWA.coPhien = false;                                 // ★ V5.3
+  guiVoPwa_({ lenh: 'xoa-phien' });
 }
 
 function coGhiNhoPhien_() {
+  if (VO_PWA.coPhien) return true;                        // ★ V5.3
   try { return !!localStorage.getItem(KHOA_GHI_NHO); } catch (e) { return false; }
 }
 
