@@ -103,6 +103,8 @@ window.addEventListener('load', function () {
 
   if (PHIEN_SUA.vaiTro) {
     // Đã có phiên trong tab này (kể cả chế độ khách) → vào thẳng
+    // ★ V4.11 — phiên đã đăng nhập: màn chờ chính là hiệu ứng Mở kho
+    if (PHIEN_SUA.token) moKhoBatDau_(true);
     taiDuLieu();
   } else {
     hienManHinhDangNhap();
@@ -656,14 +658,16 @@ function dnRung_() {
 }
 
 /* ================================================================
-   ★ V4.10 — HIỆU ỨNG "MỞ KHO" SAU KHI ĐĂNG NHẬP THÀNH CÔNG (GSAP)
+   ★ V4.10/V4.11 — HIỆU ỨNG "MỞ KHO" SAU KHI ĐĂNG NHẬP THÀNH CÔNG (GSAP)
    Trình tự: thẻ đăng nhập mờ đi → logo ra giữa màn hình, quay như khoá két
    (thay cho màn hình "Đang tải dữ liệu…") → dữ liệu xong thì khoá chốt →
    2 cánh cửa mở theo đường chéo của logo → 2 khối logo bay về thanh tiêu đề.
-   - Chỉ chạy khi bấm Đăng nhập thành công. Khách, phiên ghi nhớ, tài khoản
-     buộc đổi mật khẩu vẫn đi đường cũ.
+   - Chạy khi bấm Đăng nhập thành công và khi vào app bằng phiên đã ghi nhớ.
+     Khách, tài khoản buộc đổi mật khẩu vẫn đi đường cũ.
    - Không có GSAP / bật "giảm chuyển động" → vào app như cũ.
    - Lớp phủ tự gỡ khi xong; có chốt an toàn để không bao giờ che kẹt app.
+   - ★ V4.11: chỉ animate lớp đã tách GPU (transform/opacity); cửa đúng khổ màn
+     hình, ánh sáng dùng ảnh nhỏ phóng lớn, không scale toàn bộ app.
 ================================================================ */
 const MO_KHO = { chay: false, sanSang: false, tl: [], an_toan: 0 };
 
@@ -675,7 +679,8 @@ function moKhoDuocPhep_() {
             !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches));
 }
 
-function moKhoTaoLop_(W, H, CX, CY) {
+function moKhoTaoLop_(W, H, CX, CY, THANG) {
+  const LON = 104 * THANG, LOGO = 72 * THANG;
   let vach = '';
   for (let i = 0; i < 72; i++) {
     const dai = i % 6 === 0, a = i * 5 * Math.PI / 180, r1 = dai ? 60 : 64, r2 = 70;
@@ -684,26 +689,34 @@ function moKhoTaoLop_(W, H, CX, CY) {
          +  '" stroke="' + (dai ? '#ffffff' : '#9fc0ea') + '" stroke-width="' + (dai ? 2 : 1) + '"/>';
   }
   let hat = '';
-  for (let j = 0; j < 36; j++) hat += '<span class="mk-hat' + (j % 5 === 0 ? ' vang' : '') + '"></span>';
+  for (let j = 0; j < 20; j++) hat += '<span class="mk-hat' + (j % 5 === 0 ? ' vang' : '') + '"></span>';
+  const khoiLogo = function (lop, duong) {
+    return '<svg class="mk-khoi ' + lop + '" viewBox="0.0 0.0 275.0 200.0"><path fill="#0B4696" d="' + duong + '"/></svg>';
+  };
 
   document.body.insertAdjacentHTML('beforeend',
       '<style id="moKhoCss">'
-    + '#moKho{position:fixed;inset:0;z-index:10030;overflow:hidden}'
-    + '#moKho .mk-cua{position:absolute;visibility:hidden;background-color:#08305f}'
-    + '#moKho .mk-khe{position:absolute;left:50%;height:3px;width:400%;margin-left:-200%;visibility:hidden;'
+    + '#moKho{position:fixed;inset:0;z-index:10030;overflow:hidden;contain:strict}'
+    + '#moKho .mk-cua{position:absolute;visibility:hidden;background-color:#08305f;will-change:transform,opacity}'
+    + '#moKho .mk-khe{position:absolute;left:50%;height:3px;visibility:hidden;will-change:transform,opacity;'
     +   'background:linear-gradient(90deg,transparent,#bcd6ff 42%,#fff 50%,#bcd6ff 58%,transparent)}'
-    + '#moKho .mk-sang,#moKho .mk-tia{position:absolute;border-radius:50%;visibility:hidden;pointer-events:none}'
+    /* Ánh sáng: khung 512px phóng lớn bằng GPU, không phải vẽ lại mỗi khung hình */
+    + '#moKho .mk-sang,#moKho .mk-tia{position:absolute;left:0;top:0;width:512px;height:512px;border-radius:50%;'
+    +   'visibility:hidden;pointer-events:none;will-change:transform,opacity}'
     + '#moKho .mk-sang{background:radial-gradient(circle,#fff 0,#dbe9ff 28%,rgba(170,205,255,.5) 50%,rgba(255,226,170,.12) 62%,rgba(255,226,170,0) 70%)}'
     + '#moKho .mk-tia{background:repeating-conic-gradient(rgba(255,255,255,.42) 0 7deg,transparent 7deg 22deg);'
     +   '-webkit-mask:radial-gradient(circle,#000 18%,transparent 68%);mask:radial-gradient(circle,#000 18%,transparent 68%)}'
-    + '#moKho .mk-hero{position:absolute;left:0;top:0;width:104px;height:104px}'
-    + '#moKho .mk-dia{position:absolute;inset:0;border-radius:50%;background:#fff}'
-    + '#moKho .mk-anh{position:absolute;inset:0;width:100%;height:100%;padding:13px;box-sizing:border-box}'
-    + '#moKho .mk-vong{position:absolute;left:-22px;top:-22px;width:148px;height:148px;opacity:0}'
-    + '#moKho .mk-dau{position:absolute;left:16px;top:26px;width:72px;height:auto;overflow:visible;opacity:0}'
+    + '#moKho .mk-hero{position:absolute;left:0;top:0;width:' + LON + 'px;height:' + LON + 'px;will-change:transform}'
+    + '#moKho .mk-dia{position:absolute;inset:0;border-radius:50%;background:#fff;will-change:opacity}'
+    + '#moKho .mk-anh{position:absolute;inset:0;width:100%;height:100%;padding:' + (13 * THANG) + 'px;box-sizing:border-box}'
+    + '#moKho .mk-vong{position:absolute;left:' + (-22 * THANG) + 'px;top:' + (-22 * THANG) + 'px;'
+    +   'width:' + (148 * THANG) + 'px;height:' + (148 * THANG) + 'px;opacity:0;will-change:transform,opacity}'
+    + '#moKho .mk-dau{position:absolute;left:' + (16 * THANG) + 'px;top:' + (26 * THANG) + 'px;'
+    +   'width:' + LOGO + 'px;height:' + (LOGO * 200 / 275) + 'px;opacity:0;will-change:transform,opacity}'
+    + '#moKho .mk-khoi{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;will-change:transform}'
     + '#moKho .mk-tb{position:absolute;left:0;right:0;text-align:center;font-size:13px;color:#cfdcee;opacity:0}'
-    + '#moKho .mk-de{position:absolute;left:0;top:0;border-radius:10px;background:#fff;visibility:hidden}'
-    + '#moKho .mk-hat{position:absolute;width:12px;height:8px;background:#dbe9ff;visibility:hidden}'
+    + '#moKho .mk-de{position:absolute;left:0;top:0;border-radius:10px;background:#fff;visibility:hidden;will-change:transform,opacity}'
+    + '#moKho .mk-hat{position:absolute;width:12px;height:8px;background:#dbe9ff;visibility:hidden;will-change:transform,opacity}'
     + '#moKho .mk-hat.vang{background:#f2cf86}'
     + '</style>'
     + '<div id="moKho" aria-hidden="true">'
@@ -717,61 +730,67 @@ function moKhoTaoLop_(W, H, CX, CY) {
     +       '<circle r="56" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="1.5"/>'
     +       '<path d="M0 -74 L5 -64 L-5 -64Z" fill="#f2cf86"/></svg>'
     +     '<div class="mk-dia"></div><img class="mk-anh" alt="">'
-    +     '<svg class="mk-dau" viewBox="0.0 0.0 275.0 200.0">'
-    +       '<path class="mk-a" fill="#0B4696" d="' + MO_KHO_LOGO_A + '"/>'
-    +       '<path class="mk-b" fill="#0B4696" d="' + MO_KHO_LOGO_B + '"/></svg>'
+    +     '<div class="mk-dau">' + khoiLogo('mk-a', MO_KHO_LOGO_A) + khoiLogo('mk-b', MO_KHO_LOGO_B) + '</div>'
     +   '</div>'
     +   '<div class="mk-tb">Đang tải dữ liệu…</div>'
     + '</div>');
 
-  /* Hai cánh cửa: cắt theo đường chéo cùng độ nghiêng với logo */
-  const ox = W + H, cw = W + ox * 2, ch = H + ox * 2;
-  const seam = function (y) { return CX + (CY - y) * 0.85; };
-  const xa = seam(-ox) + ox, xb = seam(H + ox) + ox;
-  const nen = 'repeating-linear-gradient(130.4deg,rgba(255,255,255,.035) 0 2px,transparent 2px 46px),'
-            + 'radial-gradient(circle at ' + (CX + ox) + 'px ' + (CY + ox) + 'px,#0f4a8e 0,#08305f 320px,#051f40 760px)';
-  [['mkCuaA', '0 0,' + xa + 'px 0,' + xb + 'px ' + ch + 'px,0 ' + ch + 'px'],
-   ['mkCuaB', xa + 'px 0,' + cw + 'px 0,' + cw + 'px ' + ch + 'px,' + xb + 'px ' + ch + 'px']].forEach(function (p) {
-    const e = document.getElementById(p[0]);
-    e.style.cssText += ';left:' + (-ox) + 'px;top:' + (-ox) + 'px;width:' + cw + 'px;height:' + ch + 'px;background-image:' + nen;
-    const q = 'polygon(' + p[1].replace(/(^|,)0 /g, '$10px ').replace(/ 0(,|$)/g, ' 0px$1') + ')';
-    e.style.webkitClipPath = q;
-    e.style.clipPath = q;
-  });
+  /* Hai cánh cửa: 2 tấm chữ nhật xoay theo độ nghiêng của logo, không dùng clip-path */
+  const cheo = Math.hypot(W, H), dai = cheo + 60, cao = cheo * 0.56 + 30;
+  const nen = function (tamY) {
+    return 'repeating-linear-gradient(90deg,rgba(255,255,255,.035) 0 2px,transparent 2px 46px),'
+         + 'radial-gradient(circle at 50% ' + tamY + ',#0f4a8e 0,#08305f 320px,#051f40 760px)';
+  };
+  gsap.set('#mkCuaA', { left: CX - dai / 2, top: CY - cao, width: dai, height: cao + 1, backgroundImage: nen('100%'),
+                        transformOrigin: '50% 100%', rotation: -49.6, force3D: true });
+  gsap.set('#mkCuaB', { left: CX - dai / 2, top: CY, width: dai, height: cao, backgroundImage: nen('0%'),
+                        transformOrigin: '50% 0%', rotation: -49.6, force3D: true });
+  MO_KHO.diCua = cao + 20;
 }
 
-/** Bắt đầu hiệu ứng. Trả về true nếu chạy được, false để đi đường cũ. */
-function moKhoBatDau_() {
+/**
+ * Bắt đầu hiệu ứng. Trả về true nếu chạy được, false để đi đường cũ.
+ * tuManHinhTai = true: vào bằng phiên đã ghi nhớ, logo xuất phát từ màn hình tải.
+ */
+function moKhoBatDau_(tuManHinhTai) {
   if (!moKhoDuocPhep_() || MO_KHO.chay) return false;
   const dn = document.getElementById('manHinhDangNhap');
-  const nguon = dn && dn.querySelector('.dn-logo-tron');
+  const mt = document.getElementById('manHinhTai');
+  const nguon = tuManHinhTai ? mt && mt.querySelector('.logo-tai') : dn && dn.querySelector('.dn-logo-tron');
   if (!nguon) return false;
 
   const W = window.innerWidth, H = window.innerHeight, CX = W / 2, CY = H / 2 - 24;
-  const THANG = Math.min(2.5, (W - 16) / 165);
-  moKhoTaoLop_(W, H, CX, CY);
+  const THANG = Math.min(2.5, (W - 16) / 165), LON = 104 * THANG;
+  moKhoTaoLop_(W, H, CX, CY, THANG);
   MO_KHO.chay = true; MO_KHO.sanSang = false; MO_KHO.tl = [];
   MO_KHO.W = W; MO_KHO.H = H; MO_KHO.CX = CX; MO_KHO.CY = CY; MO_KHO.THANG = THANG;
-  dn.style.pointerEvents = 'none';
+  if (dn) dn.style.pointerEvents = 'none';
 
   const lop = document.getElementById('moKho'), $ = function (s) { return lop.querySelector(s); };
-  const hero = $('.mk-hero'), dau = $('.mk-dau'), khung = dn.querySelector('.dn-logo-khung');
-  const hop = dn.querySelector('.dn-hop'), r = nguon.getBoundingClientRect();
-  $('.mk-anh').src = dn.querySelector('.dn-logo').src;
-  gsap.set(hero, { x: r.left, y: r.top });
-  gsap.set(dau, { transformOrigin: '50% 50%' });
+  const hero = $('.mk-hero'), dau = $('.mk-dau'), cua = [$('#mkCuaA'), $('#mkCuaB')];
+  const r = nguon.getBoundingClientRect();
+  $('.mk-anh').src = tuManHinhTai ? nguon.src : dn.querySelector('.dn-logo').src;
+  gsap.set(hero, { x: r.left + r.width / 2 - LON / 2, y: r.top + r.height / 2 - LON / 2,
+                   scale: r.width / LON, force3D: true });
+  gsap.set(dau, { transformOrigin: '50% 50%', force3D: true });
   gsap.set($('.mk-tb'), { top: CY + 74 * THANG + 20 });
-  gsap.set(khung, { visibility: 'hidden' });
 
-  const cua = [$('#mkCuaA'), $('#mkCuaB')];
-  const con = Array.prototype.slice.call(hop.children).filter(function (n) { return n !== khung; });
   const t = gsap.timeline({ defaults: { ease: 'power2.inOut' }, onComplete: moKhoCho_ });
-  t.to(con, { opacity: 0, y: 8, duration: 0.28, stagger: 0.012, ease: 'power1.in' }, 0)
-   .to(hop, { backgroundColor: 'rgba(255,255,255,0)', boxShadow: '0 0 0 rgba(0,0,0,0)', duration: 0.4 }, 0.1)
-   .set(cua, { visibility: 'visible', opacity: 0 }, 0.1)
-   .to(cua, { opacity: 1, duration: 0.5, ease: 'power1.out' }, 0.1)
-   .add(function () { dn.classList.add('an'); }, 0.62)
-   .to(hero, { x: CX - 52, y: CY - 52, scale: THANG, duration: 0.7 }, 0.12)
+  if (tuManHinhTai) {
+    t.set(cua, { visibility: 'visible', opacity: 0 }, 0)
+     .to(cua, { opacity: 1, duration: 0.4, ease: 'power1.out' }, 0)
+     .add(function () { mt.classList.add('an'); }, 0.42);
+  } else {
+    const khung = dn.querySelector('.dn-logo-khung'), hop = dn.querySelector('.dn-hop');
+    const con = Array.prototype.slice.call(hop.children).filter(function (n) { return n !== khung; });
+    gsap.set(khung, { visibility: 'hidden' });
+    t.to(con, { opacity: 0, y: 8, duration: 0.28, stagger: 0.012, ease: 'power1.in' }, 0)
+     .to(hop, { opacity: 0, duration: 0.3 }, 0.1)
+     .set(cua, { visibility: 'visible', opacity: 0 }, 0.1)
+     .to(cua, { opacity: 1, duration: 0.5, ease: 'power1.out' }, 0.1)
+     .add(function () { dn.classList.add('an'); }, 0.62);
+  }
+  t.to(hero, { x: CX - LON / 2, y: CY - LON / 2, scale: 1, duration: 0.7 }, 0.12)
    .to($('.mk-anh'), { opacity: 0, duration: 0.25 }, 0.12)
    .to(dau, { opacity: 1, duration: 0.25 }, 0.12)
    .to(dau, { rotation: 720, duration: 1.15, ease: 'power3.inOut' }, 0.2)
@@ -784,7 +803,11 @@ function moKhoBatDau_() {
 /** Quay khoá cho đến khi dữ liệu sẵn sàng, hết một vòng mới kiểm tra lại */
 function moKhoCho_() {
   if (!MO_KHO.chay) return;
-  if (MO_KHO.sanSang) { moKhoMoCua_(); return; }
+  if (MO_KHO.sanSang) {
+    // Nhường 2 khung hình để trình duyệt vẽ xong app dưới cửa rồi mới mở
+    requestAnimationFrame(function () { requestAnimationFrame(moKhoMoCua_); });
+    return;
+  }
   const lop = document.getElementById('moKho');
   const vong = lop.querySelector('.mk-vong'), dau = lop.querySelector('.mk-dau');
   const buoc = function (t, goc, tg) {
@@ -797,80 +820,82 @@ function moKhoCho_() {
 }
 
 function moKhoMoCua_() {
+  if (!MO_KHO.chay) return;
   const lop = document.getElementById('moKho'), $ = function (s) { return lop.querySelector(s); };
   const W = MO_KHO.W, H = MO_KHO.H, CX = MO_KHO.CX, CY = MO_KHO.CY, THANG = MO_KHO.THANG;
   const hero = $('.mk-hero'), dau = $('.mk-dau'), khe = $('.mk-khe'), sang = $('.mk-sang'), tia = $('.mk-tia');
   const a = $('.mk-a'), b = $('.mk-b'), de = $('.mk-de');
-  const ud = document.getElementById('ungDung');
   const logoApp = document.querySelector('.thuong-hieu .logo-cty');
 
   /* Điểm đến: hình logo nằm ở phần trên của ảnh logo trên thanh tiêu đề */
   const r = logoApp ? logoApp.getBoundingClientRect() : { left: 24, top: 12, width: 44, height: 44 };
-  const dx = (r.left + r.width / 2 - CX) / THANG, dy = (r.top + r.height * 0.34 - CY) / THANG;
-  const k = (r.width * 0.59) / (72 * THANG);
+  const dx = r.left + r.width / 2 - CX, dy = r.top + r.height * 0.34 - CY;
+  const k = (r.width * 0.59) / (72 * THANG), cheo = Math.hypot(W, H);
 
-  const D = Math.hypot(W, H) * 1.15;
-  gsap.set([sang, tia], { width: D, height: D, left: CX - D / 2, top: CY - D / 2 });
-  gsap.set(khe, { top: CY, rotation: -49.6, scaleX: 0 });
-  gsap.set(de, { x: r.left, y: r.top, width: r.width, height: r.height, scale: 0.4, opacity: 0, visibility: 'visible' });
+  gsap.set(khe, { width: cheo * 1.3, marginLeft: -cheo * 0.65, top: CY, rotation: -49.6, scaleX: 0, force3D: true });
+  [sang, tia].forEach(function (e) {
+    gsap.set(e, { x: CX - 256, y: CY - 256, scale: cheo * 1.15 / 512, opacity: 0, visibility: 'visible', force3D: true });
+  });
+  gsap.set(de, { x: r.left, y: r.top, width: r.width, height: r.height, scale: 0.4, opacity: 0, visibility: 'visible', force3D: true });
+  gsap.set([a, b], { force3D: true });
   if (logoApp) gsap.set(logoApp, { opacity: 0 });
-  gsap.set([a, b], { svgOrigin: '137 100' });
 
   const t = gsap.timeline({ onComplete: moKhoKetThuc_ });
-  t.to(hero, { scale: THANG * 1.07, duration: 0.09, yoyo: true, repeat: 1, ease: 'power1.inOut' }, 0)
+  t.to(hero, { scale: 1.06, duration: 0.1, yoyo: true, repeat: 1, ease: 'sine.inOut' }, 0)
    .to($('.mk-tb'), { opacity: 0, duration: 0.15 }, 0)
    .addLabel('khe', 0.28)
    .set(khe, { visibility: 'visible' }, 'khe')
    .to(khe, { scaleX: 1, duration: 0.26, ease: 'power2.out' }, 'khe')
-   .set([sang, tia], { visibility: 'visible', opacity: 0 }, 'khe+=.2')
-   .set(ud, { scale: 1.05 }, 'khe+=.2')
    .addLabel('mo', 'khe+=.34')
    .to(khe, { scaleY: 9, opacity: 0, duration: 0.5, ease: 'power2.out' }, 'mo')
-   .to(sang, { opacity: 0.9, duration: 0.3, ease: 'power1.out' }, 'mo')
-   .to(tia, { opacity: 0.8, rotation: 25, duration: 0.5, ease: 'power1.out' }, 'mo')
-   .to('#mkCuaA', { x: -W * 1.1, y: -H * 1.1, duration: 1.05, ease: 'power3.inOut' }, 'mo')
-   .to('#mkCuaB', { x: W * 1.1, y: H * 1.1, duration: 1.05, ease: 'power3.inOut' }, 'mo')
-   .to($('.mk-dia'), { opacity: 0, duration: 0.22 }, 'mo')
-   .to($('.mk-vong'), { opacity: 0, scale: 1.5, duration: 0.35, ease: 'power1.out' }, 'mo')
-   /* Logo bay vòng cung về thanh tiêu đề (x và y khác nhịp tạo đường cong) */
-   .to(dau, { x: dx, duration: 1, ease: 'power2.in' }, 'mo')
-   .to(dau, { y: dy, duration: 1, ease: 'power3.out' }, 'mo')
-   .to(dau, { scale: k, duration: 1, ease: 'power2.inOut' }, 'mo')
-   .to(a, { x: -70, y: -10, duration: 0.5, ease: 'sine.out' }, 'mo')
-   .to(b, { x: 70, y: 10, duration: 0.5, ease: 'sine.out' }, 'mo')
-   .to(a, { x: 0, y: 0, duration: 0.5, ease: 'back.in(1.3)' }, 'mo+=.5')
-   .to(b, { x: 0, y: 0, duration: 0.5, ease: 'back.in(1.3)' }, 'mo+=.5')
-   .to(de, { scale: 1, opacity: 1, duration: 0.3, ease: 'power2.out' }, 'mo+=.7')
-   .to(sang, { opacity: 0, duration: 0.55, ease: 'power1.in' }, 'mo+=.6')
-   .to(tia, { opacity: 0, rotation: 50, duration: 0.55, ease: 'power1.in' }, 'mo+=.6')
-   .to(ud, { scale: 1, duration: 0.85, ease: 'power2.out' }, 'mo+=.1');
+   .to(sang, { opacity: 0.9, duration: 0.35, ease: 'sine.out' }, 'mo-=.06')
+   .to(tia, { opacity: 0.8, rotation: 24, duration: 0.6, ease: 'sine.out' }, 'mo-=.06')
+   .to('#mkCuaA', { x: -0.761 * MO_KHO.diCua, y: -0.648 * MO_KHO.diCua, duration: 1.1, ease: 'power2.inOut', force3D: true }, 'mo')
+   .to('#mkCuaB', { x: 0.761 * MO_KHO.diCua, y: 0.648 * MO_KHO.diCua, duration: 1.1, ease: 'power2.inOut', force3D: true }, 'mo')
+   .to($('.mk-dia'), { opacity: 0, duration: 0.25, ease: 'sine.out' }, 'mo')
+   .to($('.mk-vong'), { opacity: 0, scale: 1.4, duration: 0.4, ease: 'sine.out' }, 'mo')
+   /* Logo bay vòng cung về thanh tiêu đề: x và y khác nhịp tạo đường cong */
+   .to(dau, { x: dx, duration: 1.2, ease: 'sine.inOut', force3D: true }, 'mo')
+   .to(dau, { y: dy, duration: 1.2, ease: 'power2.out', force3D: true }, 'mo')
+   .to(dau, { scale: k, duration: 1.2, ease: 'sine.inOut', force3D: true }, 'mo')
+   .to(a, { x: -46, y: -8, duration: 0.55, ease: 'sine.out' }, 'mo')
+   .to(b, { x: 46, y: 8, duration: 0.55, ease: 'sine.out' }, 'mo')
+   .to(a, { x: 0, y: 0, duration: 0.65, ease: 'sine.inOut' }, 'mo+=.55')
+   .to(b, { x: 0, y: 0, duration: 0.65, ease: 'sine.inOut' }, 'mo+=.55')
+   .to(de, { scale: 1, opacity: 1, duration: 0.35, ease: 'sine.out' }, 'mo+=.85')
+   .to(sang, { opacity: 0, duration: 0.6, ease: 'sine.in' }, 'mo+=.6')
+   .to(tia, { opacity: 0, rotation: 44, duration: 0.6, ease: 'sine.in' }, 'mo+=.6');
 
   lop.querySelectorAll('.mk-hat').forEach(function (h, i) {
     const goc = (i * 137.5) * Math.PI / 180, xa = Math.min(W, H) * (0.28 + ((i * 7) % 11) / 18);
-    gsap.set(h, { left: CX, top: CY, skewX: -40 });
+    gsap.set(h, { left: CX, top: CY, skewX: -40, force3D: true });
     t.set(h, { visibility: 'visible', opacity: 1, scale: 0.5 + ((i * 3) % 7) / 7 }, 'mo+=.05')
      .to(h, { x: Math.cos(goc) * xa, y: Math.sin(goc) * xa, rotation: i * 40,
-              duration: 0.8 + (i % 5) * 0.08, ease: 'power2.out' }, 'mo+=.05')
-     .to(h, { opacity: 0, duration: 0.3 }, 'mo+=' + (0.5 + (i % 4) * 0.12));
+              duration: 0.9 + (i % 5) * 0.08, ease: 'power2.out' }, 'mo+=.05')
+     .to(h, { opacity: 0, duration: 0.35 }, 'mo+=' + (0.55 + (i % 4) * 0.12));
   });
 
   /* Logo chạm đích: nhịp nẩy nhẹ trên thanh tiêu đề */
   t.add(function () {
     if (logoApp) gsap.fromTo(logoApp, { opacity: 1, scale: 1 },
-      { scale: 1.16, duration: 0.13, yoyo: true, repeat: 1, ease: 'power1.inOut', clearProps: 'all' });
+      { scale: 1.12, duration: 0.14, yoyo: true, repeat: 1, ease: 'sine.inOut', clearProps: 'all' });
     lop.style.pointerEvents = 'none';
     gsap.set(de, { visibility: 'hidden' });
     gsap.set(hero, { visibility: 'hidden' });
-  }, 'mo+=1');
+  }, 'mo+=1.2');
   MO_KHO.tl.push(t);
 }
 
-/** Dữ liệu đã nạp xong và app đã hiện dưới lớp phủ */
+/** Dữ liệu đã nạp xong: chờ ảnh trong app giải mã (tối đa 1,2 giây) rồi cho phép mở cửa */
 function moKhoDuLieuSanSang_() {
   if (!MO_KHO.chay) return;
-  MO_KHO.sanSang = true;
   clearTimeout(MO_KHO.an_toan);
-  MO_KHO.an_toan = setTimeout(moKhoKetThuc_, 7000);   // chốt an toàn: không để lớp phủ che kẹt app
+  MO_KHO.an_toan = setTimeout(moKhoKetThuc_, 9000);   // chốt an toàn: không để lớp phủ che kẹt app
+  const anh = Array.prototype.slice.call(document.querySelectorAll('#ungDung img'))
+    .filter(function (i) { return i.src && i.decode; })
+    .map(function (i) { return i.decode().catch(function () {}); });
+  const bao = function () { MO_KHO.sanSang = true; };
+  Promise.race([Promise.all(anh), new Promise(function (ok) { setTimeout(ok, 1200); })]).then(bao, bao);
 }
 
 /** Trả màn hình đăng nhập về nguyên trạng để lần đăng xuất sau dùng lại */
@@ -886,11 +911,9 @@ function moKhoDonDep_() {
   if (dn) {
     dn.style.pointerEvents = '';
     const hop = dn.querySelector('.dn-hop');
-    gsap.set(hop, { clearProps: 'backgroundColor,boxShadow' });
+    gsap.set(hop, { clearProps: 'opacity' });
     gsap.set(hop.children, { clearProps: 'opacity,transform,visibility' });
   }
-  const ud = document.getElementById('ungDung');
-  if (ud) gsap.set(ud, { clearProps: 'transform' });
   const logoApp = document.querySelector('.thuong-hieu .logo-cty');
   if (logoApp && !gsap.isTweening(logoApp)) gsap.set(logoApp, { clearProps: 'opacity,transform' });
 }
