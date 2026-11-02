@@ -446,7 +446,8 @@ const COT_HIEN_KHACH = [
 const KHOA_CAU_HINH_KHACH = [
   'AnhMasterKCN', 'ViewBoxMaster', 'BrochureChungKCN',
   'AnhMasterKCN_LP', 'ViewBoxMaster_LP',                      // ★ V5.0
-  'LinkHoSoKCN', 'LinkHoSoKCN_VI', 'LinkHoSoKCN_EN', 'LinkHoSoKCN_ZH'
+  'LinkHoSoKCN', 'LinkHoSoKCN_VI', 'LinkHoSoKCN_EN', 'LinkHoSoKCN_ZH',
+  'LinkHoSoKCN_LP', 'LinkHoSoKCN_LP_VI', 'LinkHoSoKCN_LP_EN', 'LinkHoSoKCN_LP_ZH'   // ★ V5.1.1
 ];
 
 const COT_CUM_KHACH = [
