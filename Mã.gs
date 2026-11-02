@@ -32,6 +32,75 @@ const TEN_SHEET = {
 const THOI_GIAN_CACHE = 300; // giây
 
 /***********************************************************************
+ * ★ V5.2 — CACHE DỮ LIỆU TỔNG HỢP NÉN GZIP, CHIA MẢNH
+ *  CacheService chỉ cho lưu tối đa 100 KB mỗi khoá, trong khi dữ liệu tổng
+ *  hợp vượt xa mức này nên trước đây cache không lưu được.
+ *  • Khoá chính DU_LIEU_TONG_HOP giữ { ma, soManh }; dữ liệu nén nằm ở các
+ *    khoá mảnh. Mọi nơi xoá khoá chính (remove) vẫn làm cache mất hiệu lực.
+ *  • Mã lượt ghi ngẫu nhiên giúp không bao giờ ghép lẫn mảnh của 2 lần ghi.
+ ***********************************************************************/
+const KHOA_CACHE_TONG_HOP = 'DU_LIEU_TONG_HOP';
+const CO_MANH_CACHE = 90000;  // ký tự base64 mỗi mảnh (dưới giới hạn 100 KB)
+
+function ghiCacheTongHop_(cache, duLieu) {
+  const nen = Utilities.base64Encode(
+    Utilities.gzip(Utilities.newBlob(JSON.stringify(duLieu), 'text/plain')).getBytes());
+  const ma = Utilities.getUuid().slice(0, 8);
+  const cacManh = {};
+  let soManh = 0;
+  for (let i = 0; i < nen.length; i += CO_MANH_CACHE) {
+    cacManh[KHOA_CACHE_TONG_HOP + '_' + ma + '_' + (soManh++)] = nen.substr(i, CO_MANH_CACHE);
+  }
+  cache.putAll(cacManh, THOI_GIAN_CACHE);
+  cache.put(KHOA_CACHE_TONG_HOP, JSON.stringify({ ma: ma, soManh: soManh }), THOI_GIAN_CACHE);
+}
+
+/** Trả về dữ liệu đã giải nén; thiếu mảnh hoặc lỗi thì trả null để đọc lại Sheet */
+function docCacheTongHop_(cache) {
+  try {
+    const dau = cache.get(KHOA_CACHE_TONG_HOP);
+    if (!dau) return null;
+    const tt = JSON.parse(dau);
+    const dsKhoa = [];
+    for (let i = 0; i < tt.soManh; i++) dsKhoa.push(KHOA_CACHE_TONG_HOP + '_' + tt.ma + '_' + i);
+    const cacManh = cache.getAll(dsKhoa);
+    const nen = dsKhoa.map(function (k) {
+      if (!cacManh[k]) throw new Error('Thiếu mảnh cache ' + k);
+      return cacManh[k];
+    }).join('');
+    return JSON.parse(Utilities.ungzip(
+      Utilities.newBlob(Utilities.base64Decode(nen), 'application/x-gzip')).getDataAsString('UTF-8'));
+  } catch (err) {
+    console.warn('Không đọc được cache tổng hợp: ' + err);
+    return null;
+  }
+}
+
+/** Chạy trong GAS Editor để kiểm tra cache: xem kết quả ở Nhật ký thực thi */
+function chanDoanCacheTongHop() {
+  const cache = CacheService.getScriptCache();
+  cache.remove(KHOA_CACHE_TONG_HOP);
+  const bd1 = Date.now();
+  const lan1 = layDuLieuTongHop({});
+  const t1 = Date.now() - bd1;
+  const conDau = cache.get(KHOA_CACHE_TONG_HOP);
+  const bd2 = Date.now();
+  layDuLieuTongHop({});
+  const t2 = Date.now() - bd2;
+  const kq = docCacheTongHop_(cache);
+  const baoCao = 'Lần 1: ' + t1 + ' ms | Lần 2: ' + t2 + ' ms | Khoá chính: ' + conDau
+    + ' | Đọc lại: ' + (kq ? kq.nhaXuong.length + ' dòng' : 'KHÔNG ĐƯỢC')
+    + ' | Dòng khách: ' + (lan1.nhaXuong || []).length;
+  console.log(baoCao);
+  return baoCao;
+}
+
+/** Sửa trực tiếp trên Sheet → bỏ cache để App thấy dữ liệu mới ngay */
+function onEdit() {
+  try { CacheService.getScriptCache().remove(KHOA_CACHE_TONG_HOP); } catch (e) {}
+}
+
+/***********************************************************************
  * ★ V4.0 — CÁC KHOÁ CẤU HÌNH CŨ (đã ngừng sử dụng)
  *  Giữ tên hằng số để tiếp tục XOÁ 2 dòng này khỏi dữ liệu gửi về trình
  *  duyệt, phòng trường hợp sheet DM_CauHinh vẫn còn lưu mật khẩu cũ.
@@ -343,9 +412,8 @@ function layNguoiDungTuPhien_(p) {
   const vaiTro = p.hopLe ? p.vaiTro : 'Khach';
 
   const cache = CacheService.getScriptCache();
-  const daCache = cache.get('DU_LIEU_TONG_HOP');
-  if (daCache) {
-    let kq = JSON.parse(daCache);
+  let kq = docCacheTongHop_(cache);   // ★ V5.2
+  if (kq) {
     if (vaiTro === 'Khach') kq = locDuLieuChoKhach_(kq);
     kq.nguoiDung = layNguoiDungTuPhien_(p);
     if (vaiTro !== 'Khach') kq.danhSachCanBo = layDanhSachCanBo_();
@@ -421,8 +489,8 @@ function layNguoiDungTuPhien_(p) {
   };
 
   try {
-    cache.put('DU_LIEU_TONG_HOP', JSON.stringify(ketQua), THOI_GIAN_CACHE);
-  } catch (err) { /* vượt giới hạn cache, bỏ qua */ }
+    ghiCacheTongHop_(cache, ketQua);   // ★ V5.2
+  } catch (err) { console.warn('Không ghi được cache tổng hợp: ' + err); }
 
   // Lọc cho khách SAU khi đã cache bản đầy đủ
   let ketQuaTra = (vaiTro === 'Khach') ? locDuLieuChoKhach_(ketQua) : ketQua;
@@ -859,6 +927,7 @@ function onOpen() {
     .addItem('🔓 Gỡ khoá đăng nhập tài khoản', 'moKhoaTamThoi')
     .addItem('🩺 Kiểm tra module tài khoản', 'kiemTraQuyen')
     .addItem('🔒 Thu hồi link công khai tài liệu hợp đồng', 'thuHoiChiaSeTaiLieuNoiBo')
+    .addItem('🧯 Xoá các file Excel tra cứu cũ (link công khai)', 'menuXoaFileXuatCu')
     .addSeparator()
     .addItem('🔍 Kiểm tra cột trùng tên', 'menuKiemTraCotTrung')
     .addItem('🧹 Dọn dữ liệu lệch cột', 'menuDonDuLieuLechCot')
@@ -925,54 +994,35 @@ function menuDoDungLuong() {
 
 
 /***********************************************************************
- * XUẤT EXCEL KẾT QUẢ TRA CỨU
+ * ★ V5.2 — XUẤT EXCEL KẾT QUẢ TRA CỨU
+ *  File được tạo ngay trên trình duyệt người dùng và tải thẳng về máy,
+ *  không còn tạo file có link công khai trên Drive. Server chỉ kiểm tra
+ *  quyền và ghi nhật ký xuất dữ liệu.
  ***********************************************************************/
-function xuatExcelTraCuu(tieuDe, duLieu, phien) {
-  // ★ Phân quyền TỪ SERVER: chế độ khách không được xuất Excel
+function ghiNhanXuatExcel(soDong, phien) {
   phien = phien || {};
   let p;
   try { p = layPhienTuToken_(phien.token); }
   catch (err) { p = { hopLe: false, vaiTro: 'Khach' }; }
-  const vaiTro = p.hopLe ? String(p.vaiTro || '').trim() : 'Khach';
-  if (vaiTro === 'Khach') {
+  if (!p.hopLe || String(p.vaiTro || '').trim() === 'Khach') {
     throw new Error('Chế độ khách không được xuất dữ liệu ra Excel.');
   }
-
-  const thoiDiem = Utilities.formatDate(new Date(), 'GMT+7', 'yyyyMMdd_HHmmss');
-  const ss = SpreadsheetApp.create('TraCuu_KCN_LongThanh_' + thoiDiem);
-  const sheet = ss.getSheets()[0];
-  sheet.setName('KetQuaLoc');
-
-  const bang = [tieuDe].concat(duLieu || []);
-  if (bang.length && bang[0].length) {
-    sheet.getRange(1, 1, bang.length, bang[0].length).setValues(bang);
-    sheet.getRange(1, 1, 1, bang[0].length)
-         .setFontWeight('bold').setBackground('#0B4696').setFontColor('#FFFFFF');
-    sheet.setFrozenRows(1);
-    sheet.autoResizeColumns(1, bang[0].length);
-  }
-  SpreadsheetApp.flush();
-
-  const id   = ss.getId();
-  const file = DriveApp.getFileById(id);
-  try {
-    thuMucXuatExcel_().addFile(file);
-    DriveApp.getRootFolder().removeFile(file);
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  } catch (e) {}
-
-  return 'https://docs.google.com/spreadsheets/d/' + id + '/export?format=xlsx';
+  ghiNhatKy_([[new Date(), p.email, '(tra cứu)', 'Xuất Excel', '', Number(soDong) + ' dòng']]);
+  return true;
 }
 
-function thuMucXuatExcel_() {
-  const ten = '05_Xuat_TraCuu';
-  const it  = DriveApp.getFoldersByName(ten);
-  const thuMuc = it.hasNext() ? it.next() : DriveApp.createFolder(ten);
-  const nguong = new Date().getTime() - 7 * 24 * 60 * 60 * 1000;
-  const ff = thuMuc.getFiles();
-  while (ff.hasNext()) {
-    const f = ff.next();
-    if (f.getDateCreated().getTime() < nguong) f.setTrashed(true);
+/** Bỏ vào thùng rác mọi file trong thư mục xuất cũ — các file này đang có link công khai */
+function xoaFileXuatCu_() {
+  let dem = 0;
+  const dsThuMuc = DriveApp.getFoldersByName('05_Xuat_TraCuu');
+  while (dsThuMuc.hasNext()) {
+    const ff = dsThuMuc.next().getFiles();
+    while (ff.hasNext()) { ff.next().setTrashed(true); dem++; }
   }
-  return thuMuc;
+  return dem;
+}
+
+function menuXoaFileXuatCu() {
+  const dem = xoaFileXuatCu_();
+  SpreadsheetApp.getUi().alert('✓ Đã chuyển ' + dem + ' file Excel tra cứu cũ vào thùng rác.');
 }

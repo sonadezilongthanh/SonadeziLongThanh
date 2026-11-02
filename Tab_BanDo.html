@@ -252,6 +252,17 @@ function homNay_() {
  ***********************************************************************/
 const SO_NGAY_CANH_BAO = 180; // ~ 6 tháng
 
+/** ★ V5.2 — Đọc hạn ghi dạng MM/yyyy hoặc "tháng MM/yyyy" → ngày cuối tháng.
+ *  Tách riêng khỏi docNgay_() để không làm sai ngày kỷ niệm thành lập. */
+function docThangNam_(giaTri) {
+  const m = String(giaTri === null || giaTri === undefined ? '' : giaTri)
+    .match(/(?:^|[^\d\/\-.])(\d{1,2})\s*[\/\-.]\s*(\d{4})(?!\d)/);
+  if (!m) return null;
+  const thang = +m[1];
+  if (thang < 1 || thang > 12) return null;
+  return new Date(+m[2], thang, 0);
+}
+
 function phanTichHanThue_(nx) {
   // (1) Cột ngày hết hạn hợp đồng
   let d = docNgay_(nx.NgayHetHanHD);
@@ -263,6 +274,10 @@ function phanTichHanThue_(nx) {
   // (2a) Thời hạn thuê ghi thẳng bằng một ngày cụ thể
   d = docNgay_(chuoiHan);
   if (d) return { ngay: d, suyRa: '' };
+
+  // ★ V5.2 — (2a') Ngày hết hạn chỉ ghi tháng/năm
+  d = docThangNam_(nx.NgayHetHanHD) || docThangNam_(chuoiHan);
+  if (d) return { ngay: d, suyRa: 'tính đến cuối tháng' };
 
   // (2b) Chuỗi mô tả có chứa năm 4 chữ số -> lấy năm CUỐI CÙNG, quy ước 31/12
   const dsNam = chuoiHan.match(/\b(19|20|21)\d{2}\b/g);

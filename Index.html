@@ -69,8 +69,8 @@
 
   <!-- ---------- BỘ LỌC (★ V5.0: tìm kiếm luôn hiện; bộ lọc gom vào khối mở ra) ---------- -->
   <div class="bo-loc" id="thanhBoLoc">
-    <input type="text" id="oTimKiem" aria-label="Tìm theo mã, tên nhà xưởng, khách thuê, ghi chú"
-           placeholder="Tìm theo mã, tên nhà xưởng, khách thuê…">
+    <input type="text" id="oTimKiem" aria-label="Tìm theo mã, tên, khách thuê, ngành nghề, số hợp đồng, ghi chú; gõ có dấu hoặc không dấu"
+           placeholder="Tìm mã, tên, khách thuê, ngành nghề, số HĐ…">
 
     <div class="nen-loc" id="nenLoc" onclick="dongBoLocV5()"></div>
     <div class="khoi-loc" id="khoiLoc">
@@ -102,6 +102,14 @@
         <select id="locCanBoPhuTrach" aria-label="Cán bộ phụ trách">
           <option value="">Tất cả cán bộ phụ trách</option>
           <!-- Các option còn lại nạp động theo dữ liệu đang khớp -->
+        </select>
+
+        <select id="locHetHan" aria-label="Thời hạn hợp đồng">
+          <option value="">Tất cả thời hạn hợp đồng</option>
+          <option value="3">Hết hạn trong 3 tháng</option>
+          <option value="6">Hết hạn trong 6 tháng</option>
+          <option value="12">Hết hạn trong 12 tháng</option>
+          <option value="da-het">Đã hết hạn</option>
         </select>
 
         <input type="text" id="locNganhNghe" aria-label="Ngành nghề, sản phẩm"

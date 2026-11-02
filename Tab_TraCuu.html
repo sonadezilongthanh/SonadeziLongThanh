@@ -73,6 +73,14 @@
   .chip-nhom.bat { background: #e3edfb; border-color: #0B4696; color: #0B4696; }
   .chip-nhom .dau { font-size: 12px; }
   .thanh-nhom-cot .nut-nho { margin-left: auto; }
+
+  /* ★ V5.2 — sắp xếp theo cột, lý do khớp tìm kiếm */
+  .khung-bang th[data-sx] { cursor: pointer; user-select: none; }
+  .khung-bang th[data-sx]:hover { color: #0B4696; }
+  .khung-bang th[data-sx]:focus-visible { outline: 2px solid #0B4696; outline-offset: -2px; }
+  .khung-bang th .mui-sx { font-size: 11px; color: #0B4696; }
+  .khung-bang td[data-nhan="Khớp theo"] { font-size: 12px; color: #5b6b7a; line-height: 1.4; }
+  .khung-bang td[data-nhan="Khớp theo"] b { color: #334155; }
 </style>
 
 <!-- ★ V3.6 — Bật/tắt từng nhóm cột để bảng gọn hơn khi tiếp khách -->
@@ -166,14 +174,15 @@ const COT_DAT_CHO_THUE = COT_CHUNG_TRUOC.concat(COT_RIENG_DAT,       COT_CHUNG_S
  *    (mọi dòng đều giống nhau nên không mang thông tin).
  ***********************************************************************/
 const O_DINH_DANH = {
-  'Mã'            : function (nx) { return '<b>' + (nx.MaDonVi || '') + '</b>'; },
-  'Tên nhà xưởng' : function (nx) { return nx.TenNhaXuong || ''; },
-  'Khu vực'       : function (nx) { return nx.MaCum || ''; },
-  'Loại hình'     : function (nx) { return nx.LoaiHinh || ''; },
+  'Mã'            : function (nx) { return '<b>' + _escHTML(nx.MaDonVi || '') + '</b>'; },
+  'Tên nhà xưởng' : function (nx) { return _escHTML(nx.TenNhaXuong || ''); },
+  'Khách thuê'    : function (nx) { return _escHTML(nx.KhachThue || ''); },   // ★ V5.2
+  'Khu vực'       : function (nx) { return _escHTML(_tenCum(nx.MaCum) || ''); },   // ★ V5.2: tên cụm thay mã
+  'Loại hình'     : function (nx) { return _escHTML(nx.LoaiHinh || ''); },
   'Trạng thái'    : function (nx) {
       const mau = MAU_TRANG_THAI[String(nx.TrangThai).trim()] || MAU_MAC_DINH;
       return '<span class="chip chip-mem" style="--mau-tt:' + mau + '">'
-           + (nx.TrangThai || '—') + '</span>';
+           + _escHTML(nx.TrangThai || '—') + '</span>';
     }
 };
 
@@ -181,13 +190,119 @@ function cotDinhDanhTheoLoaiHinh(loaiHinh) {
   if (loaiHinh === 'Nhà xưởng')    return ['Mã', 'Tên nhà xưởng', 'Trạng thái'];
   if (loaiHinh === 'Đất cho thuê') return ['Mã', 'Trạng thái'];
   if (loaiHinh === 'Đất ở KDC')    return ['Mã', 'Tên nhà xưởng', 'Trạng thái'];   // ★ V4.7
-  return ['Mã', 'Tên nhà xưởng', 'Khu vực', 'Loại hình', 'Trạng thái'];
+  // ★ V5.2: nội bộ thấy khách thuê ngay ở chế độ "Tất cả" (khách không có dữ liệu này)
+  return laKhach()
+    ? ['Mã', 'Tên nhà xưởng', 'Khu vực', 'Loại hình', 'Trạng thái']
+    : ['Mã', 'Tên nhà xưởng', 'Khách thuê', 'Khu vực', 'Loại hình', 'Trạng thái'];
 }
 
 let LOAI_HINH_DANG_LOC   = '';   // Loại hình của lần render gần nhất
 let COT_DINH_DANH_HIEN   = [];   // Tên các cột định danh đang hiển thị
 let COT_RIENG_DANG_HIEN  = [];   // Cột riêng SAU khi lọc theo nhóm đang bật
 let COT_RIENG_DAY_DU     = [];   // Cột riêng đầy đủ — dùng cho Xuất Excel
+let BO_LOC_HIEN          = null; // ★ V5.2: bộ lọc của lần render gần nhất
+let CO_COT_KHOP          = false;// ★ V5.2: đang hiện cột "Khớp theo"
+let SAP_XEP              = { cot: '', huong: 1 };   // ★ V5.2: 1 = tăng dần, -1 = giảm dần
+
+
+/***********************************************************************
+ * ★ V5.2 — SẮP XẾP THEO CỘT
+ ***********************************************************************/
+const COT_SAP_XEP_SO = {
+  'Tổng vốn đầu tư'       : 'TongVonDauTu_USD',
+  'DT nhà xưởng (m²)'     : 'DienTichXuong_m2',
+  'DT văn phòng (m²)'     : 'DienTichVanPhong',
+  'DT khu đất (m²)'       : 'DienTichKhuDat_m2',
+  'Tổng DT đất thuê (m²)' : 'Tong DienTichDatThue (m2)',
+  'DT thuê thêm (m²)'     : 'DienTichDatThueThem (m2)'
+};
+const COT_SAP_XEP_NGAY = ['Ngày thành lập', 'Bản thỏa thuận — Ngày',
+                          'Bản thỏa thuận — Hết hạn', 'Hợp đồng — Ngày'];
+const COT_SAP_XEP_GOC = {
+  'Mã': 'MaDonVi', 'Tên nhà xưởng': 'TenNhaXuong', 'Khách thuê': 'KhachThue',
+  'Loại hình': 'LoaiHinh', 'Trạng thái': 'TrangThai'
+};
+
+/** Giá trị dùng để so sánh; null = ô trống, luôn xếp cuối */
+function khoaSapXep_(ten, nx, cotRieng) {
+  if (ten === 'Hết hạn hợp đồng') {
+    const kq = phanTichHanThue_(nx);
+    return kq ? kq.ngay.getTime() : null;
+  }
+  if (COT_SAP_XEP_SO[ten]) {
+    return docSoLinhHoat_(nx[COT_SAP_XEP_SO[ten]] || '');
+  }
+  const tho = (ten === 'Khu vực') ? _tenCum(nx.MaCum)
+            : COT_SAP_XEP_GOC[ten] ? nx[COT_SAP_XEP_GOC[ten]]
+            : cotRieng ? cotRieng[1](nx) : '';
+  if (COT_SAP_XEP_NGAY.indexOf(ten) >= 0) {
+    const d = docNgay_(tho);
+    return d ? d.getTime() : null;
+  }
+  const chu = String(tho === null || tho === undefined ? '' : tho).trim();
+  return chu || null;
+}
+
+function sapXepKetQua_(ds) {
+  if (!SAP_XEP.cot) return ds;
+  const cotRieng = COT_RIENG_DANG_HIEN.filter(function (c) { return c[0] === SAP_XEP.cot; })[0];
+  if (!cotRieng && COT_DINH_DANH_HIEN.indexOf(SAP_XEP.cot) < 0) return ds;   // cột đã bị ẩn
+  return ds.map(function (nx) {
+    return { nx: nx, khoa: khoaSapXep_(SAP_XEP.cot, nx, cotRieng) };
+  }).sort(function (a, b) {
+    if (a.khoa === null || b.khoa === null) return (a.khoa === null) - (b.khoa === null);
+    const kq = (typeof a.khoa === 'number' && typeof b.khoa === 'number')
+      ? a.khoa - b.khoa
+      : String(a.khoa).localeCompare(String(b.khoa), 'vi', { numeric: true });
+    return kq * SAP_XEP.huong;
+  }).map(function (d) { return d.nx; });
+}
+
+/** Bấm tiêu đề: tăng dần → giảm dần → bỏ sắp xếp */
+function doiSapXep(ten) {
+  if (SAP_XEP.cot !== ten)        SAP_XEP = { cot: ten, huong: 1 };
+  else if (SAP_XEP.huong === 1)   SAP_XEP.huong = -1;
+  else                            SAP_XEP = { cot: '', huong: 1 };
+  renderTieuDeBang(LOAI_HINH_DANG_LOC);
+  renderBangTraCuu(KET_QUA_LOC);
+  const th = document.querySelector('#dauBang th[data-sx="' + ten + '"]');
+  if (th) th.focus();
+}
+
+function thTieuDe_(ten, thuocTinh) {
+  const dangXep = SAP_XEP.cot === ten;
+  const aria = dangXep ? (SAP_XEP.huong === 1 ? 'ascending' : 'descending') : 'none';
+  return '<th' + (thuocTinh || '') + ' data-sx="' + ten + '" tabindex="0" aria-sort="' + aria + '"'
+       + ' title="Bấm để sắp xếp">' + ten
+       + (dangXep ? ' <span class="mui-sx">' + (SAP_XEP.huong === 1 ? '▲' : '▼') + '</span>' : '')
+       + '</th>';
+}
+
+
+/***********************************************************************
+ * ★ V5.2 — CỘT "KHỚP THEO": cho biết từ khoá khớp ở trường nào
+ ***********************************************************************/
+function trichDoan_(goc, tu, nhieuTu) {
+  const s = String(goc).replace(/\s+/g, ' ').trim();
+  const vt = viTriTu_(boDau_(s), tu, nhieuTu);
+  if (vt < 0) return s.slice(0, 50);
+  const dau = Math.max(0, vt - 20), cuoi = Math.min(s.length, vt + tu.length + 30);
+  return (dau > 0 ? '…' : '') + s.slice(dau, cuoi) + (cuoi < s.length ? '…' : '');
+}
+
+function lyDoKhop_(nx, dsTu) {
+  const daHien = COT_DINH_DANH_HIEN.concat(COT_RIENG_DANG_HIEN.map(function (c) { return c[0]; }));
+  const ds = [];
+  COT_TIM_KIEM.forEach(function (c) {
+    if (ds.length >= 2 || daHien.indexOf(c.nhan) >= 0) return;
+    const goc = c.lay(nx);
+    if (!goc) return;
+    const chuan = boDau_(goc);
+    const tu = dsTu.filter(function (t) { return viTriTu_(chuan, t, dsTu.length > 1) >= 0; })[0];
+    if (tu) ds.push('<b>' + c.nhan + ':</b> ' + _escHTML(trichDoan_(goc, tu, dsTu.length > 1)));
+  });
+  return ds.join('<br>') || '—';
+}
 
 
 /***********************************************************************
@@ -268,13 +383,14 @@ function renderTieuDeBang(loaiHinh) {
   });
   COT_DINH_DANH_HIEN  = cotDinhDanhTheoLoaiHinh(loaiHinh);
 
+  CO_COT_KHOP = !laKhach() && !!(BO_LOC_HIEN && BO_LOC_HIEN.dsTu.length && !BO_LOC_HIEN.maChinhXac);
+
   const dauDinhDanh = COT_DINH_DANH_HIEN.map(function (t) {
-    return '<th>' + t + '</th>';
-  }).join('');
+    return thTieuDe_(t);
+  }).join('') + (CO_COT_KHOP ? '<th data-rong>Khớp theo</th>' : '');
 
   const giuaBang = COT_RIENG_DANG_HIEN.map(function (c) {
-    const rong = (c[0] === 'Ngành nghề, sản phẩm');
-    return '<th' + (rong ? ' data-rong' : '') + '>' + c[0] + '</th>';
+    return thTieuDe_(c[0], (c[0] === 'Ngành nghề, sản phẩm') ? ' data-rong' : '');
   }).join('');
 
   document.getElementById('dauBang').innerHTML =
@@ -283,7 +399,7 @@ function renderTieuDeBang(loaiHinh) {
 
 function renderBangTraCuu(ds) {
   const than = document.getElementById('thanBang');
-  const soCotTong = COT_DINH_DANH_HIEN.length + COT_RIENG_DANG_HIEN.length + 1;
+  const soCotTong = COT_DINH_DANH_HIEN.length + COT_RIENG_DANG_HIEN.length + 1 + (CO_COT_KHOP ? 1 : 0);
 
   if (!ds || ds.length === 0) {
     than.innerHTML =
@@ -292,7 +408,7 @@ function renderBangTraCuu(ds) {
     return;
   }
 
-  than.innerHTML = ds.map(function (nx) {
+  than.innerHTML = sapXepKetQua_(ds).map(function (nx) {
     const ma = nx.MaDonVi;
 
     let nutMaps = '';
@@ -305,10 +421,11 @@ function renderBangTraCuu(ds) {
 
     const cotDinhDanhHtml = COT_DINH_DANH_HIEN.map(function (t) {
       return '<td data-nhan="' + t + '">' + O_DINH_DANH[t](nx) + '</td>';
-    }).join('');
+    }).join('') + (CO_COT_KHOP
+      ? '<td data-nhan="Khớp theo">' + lyDoKhop_(nx, BO_LOC_HIEN.dsTu) + '</td>' : '');
 
     const cotRiengHtml = COT_RIENG_DANG_HIEN.map(function (c) {
-      return '<td data-nhan="' + c[0] + '">' + c[1](nx) + '</td>';
+      return '<td data-nhan="' + c[0] + '">' + _escHTML(c[1](nx)) + '</td>';
     }).join('');
 
     return ''

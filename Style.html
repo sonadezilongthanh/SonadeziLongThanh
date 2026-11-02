@@ -832,6 +832,9 @@ body{color:var(--mau-chu)}
 .bo-loc.mo-them .loc-them{display:flex}
 .cap-dt{display:contents}
 .loc-them #locDTMin,.loc-them #locDTMax{width:120px}
+/* ★ V5.2 — khách không có dữ liệu cho các ô lọc nội bộ */
+.bo-loc.la-khach .loc-them{display:none !important}
+@media (min-width:701px){.bo-loc.la-khach #nutMoLoc{display:none}}
 .nhan-loc-so{display:none}
 .nut-mo-loc{height:var(--cao-nut);padding:0 12px;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--mau-chinh);border-radius:var(--bo-nho);background:#fff;color:var(--mau-chinh);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
 .dem-loc{min-width:20px;height:20px;border-radius:10px;background:var(--mau-chinh);color:#fff;font-size:12px;display:inline-flex;align-items:center;justify-content:center}

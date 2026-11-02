@@ -227,6 +227,17 @@ function capNhatChipVaiTro() {
   // ★ Chế độ khách: ẩn nút Xuất Excel (không được xuất dữ liệu)
   const nutXuat = document.getElementById('nutXuatExcel');
   if (nutXuat) nutXuat.style.display = laKhach() ? 'none' : '';
+
+  // ★ V5.2 — khách không có dữ liệu cho các ô lọc nội bộ: ẩn đi và xoá giá trị cũ
+  const thanhLoc = document.getElementById('thanhBoLoc');
+  if (thanhLoc) thanhLoc.classList.toggle('la-khach', laKhach());
+  if (laKhach()) {
+    ['locQuocTich', 'locCanBoPhuTrach', 'locHetHan', 'locNganhNghe', 'locDTMin', 'locDTMax']
+      .forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+  }
 }
 
 
@@ -1491,7 +1502,7 @@ async function xoaTaiKhoanDong(i) {
 /** Đổi MaCum -> TenCum để hiển thị trong danh sách chọn */
 function _tenCum(maCum) {
   const c = (DU_LIEU.cum || []).filter(function (x) { return x.MaCum === maCum; })[0];
-  return (c && c.TenCum) || maCum;
+  return (c && c.TenCum) || (maCum === MA_CUM_KCN ? 'Lô đất KCN' : maCum);   // ★ V5.2
 }
 
 /** Đổi email cán bộ -> Họ tên để hiển thị trong danh sách chọn (dạng thô, chưa escape —
@@ -1503,11 +1514,77 @@ function _tenCanBoLoc(email) {
   return (cb && cb.hoTen) || email;
 }
 
+/***********************************************************************
+ * ★ V5.2 — TÌM KIẾM KHÔNG DẤU, THEO TỪNG TỪ, TRÊN NHIỀU TRƯỜNG
+ ***********************************************************************/
+function boDau_(s) {
+  return String(s === null || s === undefined ? '' : s)
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[đĐ]/g, 'd').toLowerCase();
+}
+
+/** Các trường được tìm; nhãn dùng cho cột "Khớp theo" */
+const COT_TIM_KIEM = [
+  { nhan: 'Mã',                lay: function (nx) { return nx.MaDonVi; } },
+  { nhan: 'Tên nhà xưởng',     lay: function (nx) { return nx.TenNhaXuong; } },
+  { nhan: 'Khách thuê',        lay: function (nx) { return nx.KhachThue; } },
+  { nhan: 'Người đại diện',    lay: function (nx) { return nx.NguoiDaiDien; } },
+  { nhan: 'Ngành nghề, sản phẩm', lay: function (nx) { return docNganhNghe(nx); } },
+  { nhan: 'Quốc tịch',         lay: function (nx) { return nx.QuocTich; } },
+  { nhan: 'Hợp đồng — Số',     lay: function (nx) { return nx.SoHopDong; } },
+  { nhan: 'Bản thỏa thuận — Số', lay: function (nx) { return nx['BanThoaThuan - So']; } },
+  { nhan: 'Lô đất thuê',       lay: function (nx) { return nx.LoDatThue; } },
+  { nhan: 'Giấy chứng nhận đầu tư',       lay: function (nx) { return nx.GiayCNDT; } },
+  { nhan: 'Giấy chứng nhận doanh nghiệp', lay: function (nx) { return nx.GiayCNDN; } },
+  { nhan: 'Ghi chú',           lay: function (nx) { return nx.GhiChu; } }
+];
+
+/** Chuỗi tìm kiếm của 1 dòng; chỉ chuẩn hoá lại khi dữ liệu dòng thay đổi */
+function chuoiTimKiem_(nx) {
+  const goc = COT_TIM_KIEM.map(function (c) { return c.lay(nx) || ''; }).join('\n');
+  if (nx._tkGoc !== goc) { nx._tkGoc = goc; nx._tk = boDau_(goc); }
+  return nx._tk;
+}
+
+/** Vị trí của từ trong chuỗi đã chuẩn hoá, -1 nếu không có.
+ *  Tìm nhiều từ: mỗi từ phải là ĐẦU một từ trong dữ liệu ("det" không khớp "HIDETOSHI"),
+ *  trừ từ có chữ số (mã, số hợp đồng) vẫn được tìm ở giữa chuỗi. */
+function viTriTu_(chuoi, tu, nhieuTu) {
+  let vt = chuoi.indexOf(tu);
+  if (!nhieuTu || /\d/.test(tu)) return vt;
+  while (vt >= 0) {
+    if (vt === 0 || !/[a-z0-9]/.test(chuoi.charAt(vt - 1))) return vt;
+    vt = chuoi.indexOf(tu, vt + 1);
+  }
+  return -1;
+}
+
+/** Mã đơn vị cần lọc CHÍNH XÁC khi đi từ Bản đồ sang Tra cứu */
+let LOC_MA_CHINH_XAC = '';
+
+/** ★ V5.2 — Đọc số từ ô có thể ghi 20,297 | 2419,2 | 2.372,72 | 2.372 */
+function docSoLinhHoat_(raw) {
+  if (typeof raw === 'number') return raw;
+  let s = String(raw === null || raw === undefined ? '' : raw).replace(/\s/g, '');
+  const m = s.match(/^\d[\d.,]*/);
+  if (!m) return null;
+  s = m[0].replace(/[.,]$/, '');
+  const cuoiCham = s.lastIndexOf('.'), cuoiPhay = s.lastIndexOf(',');
+  if (cuoiCham >= 0 && cuoiPhay >= 0) {          // có cả 2 dấu: dấu đứng sau là thập phân
+    const thapPhan = cuoiCham > cuoiPhay ? '.' : ',';
+    s = s.split(thapPhan === '.' ? ',' : '.').join('').replace(thapPhan, '.');
+  } else if (cuoiPhay >= 0 || cuoiCham >= 0) {   // 1 loại dấu: đúng 3 số phía sau = phân cách nghìn
+    const dau = cuoiPhay >= 0 ? ',' : '.';
+    const phan = s.split(dau);
+    s = (phan.length > 2 || phan[1].length === 3) ? phan.join('') : phan.join('.');
+  }
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+
 /** Diện tích đại diện dùng cho bộ lọc khoảng m² */
 function soM2(nx) {
-  const raw = nx.DienTichXuong_m2 || nx['Tong DienTichDatThue (m2)'] || '';
-  const n = parseFloat(String(raw).replace(/,/g, ''));
-  return isNaN(n) ? null : n;
+  return docSoLinhHoat_(nx.DienTichXuong_m2 || nx['Tong DienTichDatThue (m2)'] || '');
 }
 
 /** ★ Khai báo tập trung 5 ô lọc dạng danh sách chọn. */
@@ -1548,9 +1625,21 @@ function docBoLoc() {
   const chon = {};
   O_LOC_CHON.forEach(function (c) { chon[c.id] = val(c.id); });
 
+  const tuKhoa = boDau_(val('oTimKiem')).trim();
+  const hetHan = val('locHetHan');
+  let mocHan = null;
+  if (hetHan && hetHan !== 'da-het') {
+    mocHan = homNay_();
+    mocHan.setMonth(mocHan.getMonth() + Number(hetHan));
+  }
+
   return {
-    tuKhoa   : val('oTimKiem').trim().toLowerCase(),
-    nganhNghe: val('locNganhNghe').trim().toLowerCase(),
+    tuKhoa   : tuKhoa,
+    dsTu     : tuKhoa ? tuKhoa.split(/\s+/) : [],
+    maChinhXac: (LOC_MA_CHINH_XAC && val('oTimKiem') === LOC_MA_CHINH_XAC) ? LOC_MA_CHINH_XAC : '',
+    hetHan   : hetHan,
+    mocHan   : mocHan,
+    nganhNghe: boDau_(val('locNganhNghe')).trim(),
     dtMin    : parseFloat(val('locDTMin')),
     dtMax    : parseFloat(val('locDTMax')),
     chon     : chon
@@ -1561,16 +1650,31 @@ function docBoLoc() {
 /* ---------- Vị từ lọc dùng chung ---------- */
 function khopBoLoc(nx, L, boQuaId) {
 
-  // 1. Từ khoá chung
-  if (L.tuKhoa) {
-    const chuoi = [nx.MaDonVi, nx.TenNhaXuong, nx.KhachThue, nx.GhiChu]
-                    .join(' ').toLowerCase();
-    if (chuoi.indexOf(L.tuKhoa) < 0) return false;
+  // 1. Từ khoá chung (★ V5.2: không dấu, đủ mọi từ, trên nhiều trường)
+  if (L.maChinhXac) {
+    if (String(nx.MaDonVi).trim() !== L.maChinhXac) return false;
+  } else if (L.dsTu.length) {
+    const chuoi = chuoiTimKiem_(nx);
+    for (let i = 0; i < L.dsTu.length; i++) {
+      if (viTriTu_(chuoi, L.dsTu[i], L.dsTu.length > 1) < 0) return false;
+    }
+  }
+
+  // ★ V5.2 — Thời hạn hợp đồng
+  if (L.hetHan) {
+    const han = phanTichHanThue_(nx);
+    if (!han) return false;
+    const nay = homNay_();
+    if (L.hetHan === 'da-het') {
+      if (han.ngay >= nay) return false;
+    } else if (han.ngay < nay || han.ngay > L.mocHan) {
+      return false;
+    }
   }
 
   // 2. Ngành nghề / sản phẩm (tìm gần đúng)
   if (L.nganhNghe) {
-    const nn = ((nx.NganhNghe_SanPham || '') + ' ' + (nx.NganhNghe || '')).toLowerCase();
+    const nn = boDau_((nx.NganhNghe_SanPham || '') + ' ' + (nx.NganhNghe || ''));
     if (nn.indexOf(L.nganhNghe) < 0) return false;
   }
 
@@ -1655,19 +1759,26 @@ function ganSuKien() {
     if (el) el.addEventListener('change', apDungBoLoc);
   });
 
+  const elHetHan = document.getElementById('locHetHan');   // ★ V5.2
+  if (elHetHan) elHetHan.addEventListener('change', apDungBoLoc);
+
   document.getElementById('nutXoaLoc').onclick = function () {
-    ['oTimKiem', 'locNganhNghe', 'locDTMin', 'locDTMax'].forEach(function (id) {
-      const el = document.getElementById(id);
-      if (el) el.value = '';
-    });
-    O_LOC_CHON.forEach(function (c) {
-      const el = document.getElementById(c.id);
-      if (el) el.value = '';
-    });
+    xoaBoLoc_();
     apDungBoLoc();
   };
 
   document.getElementById('nutXuatExcel').onclick = xuatExcel;
+
+  // ★ V5.2 — bấm tiêu đề cột để sắp xếp
+  const dauBang = document.getElementById('dauBang');
+  dauBang.addEventListener('click', function (ev) {
+    const th = ev.target.closest('th[data-sx]');
+    if (th) doiSapXep(th.dataset.sx);
+  });
+  dauBang.addEventListener('keydown', function (ev) {
+    const th = ev.target.closest('th[data-sx]');
+    if (th && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); doiSapXep(th.dataset.sx); }
+  });
 
   document.querySelectorAll('.tab').forEach(function (b) {
     b.onclick = function () { chuyenTab(b.dataset.tab); };
@@ -1675,9 +1786,23 @@ function ganSuKien() {
 }
 
 
+/** ★ V5.2 — Đưa toàn bộ ô lọc về trống */
+function xoaBoLoc_() {
+  LOC_MA_CHINH_XAC = '';
+  ['oTimKiem', 'locNganhNghe', 'locDTMin', 'locDTMax', 'locHetHan'].forEach(function (id) {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  O_LOC_CHON.forEach(function (c) {
+    const el = document.getElementById(c.id);
+    if (el) el.value = '';
+  });
+}
+
 /** ★ Bộ lọc tác động đồng thời lên CẢ 2 TAB */
 function apDungBoLoc() {
   const L = docBoLoc();
+  BO_LOC_HIEN = L;   // ★ V5.2
 
   // 1. Cập nhật lại toàn bộ danh sách chọn (real-time, exclude-self)
   capNhatOChon(L);
@@ -1708,34 +1833,94 @@ function xuatExcel() {
   const cotDinhDanh = [
     ['Mã',            function (nx) { return nx.MaDonVi || ''; }],
     ['Tên nhà xưởng', function (nx) { return nx.TenNhaXuong || ''; }],
-    ['Khu vực',       function (nx) { return nx.MaCum || ''; }],
+    ['Khu vực',       function (nx) { return _tenCum(nx.MaCum) || ''; }],   // ★ V5.2
     ['Loại hình',     function (nx) { return nx.LoaiHinh || ''; }],
     ['Trạng thái',    function (nx) { return nx.TrangThai || ''; }]
   ];
+  // ★ V5.2: chế độ "Tất cả" không có cột Tên nhà đầu tư → thêm cột Khách thuê
+  if (!COT_RIENG_DAY_DU.length) {
+    cotDinhDanh.splice(2, 0, ['Khách thuê', function (nx) { return nx.KhachThue || ''; }]);
+  }
 
-  const cot    = cotDinhDanh.concat(COT_RIENG_DAY_DU || COT_RIENG_DANG_HIEN);
+  const cot    = cotDinhDanh.concat(COT_RIENG_DAY_DU);
   const tieuDe = cot.map(function (c) { return c[0]; });
-  const duLieu = KET_QUA_LOC.map(function (nx) {
+  const duLieu = sapXepKetQua_(KET_QUA_LOC).map(function (nx) {   // ★ V5.2: giữ thứ tự đang xếp
     return cot.map(function (c) { return String(c[1](nx) || ''); });
   });
+  const bang = [tieuDe].concat(duLieu);
 
   const nut = document.getElementById('nutXuatExcel');
   const chuGoc = nut.textContent;
   nut.disabled = true;
   nut.textContent = '⏳ Đang tạo file…';
-  const cuaSo = window.open('', '_blank');
+  function xong() { nut.disabled = false; nut.textContent = chuGoc; }
 
+  // ★ V5.2 — server kiểm tra quyền + ghi nhật ký; file tạo ngay trên trình duyệt
   google.script.run
-    .withSuccessHandler(function (url) {
-      nut.disabled = false; nut.textContent = chuGoc;
-      if (cuaSo) cuaSo.location = url; else window.open(url, '_blank');
+    .withSuccessHandler(function () {
+      taiThuVienExcel_(function () {
+        try { taiFileExcel_(bang); }
+        catch (e) { taiFileCsv_(bang); }
+        xong();
+      }, function () {
+        taiFileCsv_(bang);
+        xong();
+      });
     })
     .withFailureHandler(function (loi) {
-      nut.disabled = false; nut.textContent = chuGoc;
-      if (cuaSo) cuaSo.close();
+      xong();
       alert('Lỗi khi xuất Excel: ' + loi.message);
     })
-    .xuatExcelTraCuu(tieuDe, duLieu, { token: PHIEN_SUA.token });
+    .ghiNhanXuatExcel(duLieu.length, { token: PHIEN_SUA.token });
+}
+
+/***********************************************************************
+ * ★ V5.2 — TẠO FILE EXCEL TRÊN TRÌNH DUYỆT
+ *  Thư viện chỉ tải khi bấm nút. Không tải được thì xuất CSV thay thế.
+ ***********************************************************************/
+const URL_THU_VIEN_EXCEL = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+
+function taiThuVienExcel_(xong, loi) {
+  if (window.XLSX) { xong(); return; }
+  const s = document.createElement('script');
+  s.src = URL_THU_VIEN_EXCEL;
+  s.onload = xong;
+  s.onerror = loi;
+  document.head.appendChild(s);
+}
+
+function tenFileXuat_(duoi) {
+  const d = new Date();
+  const so = function (n) { return String(n).padStart(2, '0'); };
+  return 'TraCuu_KCN_' + d.getFullYear() + so(d.getMonth() + 1) + so(d.getDate())
+       + '_' + so(d.getHours()) + so(d.getMinutes()) + so(d.getSeconds()) + '.' + duoi;
+}
+
+function taiFileExcel_(bang) {
+  const ws = XLSX.utils.aoa_to_sheet(bang);
+  ws['!cols'] = bang[0].map(function (t, i) {
+    const dai = bang.slice(0, 200).reduce(function (m, d) {
+      return Math.max(m, Math.min(String(d[i] || '').length, 45));
+    }, String(t).length);
+    return { wch: dai + 2 };
+  });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'KetQuaLoc');
+  XLSX.writeFile(wb, tenFileXuat_('xlsx'));
+}
+
+function taiFileCsv_(bang) {
+  const csv = bang.map(function (d) {
+    return d.map(function (o) { return '"' + String(o).replace(/"/g, '""') + '"'; }).join(',');
+  }).join('\r\n');
+  const url = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = tenFileXuat_('csv');
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
 }
 
 
@@ -1783,7 +1968,10 @@ function xemTrenBanDo(ma) {
 function xemTrongBang(ma) {
   dongPanel();
   chuyenTab('traCuu');
-  document.getElementById('oTimKiem').value = ma;
+  // ★ V5.2: bỏ bộ lọc cũ và lọc đúng mã, không lẫn mã khác có phần tên giống nhau
+  xoaBoLoc_();
+  LOC_MA_CHINH_XAC = String(ma).trim();
+  document.getElementById('oTimKiem').value = LOC_MA_CHINH_XAC;
   apDungBoLoc();
   setTimeout(function () {
     const dong = document.querySelector('tr[data-ma="' + ma + '"]');
