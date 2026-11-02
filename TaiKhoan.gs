@@ -21,6 +21,7 @@ const TK_SAI_TOI_DA  = 8;                    // Số lần sai trước khi kho�
 const TK_KHOA_GIAY   = 600;                  // Khoá tạm 10 phút
 const TK_EMAIL_BAO   = 'sonadezilongthanh@gmail.com'; // Nhận mail báo đăng ký mới
 const TK_HAN_TOKEN_NGAY = 7;                 // ★ V4.8 — token hết hạn sau 7 ngày
+const TK_LECH_GIO_VN    = 7 * 3600 * 1000;   // ★ V4.9 — UTC+7 (Việt Nam, không có giờ mùa hè)
 
 const COT_TK = {
   EMAIL     : 'Email',
@@ -169,6 +170,29 @@ function taoTokenTK_(b, iDong, hetHan) {
 }
 
 /**
+ * ★ V4.9 — Hạn của token "Ghi nhớ đăng nhập" (tính theo giờ Việt Nam):
+ *   • Thứ Hai → trước 23:00 thứ Sáu : hết hạn lúc 23:00 thứ Sáu tuần này.
+ *   • Từ 23:00 thứ Sáu → hết Chủ nhật: hết hạn lúc 00:00 thứ Hai tuần sau
+ *     (đăng nhập cuối tuần thì sáng thứ Hai vẫn phải đăng nhập lại).
+ * @return {number} mốc hết hạn (ms, UTC)
+ */
+function tinhHanGhiNho_() {
+  const NGAY = 24 * 3600 * 1000;
+  const vn   = new Date(Date.now() + TK_LECH_GIO_VN);   // đọc bằng getUTC* = giờ VN
+  const thu  = vn.getUTCDay();                         // 0 = CN, 1 = T2 … 5 = T6, 6 = T7
+  const gio  = vn.getUTCHours();
+  const dauNgayVN = Date.UTC(vn.getUTCFullYear(), vn.getUTCMonth(), vn.getUTCDate())
+                  - TK_LECH_GIO_VN;                    // 00:00 hôm nay (giờ VN) quy ra UTC
+
+  const cuoiTuan = (thu === 6) || (thu === 0) || (thu === 5 && gio >= 23);
+  if (cuoiTuan) {
+    const soNgayDenThuHai = (thu === 5) ? 3 : (thu === 6 ? 2 : 1);
+    return dauNgayVN + soNgayDenThuHai * NGAY;
+  }
+  return dauNgayVN + (5 - thu) * NGAY + 23 * 3600 * 1000;
+}
+
+/**
  * Giải mã & xác thực token.
  * @return {{hopLe:boolean, email:string, hoTen:string, vaiTro:string}}
  */
@@ -290,7 +314,7 @@ function dangKyTaiKhoan(email, hoTen, matKhau) {
 /***********************************************************************
  * 4. ĐĂNG NHẬP  (gọi từ giao diện)
  ***********************************************************************/
-function dangNhapTaiKhoan(email, matKhau) {
+function dangNhapTaiKhoan(email, matKhau, ghiNho) {
   email   = chuanHoaEmail_(email);
   matKhau = String(matKhau || '');
 
@@ -345,11 +369,15 @@ function dangNhapTaiKhoan(email, matKhau) {
   ghiOTK_(b, i, COT_TK.DN_CUOI, new Date());
 
   const hoTen = String(d[b.idx[COT_TK.HOTEN]]).trim() || email;
-  nhatKyTK_(email, 'DangNhap', 'Vai trò: ' + vaiTro);
+  nhatKyTK_(email, 'DangNhap', 'Vai trò: ' + vaiTro + (ghiNho ? ' | Ghi nhớ đăng nhập' : ''));
+
+  // ★ V4.9 — Ghi nhớ đăng nhập: hạn đến 23h thứ Sáu (hoặc 0h thứ Hai nếu đăng nhập cuối tuần)
+  const hetHan = ghiNho ? tinhHanGhiNho_() : null;
 
   return {
     thanhCong     : true,
-    token         : taoTokenTK_(b, i),
+    token         : taoTokenTK_(b, i, hetHan),
+    hetHan        : hetHan,
     email         : email,
     hoTen         : hoTen,
     vaiTro        : vaiTro,
@@ -383,8 +411,10 @@ function doiMatKhauTaiKhoan(token, mkCu, mkMoi) {
   nhatKyTK_(p.email, 'DoiMatKhau', 'Người dùng tự đổi mật khẩu');
 
   // Hash đổi → token cũ vô hiệu → cấp token mới
+  // ★ V4.9 — giữ nguyên hạn của token cũ (phiên "ghi nhớ" vẫn hết hạn đúng 23h thứ Sáu)
+  const hetHanCu = Number(String(token).split('.')[1]) || null;
   const b2 = docBangTK_();
-  return { thanhCong: true, token: taoTokenTK_(b2, timDongTK_(b2, p.email)) };
+  return { thanhCong: true, token: taoTokenTK_(b2, timDongTK_(b2, p.email), hetHanCu) };
 }
 
 

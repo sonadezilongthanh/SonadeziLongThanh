@@ -454,6 +454,10 @@ function taoManHinhDangNhap() {
     + '.dn-lienket{background:none;border:none;color:#0B4696;font-size:13px;'
     +   'font-weight:600;cursor:pointer;padding:4px;text-decoration:underline}'
     + '.dn-khung.an{display:none}'
+    /* ★ V4.9 — ô Ghi nhớ đăng nhập */
+    + '.dn-ghinho{display:flex;align-items:center;gap:8px;text-align:left;margin:12px 0 0;'
+    +   'font-size:13px;color:#334;cursor:pointer;user-select:none}'
+    + '.dn-ghinho input{width:16px;height:16px;margin:0;accent-color:#0B4696;cursor:pointer;flex-shrink:0}'
     + '</style>'
     + '<div id="manHinhDangNhap" class="an">'
     +   '<div class="dn-hop">'
@@ -480,6 +484,10 @@ function taoManHinhDangNhap() {
     +       '<input type="password" id="dnMatKhau" class="dn-o" '
     +         'placeholder="Nhập mật khẩu cá nhân" autocomplete="current-password" '
     +         'onkeydown="if(event.key===\'Enter\') guiDangNhap()">'
+    +       '<label class="dn-ghinho" for="dnGhiNho">'
+    +         '<input type="checkbox" id="dnGhiNho">'
+    +         '<span>Ghi nhớ đăng nhập</span>'
+    +       '</label>'
     +       '<div id="dnThongBao"></div>'
     +       '<button class="dn-nut-chinh" id="dnNutDangNhap" onclick="guiDangNhap()">Đăng nhập</button>'
     +       '<p style="margin:12px 0 0;font-size:13px;color:#66738a">Chưa có tài khoản? '
@@ -554,6 +562,9 @@ function hienManHinhDangNhap() {
     const emailCu = localStorage.getItem('SZL_EMAIL_DANG_NHAP') || '';
     const oEmail = document.getElementById('dnEmail');
     if (emailCu && oEmail && !oEmail.value) oEmail.value = emailCu;
+    // ★ V4.9 — nhớ lựa chọn "Ghi nhớ đăng nhập" của lần trước
+    const oGhiNho = document.getElementById('dnGhiNho');
+    if (oGhiNho) oGhiNho.checked = (localStorage.getItem('SZL_CHON_GHI_NHO') === '1');
   } catch (e) {}
 
   setTimeout(function () {
@@ -646,6 +657,8 @@ function guiDangNhap() {
   const mk    = document.getElementById('dnMatKhau').value;
   const tb    = document.getElementById('dnThongBao');
   const nut   = document.getElementById('dnNutDangNhap');
+  const oGN   = document.getElementById('dnGhiNho');
+  const ghiNho = !!(oGN && oGN.checked);                 // ★ V4.9
 
   tb.className = '';
   if (!email) { tb.textContent = '✕ Vui lòng nhập email tài khoản.'; dnRung_(); return; }
@@ -660,7 +673,10 @@ function guiDangNhap() {
       nut.disabled = false;
       nut.textContent = 'Đăng nhập';
 
-      try { localStorage.setItem('SZL_EMAIL_DANG_NHAP', kq.email); } catch (e) {}
+      try {
+        localStorage.setItem('SZL_EMAIL_DANG_NHAP', kq.email);
+        localStorage.setItem('SZL_CHON_GHI_NHO', ghiNho ? '1' : '0');
+      } catch (e) {}
 
       PHIEN_SUA = {
         token : kq.token,
@@ -668,6 +684,8 @@ function guiDangNhap() {
         hoTen : kq.hoTen,
         vaiTro: kq.vaiTro
       };
+      // ★ V4.9 — có tick "Ghi nhớ" → lưu phiên lâu dài trên thiết bị; không tick → xoá
+      if (ghiNho) ghiNhoPhien_(); else xoaGhiNhoPhien_();
       luuPhienSua();
 
       // Tài khoản vừa được quản trị đặt lại mật khẩu → buộc đổi ngay
@@ -689,7 +707,7 @@ function guiDangNhap() {
       tb.textContent = '✕ ' + loi.message;
       dnRung_();
     })
-    .dangNhapTaiKhoan(email, mk);
+    .dangNhapTaiKhoan(email, mk, ghiNho);
 }
 
 /** Gửi yêu cầu đăng ký tài khoản mới */
@@ -748,6 +766,8 @@ function dangXuat(khongHoi) {
 
   PHIEN_SUA = { token: '', email: '', hoTen: '', vaiTro: '' };
   try { sessionStorage.removeItem('SZL_PHIEN_SUA'); } catch (e) {}
+  xoaGhiNhoPhien_();                                      // ★ V4.9
+  clearTimeout(HEN_GIO_HET_PHIEN);
 
   dongPanel();
   const ud = document.getElementById('ungDung');
@@ -776,13 +796,80 @@ function khoiPhucPhienSua() {
       }
     }
   } catch (e) { /* trình duyệt chặn sessionStorage — bỏ qua */ }
+
+  // ★ V4.9 — Tab mới chưa có phiên → lấy phiên "Ghi nhớ đăng nhập" (nếu còn hạn)
+  if (!PHIEN_SUA.vaiTro) {
+    try {
+      const g = JSON.parse(localStorage.getItem(KHOA_GHI_NHO) || 'null');
+      if (g && g.token && g.email && g.vaiTro && hanToken_(g.token) > Date.now()) {
+        PHIEN_SUA = { token: g.token, email: g.email, hoTen: g.hoTen || '', vaiTro: g.vaiTro };
+        sessionStorage.setItem('SZL_PHIEN_SUA', JSON.stringify(PHIEN_SUA));
+      } else if (g) {
+        xoaGhiNhoPhien_();                                // hết hạn → xoá, bắt đăng nhập lại
+      }
+    } catch (e) { /* trình duyệt chặn localStorage — bỏ qua */ }
+  }
+  henGioHetPhien_();
 }
 
 function luuPhienSua() {
   try {
     sessionStorage.setItem('SZL_PHIEN_SUA', JSON.stringify(PHIEN_SUA));
   } catch (e) { /* bỏ qua */ }
+
+  // ★ V4.9 — đồng bộ phiên ghi nhớ (đổi mật khẩu → token mới; bị thu hồi → xoá)
+  if (coGhiNhoPhien_()) {
+    if (PHIEN_SUA.token) ghiNhoPhien_(); else xoaGhiNhoPhien_();
+  }
+  henGioHetPhien_();
 }
+
+
+/***********************************************************************
+ * ★ V4.9 — GHI NHỚ ĐĂNG NHẬP (localStorage, hết hạn 23h thứ Sáu)
+ *   Hạn nằm trong token và do server ký → không sửa tay được.
+ ***********************************************************************/
+const KHOA_GHI_NHO = 'SZL_PHIEN_GHI_NHO';
+let HEN_GIO_HET_PHIEN = null;
+
+/** Đọc mốc hết hạn (ms) nằm ở phần giữa token: email.hetHan.chuKy */
+function hanToken_(token) {
+  const p = String(token || '').split('.');
+  return p.length === 3 ? (Number(p[1]) || 0) : 0;
+}
+
+function ghiNhoPhien_() {
+  try { localStorage.setItem(KHOA_GHI_NHO, JSON.stringify(PHIEN_SUA)); } catch (e) {}
+}
+
+function xoaGhiNhoPhien_() {
+  try { localStorage.removeItem(KHOA_GHI_NHO); } catch (e) {}
+}
+
+function coGhiNhoPhien_() {
+  try { return !!localStorage.getItem(KHOA_GHI_NHO); } catch (e) { return false; }
+}
+
+/** Đến hạn token → tự đăng xuất (kể cả khi đang mở app qua 23h thứ Sáu) */
+function henGioHetPhien_() {
+  clearTimeout(HEN_GIO_HET_PHIEN);
+  const han = hanToken_(PHIEN_SUA.token);
+  if (!han) return;
+  const conLai = han - Date.now();
+  if (conLai <= 0) { setTimeout(hetPhienDangXuat_, 0); return; }
+  HEN_GIO_HET_PHIEN = setTimeout(hetPhienDangXuat_, Math.min(conLai, 2147000000));
+}
+
+function hetPhienDangXuat_() {
+  if (!PHIEN_SUA.token || hanToken_(PHIEN_SUA.token) > Date.now()) return;
+  dangXuat(true);
+  alert('Phiên đăng nhập đã hết hạn (23h thứ Sáu hằng tuần).\nVui lòng đăng nhập lại.');
+}
+
+// Máy ngủ/khoá màn hình làm trễ setTimeout → kiểm tra lại khi người dùng quay lại tab
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState === 'visible') hetPhienDangXuat_();
+});
 
 
 /***********************************************************************
