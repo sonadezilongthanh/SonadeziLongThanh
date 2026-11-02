@@ -111,16 +111,19 @@ window.addEventListener('load', function () {
 
 /** Gọi server tải dữ liệu — server tự lọc thông tin nội bộ nếu là khách */
 function taiDuLieu() {
-  anManHinhDangNhap();
-
-  const mt = document.getElementById('manHinhTai');
-  if (mt) mt.classList.remove('an');
+  // ★ V4.10 — hiệu ứng Mở kho đang chạy thì lớp phủ đảm nhận luôn màn hình đăng nhập và màn hình tải
+  if (!MO_KHO.chay) {
+    anManHinhDangNhap();
+    const mt = document.getElementById('manHinhTai');
+    if (mt) mt.classList.remove('an');
+  }
   const ud = document.getElementById('ungDung');
   if (ud) ud.classList.add('an');
 
   google.script.run
     .withSuccessHandler(khoiTaoApp)
     .withFailureHandler(function (loi) {
+      moKhoHuy_();   // ★ V4.10
       document.getElementById('manHinhTai').innerHTML =
         '<p style="color:#b91c1c">Lỗi tải dữ liệu: ' + loi.message + '</p>';
     })
@@ -178,6 +181,7 @@ function khoiTaoApp(dl) {
 
   document.getElementById('manHinhTai').classList.add('an');
   document.getElementById('ungDung').classList.remove('an');
+  moKhoDuLieuSanSang_();   // ★ V4.10 — báo hiệu ứng Mở kho được phép mở cửa
 
   // ★ GĐ2: nhắc việc của cán bộ đăng nhập (nếu có)
   try { hienToastThongBaoCuaToi(); } catch (e) {}
@@ -651,6 +655,261 @@ function dnRung_() {
   if (hop) Motion.animate(hop, { x: [0, -10, 10, -6, 6, -2, 0] }, { duration: 0.45, ease: 'easeOut' });
 }
 
+/* ================================================================
+   ★ V4.10 — HIỆU ỨNG "MỞ KHO" SAU KHI ĐĂNG NHẬP THÀNH CÔNG (GSAP)
+   Trình tự: thẻ đăng nhập mờ đi → logo ra giữa màn hình, quay như khoá két
+   (thay cho màn hình "Đang tải dữ liệu…") → dữ liệu xong thì khoá chốt →
+   2 cánh cửa mở theo đường chéo của logo → 2 khối logo bay về thanh tiêu đề.
+   - Chỉ chạy khi bấm Đăng nhập thành công. Khách, phiên ghi nhớ, tài khoản
+     buộc đổi mật khẩu vẫn đi đường cũ.
+   - Không có GSAP / bật "giảm chuyển động" → vào app như cũ.
+   - Lớp phủ tự gỡ khi xong; có chốt an toàn để không bao giờ che kẹt app.
+================================================================ */
+const MO_KHO = { chay: false, sanSang: false, tl: [], an_toan: 0 };
+
+const MO_KHO_LOGO_A = 'M198.8 0.0L83.0 0.0L81.0 3.5L76.0 8.3L70.0 16.5L66.0 20.3L64.8 22.5L61.0 26.3L59.8 28.5L56.0 32.3L54.0 35.5L49.2 40.3L48.8 41.5L45.2 45.3L44.0 47.5L40.0 51.3L38.8 53.5L35.0 57.3L33.8 59.5L30.0 63.3L28.8 65.5L25.0 69.3L23.0 72.5L19.0 76.3L17.8 78.5L14.0 82.3L12.8 84.5L4.2 94.3L1.0 99.7L0.8 101.5L0.0 102.0L0.0 106.8L2.3 109.7L6.7 111.8L121.5 111.7L120.8 110.3L119.3 109.8L118.0 108.5L115.8 104.2L115.8 101.7L116.8 100.2L116.8 98.7L120.0 93.3L123.8 89.5L125.0 87.3L128.8 83.5L130.0 81.3L133.8 77.5L135.0 75.3L138.8 71.5L140.8 68.3L144.8 64.5L146.0 62.3L149.8 58.5L151.8 55.3L155.8 51.5L157.0 49.3L160.8 45.5L162.8 42.3L172.8 31.5L174.0 29.3L177.8 25.5L179.8 22.3L183.8 18.5L185.0 16.3L188.8 12.5L190.8 9.3L196.8 3.5Z';
+const MO_KHO_LOGO_B = 'M273.7 91.3L271.5 89.2L269.7 89.0L268.2 88.0L153.3 88.2L154.0 89.5L157.0 91.3L159.0 94.7L159.0 98.2L153.8 107.5L150.0 111.3L148.8 113.5L145.0 117.3L143.8 119.5L140.0 123.3L138.8 125.5L135.0 129.3L133.0 132.5L129.0 136.3L127.0 139.5L123.0 143.3L121.8 145.5L118.0 149.3L116.0 152.5L112.0 156.3L110.8 158.5L107.0 162.3L105.0 165.5L101.0 169.3L99.0 172.5L94.0 177.3L92.8 179.5L89.0 183.3L87.0 186.5L82.0 191.3L80.8 193.5L76.2 198.3L76.0 199.8L190.8 199.8L196.7 193.5L197.8 191.3L201.8 187.5L203.0 185.3L206.8 181.5L208.8 178.3L212.8 174.5L214.0 172.3L217.8 168.5L219.0 166.3L222.8 162.5L224.0 160.3L227.8 156.5L229.0 154.3L232.8 150.5L234.8 147.3L238.8 143.5L240.0 141.3L243.8 137.5L245.0 135.3L248.8 131.5L250.0 129.3L253.8 125.5L255.0 123.3L258.8 119.5L260.8 116.3L264.8 112.5L266.0 110.3L270.7 105.5L271.0 104.3L272.7 102.5L274.8 97.2L274.8 93.7Z';
+
+function moKhoDuocPhep_() {
+  return !!(window.gsap &&
+            !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches));
+}
+
+function moKhoTaoLop_(W, H, CX, CY) {
+  let vach = '';
+  for (let i = 0; i < 72; i++) {
+    const dai = i % 6 === 0, a = i * 5 * Math.PI / 180, r1 = dai ? 60 : 64, r2 = 70;
+    vach += '<line x1="' + (Math.sin(a) * r1).toFixed(1) + '" y1="' + (-Math.cos(a) * r1).toFixed(1)
+         +  '" x2="' + (Math.sin(a) * r2).toFixed(1) + '" y2="' + (-Math.cos(a) * r2).toFixed(1)
+         +  '" stroke="' + (dai ? '#ffffff' : '#9fc0ea') + '" stroke-width="' + (dai ? 2 : 1) + '"/>';
+  }
+  let hat = '';
+  for (let j = 0; j < 36; j++) hat += '<span class="mk-hat' + (j % 5 === 0 ? ' vang' : '') + '"></span>';
+
+  document.body.insertAdjacentHTML('beforeend',
+      '<style id="moKhoCss">'
+    + '#moKho{position:fixed;inset:0;z-index:10030;overflow:hidden}'
+    + '#moKho .mk-cua{position:absolute;visibility:hidden;background-color:#08305f}'
+    + '#moKho .mk-khe{position:absolute;left:50%;height:3px;width:400%;margin-left:-200%;visibility:hidden;'
+    +   'background:linear-gradient(90deg,transparent,#bcd6ff 42%,#fff 50%,#bcd6ff 58%,transparent)}'
+    + '#moKho .mk-sang,#moKho .mk-tia{position:absolute;border-radius:50%;visibility:hidden;pointer-events:none}'
+    + '#moKho .mk-sang{background:radial-gradient(circle,#fff 0,#dbe9ff 28%,rgba(170,205,255,.5) 50%,rgba(255,226,170,.12) 62%,rgba(255,226,170,0) 70%)}'
+    + '#moKho .mk-tia{background:repeating-conic-gradient(rgba(255,255,255,.42) 0 7deg,transparent 7deg 22deg);'
+    +   '-webkit-mask:radial-gradient(circle,#000 18%,transparent 68%);mask:radial-gradient(circle,#000 18%,transparent 68%)}'
+    + '#moKho .mk-hero{position:absolute;left:0;top:0;width:104px;height:104px}'
+    + '#moKho .mk-dia{position:absolute;inset:0;border-radius:50%;background:#fff}'
+    + '#moKho .mk-anh{position:absolute;inset:0;width:100%;height:100%;padding:13px;box-sizing:border-box}'
+    + '#moKho .mk-vong{position:absolute;left:-22px;top:-22px;width:148px;height:148px;opacity:0}'
+    + '#moKho .mk-dau{position:absolute;left:16px;top:26px;width:72px;height:auto;overflow:visible;opacity:0}'
+    + '#moKho .mk-tb{position:absolute;left:0;right:0;text-align:center;font-size:13px;color:#cfdcee;opacity:0}'
+    + '#moKho .mk-de{position:absolute;left:0;top:0;border-radius:10px;background:#fff;visibility:hidden}'
+    + '#moKho .mk-hat{position:absolute;width:12px;height:8px;background:#dbe9ff;visibility:hidden}'
+    + '#moKho .mk-hat.vang{background:#f2cf86}'
+    + '</style>'
+    + '<div id="moKho" aria-hidden="true">'
+    +   '<div class="mk-sang"></div><div class="mk-tia"></div>'
+    +   '<div class="mk-cua" id="mkCuaA"></div><div class="mk-cua" id="mkCuaB"></div>'
+    +   '<div class="mk-khe"></div>'
+    +   '<div class="mk-de"></div>'
+    +   hat
+    +   '<div class="mk-hero">'
+    +     '<svg class="mk-vong" viewBox="-74 -74 148 148">' + vach
+    +       '<circle r="56" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="1.5"/>'
+    +       '<path d="M0 -74 L5 -64 L-5 -64Z" fill="#f2cf86"/></svg>'
+    +     '<div class="mk-dia"></div><img class="mk-anh" alt="">'
+    +     '<svg class="mk-dau" viewBox="0.0 0.0 275.0 200.0">'
+    +       '<path class="mk-a" fill="#0B4696" d="' + MO_KHO_LOGO_A + '"/>'
+    +       '<path class="mk-b" fill="#0B4696" d="' + MO_KHO_LOGO_B + '"/></svg>'
+    +   '</div>'
+    +   '<div class="mk-tb">Đang tải dữ liệu…</div>'
+    + '</div>');
+
+  /* Hai cánh cửa: cắt theo đường chéo cùng độ nghiêng với logo */
+  const ox = W + H, cw = W + ox * 2, ch = H + ox * 2;
+  const seam = function (y) { return CX + (CY - y) * 0.85; };
+  const xa = seam(-ox) + ox, xb = seam(H + ox) + ox;
+  const nen = 'repeating-linear-gradient(130.4deg,rgba(255,255,255,.035) 0 2px,transparent 2px 46px),'
+            + 'radial-gradient(circle at ' + (CX + ox) + 'px ' + (CY + ox) + 'px,#0f4a8e 0,#08305f 320px,#051f40 760px)';
+  [['mkCuaA', '0 0,' + xa + 'px 0,' + xb + 'px ' + ch + 'px,0 ' + ch + 'px'],
+   ['mkCuaB', xa + 'px 0,' + cw + 'px 0,' + cw + 'px ' + ch + 'px,' + xb + 'px ' + ch + 'px']].forEach(function (p) {
+    const e = document.getElementById(p[0]);
+    e.style.cssText += ';left:' + (-ox) + 'px;top:' + (-ox) + 'px;width:' + cw + 'px;height:' + ch + 'px;background-image:' + nen;
+    const q = 'polygon(' + p[1].replace(/(^|,)0 /g, '$10px ').replace(/ 0(,|$)/g, ' 0px$1') + ')';
+    e.style.webkitClipPath = q;
+    e.style.clipPath = q;
+  });
+}
+
+/** Bắt đầu hiệu ứng. Trả về true nếu chạy được, false để đi đường cũ. */
+function moKhoBatDau_() {
+  if (!moKhoDuocPhep_() || MO_KHO.chay) return false;
+  const dn = document.getElementById('manHinhDangNhap');
+  const nguon = dn && dn.querySelector('.dn-logo-tron');
+  if (!nguon) return false;
+
+  const W = window.innerWidth, H = window.innerHeight, CX = W / 2, CY = H / 2 - 24;
+  const THANG = Math.min(2.5, (W - 16) / 165);
+  moKhoTaoLop_(W, H, CX, CY);
+  MO_KHO.chay = true; MO_KHO.sanSang = false; MO_KHO.tl = [];
+  MO_KHO.W = W; MO_KHO.H = H; MO_KHO.CX = CX; MO_KHO.CY = CY; MO_KHO.THANG = THANG;
+  dn.style.pointerEvents = 'none';
+
+  const lop = document.getElementById('moKho'), $ = function (s) { return lop.querySelector(s); };
+  const hero = $('.mk-hero'), dau = $('.mk-dau'), khung = dn.querySelector('.dn-logo-khung');
+  const hop = dn.querySelector('.dn-hop'), r = nguon.getBoundingClientRect();
+  $('.mk-anh').src = dn.querySelector('.dn-logo').src;
+  gsap.set(hero, { x: r.left, y: r.top });
+  gsap.set(dau, { transformOrigin: '50% 50%' });
+  gsap.set($('.mk-tb'), { top: CY + 74 * THANG + 20 });
+  gsap.set(khung, { visibility: 'hidden' });
+
+  const cua = [$('#mkCuaA'), $('#mkCuaB')];
+  const con = Array.prototype.slice.call(hop.children).filter(function (n) { return n !== khung; });
+  const t = gsap.timeline({ defaults: { ease: 'power2.inOut' }, onComplete: moKhoCho_ });
+  t.to(con, { opacity: 0, y: 8, duration: 0.28, stagger: 0.012, ease: 'power1.in' }, 0)
+   .to(hop, { backgroundColor: 'rgba(255,255,255,0)', boxShadow: '0 0 0 rgba(0,0,0,0)', duration: 0.4 }, 0.1)
+   .set(cua, { visibility: 'visible', opacity: 0 }, 0.1)
+   .to(cua, { opacity: 1, duration: 0.5, ease: 'power1.out' }, 0.1)
+   .add(function () { dn.classList.add('an'); }, 0.62)
+   .to(hero, { x: CX - 52, y: CY - 52, scale: THANG, duration: 0.7 }, 0.12)
+   .to($('.mk-anh'), { opacity: 0, duration: 0.25 }, 0.12)
+   .to(dau, { opacity: 1, duration: 0.25 }, 0.12)
+   .to(dau, { rotation: 720, duration: 1.15, ease: 'power3.inOut' }, 0.2)
+   .to($('.mk-vong'), { opacity: 1, duration: 0.4 }, 0.45)
+   .to($('.mk-tb'), { opacity: 1, duration: 0.25 }, 0.95);
+  MO_KHO.tl.push(t);
+  return true;
+}
+
+/** Quay khoá cho đến khi dữ liệu sẵn sàng, hết một vòng mới kiểm tra lại */
+function moKhoCho_() {
+  if (!MO_KHO.chay) return;
+  if (MO_KHO.sanSang) { moKhoMoCua_(); return; }
+  const lop = document.getElementById('moKho');
+  const vong = lop.querySelector('.mk-vong'), dau = lop.querySelector('.mk-dau');
+  const buoc = function (t, goc, tg) {
+    return t.to(vong, { rotation: (goc > 0 ? '+=' : '-=') + Math.abs(goc), duration: tg, ease: 'back.out(2)' })
+            .to(dau, { rotation: (goc > 0 ? '-=' : '+=') + Math.abs(goc), duration: tg, ease: 'back.out(2)' }, '<');
+  };
+  const t = gsap.timeline({ onComplete: moKhoCho_ });
+  buoc(t, 150, 0.55); buoc(t, -110, 0.5); buoc(t, -40, 0.4);
+  MO_KHO.tl.push(t);
+}
+
+function moKhoMoCua_() {
+  const lop = document.getElementById('moKho'), $ = function (s) { return lop.querySelector(s); };
+  const W = MO_KHO.W, H = MO_KHO.H, CX = MO_KHO.CX, CY = MO_KHO.CY, THANG = MO_KHO.THANG;
+  const hero = $('.mk-hero'), dau = $('.mk-dau'), khe = $('.mk-khe'), sang = $('.mk-sang'), tia = $('.mk-tia');
+  const a = $('.mk-a'), b = $('.mk-b'), de = $('.mk-de');
+  const ud = document.getElementById('ungDung');
+  const logoApp = document.querySelector('.thuong-hieu .logo-cty');
+
+  /* Điểm đến: hình logo nằm ở phần trên của ảnh logo trên thanh tiêu đề */
+  const r = logoApp ? logoApp.getBoundingClientRect() : { left: 24, top: 12, width: 44, height: 44 };
+  const dx = (r.left + r.width / 2 - CX) / THANG, dy = (r.top + r.height * 0.34 - CY) / THANG;
+  const k = (r.width * 0.59) / (72 * THANG);
+
+  const D = Math.hypot(W, H) * 1.15;
+  gsap.set([sang, tia], { width: D, height: D, left: CX - D / 2, top: CY - D / 2 });
+  gsap.set(khe, { top: CY, rotation: -49.6, scaleX: 0 });
+  gsap.set(de, { x: r.left, y: r.top, width: r.width, height: r.height, scale: 0.4, opacity: 0, visibility: 'visible' });
+  if (logoApp) gsap.set(logoApp, { opacity: 0 });
+  gsap.set([a, b], { svgOrigin: '137 100' });
+
+  const t = gsap.timeline({ onComplete: moKhoKetThuc_ });
+  t.to(hero, { scale: THANG * 1.07, duration: 0.09, yoyo: true, repeat: 1, ease: 'power1.inOut' }, 0)
+   .to($('.mk-tb'), { opacity: 0, duration: 0.15 }, 0)
+   .addLabel('khe', 0.28)
+   .set(khe, { visibility: 'visible' }, 'khe')
+   .to(khe, { scaleX: 1, duration: 0.26, ease: 'power2.out' }, 'khe')
+   .set([sang, tia], { visibility: 'visible', opacity: 0 }, 'khe+=.2')
+   .set(ud, { scale: 1.05 }, 'khe+=.2')
+   .addLabel('mo', 'khe+=.34')
+   .to(khe, { scaleY: 9, opacity: 0, duration: 0.5, ease: 'power2.out' }, 'mo')
+   .to(sang, { opacity: 0.9, duration: 0.3, ease: 'power1.out' }, 'mo')
+   .to(tia, { opacity: 0.8, rotation: 25, duration: 0.5, ease: 'power1.out' }, 'mo')
+   .to('#mkCuaA', { x: -W * 1.1, y: -H * 1.1, duration: 1.05, ease: 'power3.inOut' }, 'mo')
+   .to('#mkCuaB', { x: W * 1.1, y: H * 1.1, duration: 1.05, ease: 'power3.inOut' }, 'mo')
+   .to($('.mk-dia'), { opacity: 0, duration: 0.22 }, 'mo')
+   .to($('.mk-vong'), { opacity: 0, scale: 1.5, duration: 0.35, ease: 'power1.out' }, 'mo')
+   /* Logo bay vòng cung về thanh tiêu đề (x và y khác nhịp tạo đường cong) */
+   .to(dau, { x: dx, duration: 1, ease: 'power2.in' }, 'mo')
+   .to(dau, { y: dy, duration: 1, ease: 'power3.out' }, 'mo')
+   .to(dau, { scale: k, duration: 1, ease: 'power2.inOut' }, 'mo')
+   .to(a, { x: -70, y: -10, duration: 0.5, ease: 'sine.out' }, 'mo')
+   .to(b, { x: 70, y: 10, duration: 0.5, ease: 'sine.out' }, 'mo')
+   .to(a, { x: 0, y: 0, duration: 0.5, ease: 'back.in(1.3)' }, 'mo+=.5')
+   .to(b, { x: 0, y: 0, duration: 0.5, ease: 'back.in(1.3)' }, 'mo+=.5')
+   .to(de, { scale: 1, opacity: 1, duration: 0.3, ease: 'power2.out' }, 'mo+=.7')
+   .to(sang, { opacity: 0, duration: 0.55, ease: 'power1.in' }, 'mo+=.6')
+   .to(tia, { opacity: 0, rotation: 50, duration: 0.55, ease: 'power1.in' }, 'mo+=.6')
+   .to(ud, { scale: 1, duration: 0.85, ease: 'power2.out' }, 'mo+=.1');
+
+  lop.querySelectorAll('.mk-hat').forEach(function (h, i) {
+    const goc = (i * 137.5) * Math.PI / 180, xa = Math.min(W, H) * (0.28 + ((i * 7) % 11) / 18);
+    gsap.set(h, { left: CX, top: CY, skewX: -40 });
+    t.set(h, { visibility: 'visible', opacity: 1, scale: 0.5 + ((i * 3) % 7) / 7 }, 'mo+=.05')
+     .to(h, { x: Math.cos(goc) * xa, y: Math.sin(goc) * xa, rotation: i * 40,
+              duration: 0.8 + (i % 5) * 0.08, ease: 'power2.out' }, 'mo+=.05')
+     .to(h, { opacity: 0, duration: 0.3 }, 'mo+=' + (0.5 + (i % 4) * 0.12));
+  });
+
+  /* Logo chạm đích: nhịp nẩy nhẹ trên thanh tiêu đề */
+  t.add(function () {
+    if (logoApp) gsap.fromTo(logoApp, { opacity: 1, scale: 1 },
+      { scale: 1.16, duration: 0.13, yoyo: true, repeat: 1, ease: 'power1.inOut', clearProps: 'all' });
+    lop.style.pointerEvents = 'none';
+    gsap.set(de, { visibility: 'hidden' });
+    gsap.set(hero, { visibility: 'hidden' });
+  }, 'mo+=1');
+  MO_KHO.tl.push(t);
+}
+
+/** Dữ liệu đã nạp xong và app đã hiện dưới lớp phủ */
+function moKhoDuLieuSanSang_() {
+  if (!MO_KHO.chay) return;
+  MO_KHO.sanSang = true;
+  clearTimeout(MO_KHO.an_toan);
+  MO_KHO.an_toan = setTimeout(moKhoKetThuc_, 7000);   // chốt an toàn: không để lớp phủ che kẹt app
+}
+
+/** Trả màn hình đăng nhập về nguyên trạng để lần đăng xuất sau dùng lại */
+function moKhoDonDep_() {
+  clearTimeout(MO_KHO.an_toan);
+  MO_KHO.tl.forEach(function (t) { t.kill(); });
+  MO_KHO.tl = [];
+  MO_KHO.chay = false;
+  const lop = document.getElementById('moKho'), css = document.getElementById('moKhoCss');
+  if (lop) lop.remove();
+  if (css) css.remove();
+  const dn = document.getElementById('manHinhDangNhap');
+  if (dn) {
+    dn.style.pointerEvents = '';
+    const hop = dn.querySelector('.dn-hop');
+    gsap.set(hop, { clearProps: 'backgroundColor,boxShadow' });
+    gsap.set(hop.children, { clearProps: 'opacity,transform,visibility' });
+  }
+  const ud = document.getElementById('ungDung');
+  if (ud) gsap.set(ud, { clearProps: 'transform' });
+  const logoApp = document.querySelector('.thuong-hieu .logo-cty');
+  if (logoApp && !gsap.isTweening(logoApp)) gsap.set(logoApp, { clearProps: 'opacity,transform' });
+}
+
+function moKhoKetThuc_() {
+  if (!MO_KHO.chay) return;
+  moKhoDonDep_();
+}
+
+/** Lỗi tải dữ liệu: gỡ lớp phủ, hiện màn hình tải để báo lỗi như cũ */
+function moKhoHuy_() {
+  if (!MO_KHO.chay) return;
+  const dn = document.getElementById('manHinhDangNhap');
+  if (dn) dn.classList.add('an');
+  moKhoDonDep_();
+  const mt = document.getElementById('manHinhTai');
+  if (mt) mt.classList.remove('an');
+}
+
 /** Gửi yêu cầu đăng nhập lên server */
 function guiDangNhap() {
   const email = document.getElementById('dnEmail').value.trim();
@@ -698,6 +957,7 @@ function guiDangNhap() {
         }, 900);
         return;
       }
+      moKhoBatDau_();   // ★ V4.10
       taiDuLieu();
     })
     .withFailureHandler(function (loi) {
