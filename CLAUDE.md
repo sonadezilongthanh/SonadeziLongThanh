@@ -1,3 +1,5 @@
+@AGENTS.md
+
 # CLAUDE.md — APP_KCN_LONGTHANH (Sonadezi Long Thành, Bộ phận KD-TH)
 
 File này được Claude Code tự động đọc ở đầu mỗi phiên làm việc trong thư mục dự án.
