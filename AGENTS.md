@@ -29,16 +29,16 @@
 - PowerShell, một tệp: `Get-Content -Raw -Encoding UTF8 <tệp>.gs | node --check`
 
 ### Quy trình triển khai (người dùng thực hiện, agent chỉ chuẩn bị)
-[CẦN CHỦ DỰ ÁN QUYẾT ĐỊNH] Chưa chốt quy trình triển khai: dán tay mã vào GAS Editor hay dùng clasp. Các bước clasp dưới đây chỉ áp dụng nếu chọn clasp.
+Quy trình triển khai chính thức dùng clasp, không dán tay mã vào GAS Editor. Danh sách tệp được đẩy lên do `.claspignore` quy định (danh sách cho phép: chỉ `appsscript.json`, `*.gs`, `*.html` ở thư mục gốc).
 
 Agent KHÔNG chạy bất kỳ lệnh clasp nào làm thay đổi môi trường từ xa (ví dụ `clasp push`, `clasp redeploy`/`clasp update-deployment`, `clasp deploy`/`clasp create-deployment`, `clasp undeploy`, `clasp version`, `clasp run`) và KHÔNG chạy `xoaCache()`. Agent chỉ được chạy lệnh clasp chỉ đọc: `clasp status`, `clasp deployments`.
 
 1. Kiểm tra cú pháp toàn bộ tệp .gs như trên.
 2. Xem danh sách tệp sẽ được đẩy lên: `clasp status` (cần tệp `.clasp.json` trên máy; tệp này không đưa vào git).
-3. Đẩy mã lên dự án Apps Script: `clasp push`
+3. Người dùng tự đẩy mã lên dự án Apps Script: `clasp push`
 4. Kiểm tra trên đường dẫn /dev của Web App.
 5. Lấy ID deployment hiện có: `clasp deployments`
-6. Cập nhật phiên bản cho deployment đó: `clasp redeploy <deploymentId> -d "V5.x: mô tả"`.
+6. Người dùng tự cập nhật phiên bản cho deployment đó: `clasp redeploy <deploymentId> -d "V5.x: mô tả"`.
    `<deploymentId>` phải là ID của bản sản xuất (có số phiên bản `@<số>`), KHÔNG dùng ID của `@HEAD`.
    KHÔNG dùng `clasp deploy`, vì lệnh này tạo deployment mới.
 7. Xoá cache: mở Google Sheets, chọn menu `⚙ Hệ thống KCN` → `🔄 Làm mới dữ liệu App` (gọi `xoaCache()`).
