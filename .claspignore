@@ -1,0 +1,13 @@
+# Danh sách cho phép: chặn mọi thứ, chỉ đẩy tệp thuộc dự án Apps Script ở thư mục gốc.
+**/**
+!appsscript.json
+!*.gs
+!*.html
+
+# Chặn tường minh các tệp/thư mục không thuộc Apps Script (đặt sau phần cho phép để không bị mở lại).
+docs/**
+.agents/**
+.claude/**
+cong-cu/**
+**/*.md
+**/*.js

@@ -38,7 +38,9 @@ File này được Claude Code tự động đọc ở đầu mỗi phiên làm 
 
 - Trả lời và giải thích bằng tiếng Việt.
 - Khi sửa code: đưa **targeted edit** (không viết lại toàn bộ file trừ khi được yêu cầu),
-  nhưng **luôn xuất đầy đủ nội dung file liên quan** để tiện copy-paste vào GAS Editor.
+  sửa trực tiếp tệp trong repo; **không xuất toàn bộ nội dung file** để dán vào GAS Editor.
+  Mã được đưa lên Apps Script bằng clasp theo mục "Quy trình triển khai" trong AGENTS.md
+  (người dùng tự chạy `clasp push`/`clasp redeploy`); agent chỉ báo tệp đã sửa và diff.
 - Giải thích ngắn gọn phần đã sửa, không diễn giải dài dòng.
 - Trước khi sửa, luôn đọc trực tiếp file nguồn thật trong repo vừa clone — không giả định
   tên hàm/vị trí file từ trí nhớ.
