@@ -9,7 +9,7 @@
 - Xác thực người dùng qua layNguoiDungTuPhien_(), giaiTokenTK_(), layPhienTuToken_(). Không tự viết cơ chế khác.
 - Vai trò QuanLy chỉ được xem, không được sửa dữ liệu.
 - Sửa có mục tiêu, không viết lại toàn bộ file. Không đưa khóa/bí mật vào mã nguồn.
-- Kiểm tra cú pháp bằng: node --check < <tệp>.
+- Kiểm tra cú pháp bằng: node --check < <tệp> (Git Bash/CMD) hoặc lệnh PowerShell ở mục "Kiểm tra cú pháp".
 
 ## Triển khai
 - Agent KHÔNG tự triển khai. Người dùng kiểm tra tại /dev rồi mới triển khai.
