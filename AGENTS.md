@@ -35,6 +35,8 @@ Mở phiên agent bằng: Đọc `.agents/roles/A<n>.md` và AGENTS.md rồi là
 
 Agent không gộp Pull Request; mỗi commit ghi dòng `Agent: <công cụ>/<mô hình>`; REVIEW.md mở đầu bằng dòng PHÁN QUYẾT và dòng Người viết | Người rà soát | Commit.
 
+Điều phối tự động: mở một phiên Codex trong worktree của yêu cầu và gõ: Đọc `.agents/roles/DIEU-PHOI.md` và AGENTS.md rồi điều phối việc sau: …
+Điều phối viên không viết mã và dừng trước bước thử nghiệm, gộp của anh Hiếu.
 ## Lệnh thường dùng
 
 ### Kiểm tra cú pháp
