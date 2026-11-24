@@ -41,7 +41,7 @@ Dùng tên tệp spec tương ứng với vai và ID Task vừa tạo. Với `wo
 
 ### A2/A4 và worktree con
 
-Ưu tiên thử `--worktree current` với `--agent antigravity` khi chạy thử thực tế. Khả năng khởi chạy ở chế độ này chưa được xác minh. Chỉ chuyển sang worktree con khi Orca từ chối `current` đối với Antigravity và kiểm tra xác nhận lần khởi chạy trước đã kết thúc hoặc chưa tạo worker. Bắt buộc lấy nhánh hiện tại của yêu cầu làm gốc. Nếu Orca đã ghi nhận dispatch thất bại, dùng biến thể `--retry-of` trên cùng Task.
+Ưu tiên thử `--worktree current` với `--agent antigravity` khi chạy thử thực tế. Khả năng khởi chạy ở chế độ này chưa được xác minh. Khi Orca từ chối `--worktree current` đối với Antigravity, chỉ được thử lại đúng một lần để chuyển sang `--worktree new-child`, sau khi xác nhận lần khởi chạy trước đã kết thúc hoặc chưa tạo worker. Bắt buộc lấy nhánh hiện tại của yêu cầu làm gốc. Nếu Orca đã ghi nhận dispatch thất bại, dùng biến thể `--retry-of` trên cùng Task.
 
 ```powershell
 orca orchestration worker-start --environment local --run <run_id> --task <task_id> --worktree new-child --base-branch <nhánh-hiện-tại> --name <tên-ngắn> --agent antigravity --json
@@ -50,7 +50,7 @@ orca orchestration worker-start --environment local --run <run_id> --task <task_
 
 Giao A2/A4 chỉ sửa tệp được phép, commit trên nhánh con với dòng cuối `Agent: Antigravity/<mô hình>`, và báo mã commit, tên nhánh, đường dẫn worktree con trong `worker_done`. Khi nhận kết quả thành công, kiểm tra worktree yêu cầu đang sạch. Dùng `git show --stat <sha>` để kiểm tra phạm vi và dòng `Agent:`, rồi chạy `git cherry-pick <sha>` theo thứ tự bàn giao. Nếu xung đột, chạy `git cherry-pick --abort`, dừng và báo anh Hiếu. Kiểm tra lại commit đã đưa về trước khi sang vai tiếp theo.
 
-Nếu Antigravity tiếp tục lỗi khởi chạy hoặc gặp `429`, dừng tại A2/A4 và cung cấp câu mở phiên tương ứng, kèm nguyên văn yêu cầu và phạm vi được giao. Anh Hiếu mở phiên Antigravity thủ công trong worktree yêu cầu. Chỉ tiếp tục chuỗi sau khi nhận và kiểm chứng commit bàn giao.
+Nếu lần thử lại gặp lỗi hoặc Antigravity gặp `429`, áp dụng cổng dừng (c) tại A2/A4 và cung cấp câu mở phiên tương ứng, kèm nguyên văn yêu cầu và phạm vi được giao. Anh Hiếu mở phiên Antigravity thủ công trong worktree yêu cầu. Chỉ tiếp tục chuỗi sau khi nhận và kiểm chứng commit bàn giao.
 
 - A2 dùng “Đọc .agents/roles/A2.md và AGENTS.md rồi làm việc sau: …”
 - A4 dùng “Đọc .agents/roles/A4.md và AGENTS.md rồi làm việc sau: …”
@@ -80,7 +80,7 @@ orca orchestration request-show --request <request_id>
 
 ### Quy tắc chọn A5
 
-Đọc dòng `Agent:` trong các commit thực hiện của A3/A4. Mã do Codex viết thì giao A5 cho `claude`. Mã do Claude hoặc Antigravity viết thì giao A5 cho `codex`. Nếu thiếu dấu vết tác giả hoặc cả hai lựa chọn đều trùng công cụ với một tác giả trong phạm vi rà soát, dừng và báo anh Hiếu để xử lý trước khi giao A5.
+Đọc dòng `Agent:` của mọi commit A3/A4 trong phạm vi rà soát. Chọn `claude` hoặc `codex` sao cho công cụ của A5 không trùng với công cụ của bất kỳ tác giả nào trong phạm vi đó. Nếu cả hai đều thỏa điều kiện, chọn `codex`. Ví dụ, nếu A3 dùng Codex và A4 dùng Antigravity thì A5 dùng `claude`. Không bao giờ để cùng công cụ với tác giả. Chỉ dừng và báo anh Hiếu khi không còn công cụ nào thỏa điều kiện.
 
 ### Cổng dừng
 
