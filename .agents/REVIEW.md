@@ -1,42 +1,41 @@
-PHÁN QUYẾT: ĐẠT
-Người viết: Codex/GPT-6 | Người rà soát: Claude Code/claude-opus-5-5 | Commit: c528fd6..eb84e88
+PHÁN QUYẾT: CẦN SỬA
+Người viết: Codex/GPT-6 | Người rà soát: Claude Code/claude-opus-5-5 | Commit: 92b7f15..da432ed
 
-## Phạm vi rà soát
+## Phạm vi và căn cứ
 
-- Nhánh `feat/agent-roles`, các commit c528fd6, d85fd4d, eb84e88 (tác giả Codex/GPT-6).
-- Commit 13b50e1 (`.agents/PLAN.md`, do Claude viết) không thuộc phạm vi rà soát.
-- Xác nhận người rà soát không phải tác giả: dòng `Agent:` của cả ba commit là `Codex/GPT-6`; người rà soát dùng Claude Code.
+- Commit rà soát: `92b7f15` (tạo `.agents/roles/DIEU-PHOI.md`), `da432ed` (thêm 2 dòng vào `AGENTS.md`). Cả hai có dòng cuối `Agent: Codex/GPT-6`; người rà soát dùng Claude Code, khác công cụ tác giả.
+- Căn cứ: `.agents/PLAN.md` (commit `df8e39b`, Bước A3-1, A3-2, Bước A5, mục 4) và `.agents/SURVEY.md` (commit `0c23942`).
+- Đối chứng cú pháp: chạy lệnh chỉ đọc `orca --version` (1.4.272) và `orca orchestration <lệnh con> --help` cho `run-create`, `task-create`, `worker-start`, `check`, `worker-show`, `worker-read`, `worker-list`, `request-show`, `reply`, `deny`. Không tạo Run, Task hay Worker.
 
-## Đối chiếu tiêu chí nghiệm thu (mục 4 PLAN.md)
-
-| # | Tiêu chí | Kết quả | Căn cứ |
-|---|---|---|---|
-| 1 | Đủ 5 tệp vai trò, mỗi tệp 4 phần, khối "Quy tắc chung" giống hệt nhau | Đạt | Cả 5 tệp có tiêu đề, `## Nhiệm vụ`, `## Đầu ra bàn giao`, `## Quy tắc chung bắt buộc`; khối quy tắc chung so khớp từng ký tự với khối mẫu trong PLAN.md (cả 5 tệp giống nhau). Mã hóa UTF-8, không có CRLF. |
-| 2 | A5.md có quy tắc chọn công cụ rà soát và mẫu 2 dòng đầu REVIEW.md | Đạt | `.agents/roles/A5.md:5` (chọn công cụ), `:6` (tự xác nhận không phải tác giả), `:12-17` (mẫu 2 dòng, kèm hướng dẫn dùng `PHÁN QUYẾT: CẦN SỬA`). |
-| 3 | `.claude/settings.json` hợp lệ, đủ 17 mục deny, không có `allow` | Đạt | `JSON.parse` không lỗi; khóa duy nhất `permissions.deny`, 17 mục, đúng thứ tự và định dạng `Bash(<lệnh>:*)` như bước 2. |
-| 4 | `AGENTS.md` chỉ thêm mục mới, mục cũ không đổi | Đạt | Diff `AGENTS.md` chỉ có dòng thêm (16 dòng), đặt ngay sau `## Quy trình phối hợp`, trước `## Lệnh thường dùng`; đủ bảng 5 dòng và 3 câu theo bước 3. |
-| 5 | Diff chỉ gồm tệp ở mục 2; không đổi `.gs/.html/appsscript.json/.claspignore` | Đạt | Ba commit chỉ chạm 5 tệp vai trò, `.claude/settings.json`, `AGENTS.md`. Không có thay đổi ở `*.gs`, `*.html`, `appsscript.json`, `.claspignore`, `CLAUDE.md`, `docs/`. `.claspignore` đã chặn `.agents/**` và `.claude/**`. |
-| 6 | Commit có dòng `Agent:`, không Co-Authored-By; nhánh chưa push | Đạt | Cả ba commit kết thúc bằng `Agent: Codex/GPT-6`; không có Co-Authored-By; nhánh không có upstream, không nhánh từ xa nào chứa eb84e88. |
-
-Không phát hiện lộ khóa, mật khẩu, token, salt hay Script ID trong các tệp mới.
-
-## Vấn đề theo mức độ
+## Lỗi
 
 ### Cao
-
 Không có.
 
 ### Trung bình
 
-Không có.
+1. `.agents/roles/DIEU-PHOI.md:83` – Quy tắc chọn A5 mâu thuẫn trong trường hợp phổ biến A3 = Codex và A4 = Antigravity (mọi việc có sửa giao diện). Theo câu thứ hai, mã Codex dẫn tới `claude`; theo câu thứ ba, mã Antigravity dẫn tới `codex`. Điều kiện dự phòng “cả hai lựa chọn đều trùng công cụ với một tác giả” không kích hoạt vì `claude` không trùng tác giả nào. Điều phối viên có thể chọn `codex`, khi đó Codex tự rà mã của chính mình. Tệp cũng bỏ câu bắt buộc của PLAN.md A3-1 “Không bao giờ để cùng công cụ với tác giả”, nên tiêu chí nghiệm thu 3 chỉ đạt một phần.
+   Đề nghị sửa: chọn công cụ A5 không trùng với BẤT KỲ tác giả nào trong phạm vi rà soát; nêu rõ ví dụ A3 Codex + A4 Antigravity thì A5 dùng `claude`; bổ sung nguyên câu “Không bao giờ để cùng công cụ với tác giả.”; chỉ dừng báo anh Hiếu khi không còn công cụ nào thỏa điều kiện.
 
 ### Thấp
 
-1. `.claude/settings.json:4` – Quy tắc `Bash(git push origin main:*)` so khớp theo tiền tố, không chặn các dạng `git push origin HEAD:main`, `git push origin feat/x:main`, `git push` (khi nhánh theo dõi `main`) hay `git push <remote khác> main`. Rủi ro này đã được PLAN.md mục 5 chấp nhận; ghi nhận để cân nhắc bổ sung (ví dụ chặn `Bash(git push:*)` và chỉ cho phép push khi anh Hiếu yêu cầu) hoặc dựa vào Branch protection trên GitHub.
-2. `.claude/settings.json:20` – `Bash(rm -rf:*)` không chặn các biến thể `rm -fr`, `rm -r -f`, `rm --recursive --force`. Đúng theo danh sách bước 2, chỉ ghi nhận.
-3. `.claude/settings.json:7` – `Bash(git merge:*)` có thể khớp cả lệnh chỉ đọc `git merge-base` tùy cách Claude Code so khớp tiền tố; nếu agent cần lệnh này sẽ bị từ chối. Không ảnh hưởng nghiệm thu.
-4. `.agents/roles/A5.md:12-17` – Mẫu hai dòng chỉ ghi `PHÁN QUYẾT: ĐẠT`; phương án `CẦN SỬA` nằm ở câu dẫn dòng 12 thay vì ghi chú trong khối mẫu như PLAN.md. Nội dung tương đương, không cần sửa.
+2. `.agents/roles/DIEU-PHOI.md:44` – Cho phép chạy lại bằng `--retry-of` khi Antigravity bị từ chối `--worktree current`, trong khi cổng dừng (c) tại dòng 89 cấm tự thử lại. Đề nghị ghi rõ chỉ được thử lại đúng một lần để chuyển sang `new-child`; lỗi tiếp theo áp dụng cổng (c). Không bắt buộc sửa trong vòng này.
+3. `AGENTS.md:38-39` – Hai dòng mới nằm liền nhau và liền tiêu đề `## Lệnh thường dùng`, nên Markdown hiển thị thành một đoạn. Nội dung và vị trí đúng PLAN.md A3-2 (đúng 2 dòng, không sửa dòng cũ). Chỉ ghi nhận, không yêu cầu sửa.
 
-## Kết luận
+## Đối chiếu tiêu chí nghiệm thu (PLAN.md mục 4)
 
-Ba commit đáp ứng đủ 6 tiêu chí nghiệm thu. Các điểm mức Thấp không chặn việc gộp nhánh; việc gộp và triển khai do anh Hiếu thực hiện.
+| TC | Kết quả | Ghi chú |
+|---|---|---|
+| 1 | Đạt | SURVEY.md có đủ 6 mục; cú pháp ghi nguồn `--help`/skill, điểm chưa chạy thử ghi “chưa xác minh”. |
+| 2 | Đạt | Đủ các phần A3-1 và ghi phiên bản Orca 1.4.272. Mọi lệnh `orca orchestration …` (`run-create`, `task-create`, `worker-start` với `current`/`new-child`/`--retry-of`, `check`, `check --wait --types … --timeout-ms`, `worker-show`, `worker-read --source auto`, `worker-list`, `request-show --request`, `reply --id --body`, `deny --dispatch --prompt --reason`) khớp SURVEY.md và `--help` bản 1.4.272. Không có cờ tự đoán. |
+| 3 | Đạt một phần | Có cổng dừng (a)(b)(c), vòng sửa tối đa 2 lần, điểm dừng trước thử nghiệm/gộp. Quy tắc chọn A5 có lỗi số 1. |
+| 4 | Đạt | Khối `## Quy tắc chung bắt buộc` giống từng ký tự với `.agents/roles/A1.md` (so bằng `diff`). |
+| 5 | Đạt | `AGENTS.md` chỉ thêm đúng 2 dòng, không xóa hoặc sửa dòng cũ. |
+| 6 | Đạt | `git diff --stat main...HEAD` chỉ gồm `.agents/PLAN.md`, `.agents/SURVEY.md`, `.agents/roles/DIEU-PHOI.md`, `AGENTS.md`. Mọi commit có dòng `Agent:`, không có Co-Authored-By. Nhánh chưa có trên remote. |
+
+## Kiểm tra khác
+
+- Không có khóa API, mật khẩu, token, salt hoặc Script ID trong hai commit.
+- Không đụng tệp `.gs`, `.html`, `appsscript.json`, `.claspignore`, `CLAUDE.md`, `.claude/settings.json`, `A1.md`–`A5.md`, `docs/`.
+- Quyền `git cherry-pick` của điều phối viên (dòng 7, 51) vượt câu chữ PLAN.md A3-1 nhưng có căn cứ ở SURVEY.md mục 2.2, mục 6.4 và PLAN.md mục 5; chỉ áp dụng cho commit không xung đột từ worktree con A2/A4. Chấp nhận.
+- Chưa chạy thử thực tế chuỗi điều phối; khả năng `--worktree current` với `antigravity` vẫn chưa xác minh như SURVEY.md đã ghi.
