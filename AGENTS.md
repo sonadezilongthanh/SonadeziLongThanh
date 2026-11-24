@@ -19,6 +19,22 @@
 - Nhánh làm việc: feat/<ten> hoặc fix/<ten>.
 - Tệp điều phối trong .agents/: PLAN.md (kế hoạch), SURVEY.md (khảo sát mã), REVIEW.md (rà soát chéo). Người rà soát phải dùng mô hình khác với người viết mã.
 
+## Vai trò agent và phương án điều phối
+
+| Mã vai | Công cụ | Tệp vai trò |
+|---|---|---|
+| A1 | Claude Code | [A1.md](.agents/roles/A1.md) |
+| A2 | Antigravity CLI | [A2.md](.agents/roles/A2.md) |
+| A3 | Codex CLI | [A3.md](.agents/roles/A3.md) |
+| A4 | Antigravity CLI | [A4.md](.agents/roles/A4.md) |
+| A5 | Codex CLI hoặc Claude Code, tùy công cụ viết mã | [A5.md](.agents/roles/A5.md) |
+
+Phương án điều phối đang áp dụng: Phương án 3 – Claude (A1) lập kế hoạch, Codex (A3) thực thi, Claude Code (A5) rà soát cuối khi mã do Codex viết.
+
+Mở phiên agent bằng: Đọc `.agents/roles/A<n>.md` và AGENTS.md rồi làm việc sau: …
+
+Agent không gộp Pull Request; mỗi commit ghi dòng `Agent: <công cụ>/<mô hình>`; REVIEW.md mở đầu bằng dòng PHÁN QUYẾT và dòng Người viết | Người rà soát | Commit.
+
 ## Lệnh thường dùng
 
 ### Kiểm tra cú pháp
