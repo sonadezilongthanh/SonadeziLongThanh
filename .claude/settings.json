@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(git push origin main:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push --force:*)",
+      "Bash(git merge:*)",
+      "Bash(git rebase:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(gh pr merge:*)",
+      "Bash(clasp push:*)",
+      "Bash(clasp deploy:*)",
+      "Bash(clasp create-deployment:*)",
+      "Bash(clasp redeploy:*)",
+      "Bash(clasp update-deployment:*)",
+      "Bash(clasp undeploy:*)",
+      "Bash(clasp version:*)",
+      "Bash(clasp run:*)",
+      "Bash(clasp login:*)",
+      "Bash(rm -rf:*)"
+    ]
+  }
+}
